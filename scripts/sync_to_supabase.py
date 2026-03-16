@@ -156,6 +156,7 @@ def sync_meta_ads(gc: gspread.Client, sb: Client, min_date: str | None):
     }
 
     rows = []
+    daily_agg = {}  # key: "date_brand" -> aggregated values
     for tab_name, brand in brand_tabs.items():
         try:
             ws = sheet.worksheet(tab_name)
@@ -171,25 +172,40 @@ def sync_meta_ads(gc: gspread.Client, sb: Client, min_date: str | None):
             if min_date and date < min_date:
                 continue
 
-            spend = safe_num(rec.get("지출 금액", rec.get("spend", rec.get("비용", 0))))
-            impressions = safe_int(rec.get("노출", rec.get("impressions", 0)))
-            clicks = safe_int(rec.get("클릭", rec.get("clicks", rec.get("링크 클릭", 0))))
-            conversions = safe_int(rec.get("전환", rec.get("conversions", rec.get("구매", 0))))
+            spend = safe_num(rec.get("지출액", rec.get("지출 금액", rec.get("spend", rec.get("비용", 0)))))
+            impressions = safe_int(rec.get("노출수", rec.get("노출", rec.get("impressions", 0))))
+            clicks = safe_int(rec.get("클릭수", rec.get("클릭", rec.get("clicks", rec.get("링크 클릭", 0)))))
+            conversions = safe_int(rec.get("구매수", rec.get("전환", rec.get("conversions", rec.get("구매", 0)))))
             conv_value = safe_num(rec.get("전환값", rec.get("conversion_value", rec.get("구매 전환 값", 0))))
 
-            rows.append({
-                "date": date,
-                "brand": brand,
-                "channel": "meta",
-                "spend": spend,
-                "impressions": impressions,
-                "clicks": clicks,
-                "conversions": conversions,
-                "conversion_value": conv_value,
-                "roas": conv_value / spend if spend > 0 else 0,
-                "ctr": (clicks / impressions * 100) if impressions > 0 else 0,
-                "cpc": spend / clicks if clicks > 0 else 0,
-            })
+            key = f"{date}_{brand}"
+            if key not in daily_agg:
+                daily_agg[key] = {"date": date, "brand": brand, "spend": 0, "impressions": 0, "clicks": 0, "conversions": 0, "conversion_value": 0}
+            daily_agg[key]["spend"] += spend
+            daily_agg[key]["impressions"] += impressions
+            daily_agg[key]["clicks"] += clicks
+            daily_agg[key]["conversions"] += conversions
+            daily_agg[key]["conversion_value"] += conv_value
+
+    # Build rows from aggregated daily data
+    for agg in daily_agg.values():
+        sp = agg["spend"]
+        imp = agg["impressions"]
+        cl = agg["clicks"]
+        cv = agg["conversion_value"]
+        rows.append({
+            "date": agg["date"],
+            "brand": agg["brand"],
+            "channel": "meta",
+            "spend": sp,
+            "impressions": imp,
+            "clicks": cl,
+            "conversions": agg["conversions"],
+            "conversion_value": cv,
+            "roas": cv / sp if sp > 0 else 0,
+            "ctr": (cl / imp * 100) if imp > 0 else 0,
+            "cpc": sp / cl if cl > 0 else 0,
+        })
 
     upsert_batch(sb, "daily_ad_spend", rows)
 

@@ -8,7 +8,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
+  Cell,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompact } from "@/lib/utils";
@@ -21,103 +21,159 @@ interface ChannelData {
 
 interface ChannelChartProps {
   data: ChannelData[];
+  mode?: "spend" | "roas";
 }
 
 const CHANNEL_LABELS: Record<string, string> = {
-  meta: "메타",
+  meta: "Meta",
   naver_search: "네이버검색",
   naver_shopping: "네이버쇼핑",
   google_search: "구글검색",
+  "ga4_Performance Max": "P-Max",
+  "ga4_Search": "Google(GA4)",
+  coupang: "쿠팡광고",
   gdn: "GDN",
   gfa: "GFA",
   coupang_ads: "쿠팡광고",
   influencer: "인플루언서",
+  smartstore: "스마트스토어",
+  cafe24: "카페24",
 };
 
-const COLORS = [
-  "#6366f1",
-  "#f97316",
-  "#22c55e",
-  "#eab308",
-  "#ec4899",
-  "#8b5cf6",
-  "#14b8a6",
-  "#f43f5e",
+const CHANNEL_COLORS: Record<string, string> = {
+  meta: "#3b82f6",
+  naver_search: "#22c55e",
+  naver_shopping: "#10b981",
+  google_search: "#ef4444",
+  "ga4_Performance Max": "#eab308",
+  "ga4_Search": "#ef4444",
+  coupang: "#f97316",
+  coupang_ads: "#f97316",
+  gdn: "#f43f5e",
+  gfa: "#14b8a6",
+  influencer: "#ec4899",
+  smartstore: "#14b8a6",
+  cafe24: "#8b5cf6",
+};
+
+const FALLBACK_COLORS = [
+  "#6366f1", "#f97316", "#22c55e", "#eab308", "#ec4899",
+  "#8b5cf6", "#14b8a6", "#f43f5e",
 ];
 
-export default function ChannelChart({ data }: ChannelChartProps) {
+function getChannelColor(channel: string, index: number): string {
+  return CHANNEL_COLORS[channel] || FALLBACK_COLORS[index % FALLBACK_COLORS.length];
+}
+
+export default function ChannelChart({ data, mode = "spend" }: ChannelChartProps) {
+  const isSpend = mode === "spend";
+
   const chartData = data
     .map((d) => ({
       ...d,
       label: CHANNEL_LABELS[d.channel] || d.channel,
     }))
-    .sort((a, b) => b.spend - a.spend);
+    .sort((a, b) => (isSpend ? b.spend - a.spend : b.roas - a.roas));
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>채널별 광고비 & ROAS</CardTitle>
+        <CardTitle>{isSpend ? "💰 채널별 광고비" : "📈 채널별 ROAS"}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-              <XAxis
-                type="number"
-                tick={{ fill: "#888", fontSize: 12 }}
-                tickFormatter={(v) => formatCompact(v)}
-              />
-              <YAxis
-                type="category"
-                dataKey="label"
-                width={90}
-                tick={{ fill: "#888", fontSize: 12 }}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#18181b",
-                  border: "1px solid #333",
-                  borderRadius: 8,
-                }}
-                labelStyle={{ color: "#aaa" }}
-                formatter={(value: any, name: any) => [
-                  name === "광고비"
-                    ? `₩${formatCompact(value)}`
-                    : `${value.toFixed(2)}x`,
-                  name,
-                ]}
-              />
-              <Legend
-                wrapperStyle={{ color: "#aaa", fontSize: 13, paddingTop: 8 }}
-              />
-              <Bar
-                dataKey="spend"
-                name="광고비"
-                fill="#6366f1"
-                radius={[0, 4, 4, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        {/* ROAS tags */}
-        <div className="flex flex-wrap gap-2 mt-4">
-          {chartData.map((ch, i) => (
-            <div
-              key={ch.channel}
-              className="flex items-center gap-2 rounded-full px-3 py-1 text-xs border border-zinc-700"
-            >
-              <span
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: COLORS[i % COLORS.length] }}
-              />
-              <span className="text-zinc-300">{ch.label}</span>
-              <span className="font-semibold text-zinc-100">
-                ROAS {ch.roas.toFixed(2)}x
-              </span>
+        {isSpend ? (
+          /* 광고비 horizontal bar chart */
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                <XAxis
+                  type="number"
+                  tick={{ fill: "#888", fontSize: 12 }}
+                  tickFormatter={(v) => formatCompact(v)}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="label"
+                  width={90}
+                  tick={{ fill: "#888", fontSize: 12 }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#18181b",
+                    border: "1px solid #333",
+                    borderRadius: 8,
+                  }}
+                  labelStyle={{ color: "#aaa" }}
+                  formatter={(value: any) => [`₩${formatCompact(value)}`, "광고비"]}
+                />
+                <Bar dataKey="spend" name="광고비" radius={[0, 4, 4, 0]}>
+                  {chartData.map((d, i) => (
+                    <Cell key={d.channel} fill={getChannelColor(d.channel, i)} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          /* ROAS - large prominent display */
+          <div className="space-y-4">
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fill: "#888", fontSize: 11 }}
+                    angle={-20}
+                    textAnchor="end"
+                    height={50}
+                  />
+                  <YAxis
+                    tick={{ fill: "#888", fontSize: 12 }}
+                    tickFormatter={(v) => `${v.toFixed(1)}x`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#18181b",
+                      border: "1px solid #333",
+                      borderRadius: 8,
+                    }}
+                    formatter={(value: any) => [`${Number(value).toFixed(2)}x`, "ROAS"]}
+                  />
+                  <Bar dataKey="roas" name="ROAS" radius={[6, 6, 0, 0]}>
+                    {chartData.map((d, i) => (
+                      <Cell
+                        key={d.channel}
+                        fill={getChannelColor(d.channel, i)}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          ))}
-        </div>
+            {/* Large ROAS tags */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {chartData.map((ch, i) => (
+                <div
+                  key={ch.channel}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 bg-zinc-800/50 border border-zinc-700/50"
+                >
+                  <span
+                    className="w-3 h-3 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: getChannelColor(ch.channel, i) }}
+                  />
+                  <div className="min-w-0">
+                    <span className="text-xs text-zinc-400 block truncate">{ch.label}</span>
+                    <span className={`text-lg font-bold ${ch.roas >= 3 ? "text-green-400" : ch.roas >= 1.5 ? "text-yellow-400" : "text-red-400"}`}>
+                      {ch.roas.toFixed(2)}x
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

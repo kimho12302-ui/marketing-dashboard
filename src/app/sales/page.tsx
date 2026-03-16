@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import type { DashboardFilters } from "@/lib/types";
 import Filters from "@/components/filters";
 import PageHeader from "@/components/page-header";
@@ -13,13 +13,13 @@ import {
   ScatterChart, Scatter, ZAxis, Legend, ReferenceLine,
 } from "recharts";
 
-const COLORS = ["#6366f1", "#f97316", "#22c55e", "#eab308", "#ec4899", "#14b8a6", "#f43f5e", "#8b5cf6"];
-const CHANNEL_LABELS: Record<string, string> = {
-  카페24: "카페24", 스마트스토어: "스마트스토어", 쿠팡: "쿠팡", 에이블리: "에이블리", 펫프렌즈: "펫프렌즈", 피피: "피피",
+const CHANNEL_COLORS: Record<string, string> = {
+  카페24: "#8b5cf6", 스마트스토어: "#14b8a6", 쿠팡: "#f97316",
+  에이블리: "#ec4899", 펫프렌즈: "#22c55e", 피피: "#6366f1",
 };
-const CATEGORY_LABELS: Record<string, string> = {
-  간식: "간식 (너티)", 사료: "사료", 영양제: "영양제", 검사키트: "아이언펫",
-};
+const BRAND_COLORS: Record<string, string> = { "너티": "#6366f1", "아이언펫": "#22c55e", "사입": "#f97316", "밸런스랩": "#ec4899" };
+const FALLBACK_COLORS = ["#6366f1", "#f97316", "#22c55e", "#eab308", "#ec4899", "#14b8a6", "#f43f5e", "#8b5cf6", "#3b82f6", "#10b981"];
+const TREND_COLORS = ["#3b82f6", "#22c55e", "#f97316", "#ec4899", "#eab308", "#8b5cf6", "#14b8a6", "#ef4444", "#6366f1", "#10b981"];
 
 function getDefaultDates() {
   const to = new Date(); const from = new Date(); from.setDate(from.getDate() - 30);
@@ -28,7 +28,6 @@ function getDefaultDates() {
 
 interface ProductRow { product: string; revenue: number; quantity: number; buyers: number; }
 
-// Northbeam-style 4-quadrant scatter data
 type QuadrantFilter = "all" | "product" | "channel" | "campaign";
 
 const SCATTER_DATA = [
@@ -50,10 +49,10 @@ const SCATTER_DATA = [
 ];
 
 function getQuadrantColor(cacIndex: number, roasIndex: number): string {
-  if (cacIndex <= 50 && roasIndex > 50) return "#22c55e"; // TopLeft: low CAC, high ROAS = 🟢
-  if (cacIndex > 50 && roasIndex > 50) return "#eab308";  // TopRight: high CAC, high ROAS = 🟡
-  if (cacIndex <= 50 && roasIndex <= 50) return "#3b82f6"; // BottomLeft: low CAC, low ROAS = 🔵
-  return "#ef4444"; // BottomRight: high CAC, low ROAS = 🔴
+  if (cacIndex <= 50 && roasIndex > 50) return "#22c55e";
+  if (cacIndex > 50 && roasIndex > 50) return "#eab308";
+  if (cacIndex <= 50 && roasIndex <= 50) return "#3b82f6";
+  return "#ef4444";
 }
 
 export default function SalesPage() {
@@ -62,7 +61,7 @@ export default function SalesPage() {
     period: "daily", brand: "all", from: dates.from, to: dates.to,
   });
   const [channelPie, setChannelPie] = useState<{ name: string; value: number }[]>([]);
-  const [categoryPie, setCategoryPie] = useState<{ name: string; value: number }[]>([]);
+  const [brandPie, setBrandPie] = useState<{ name: string; value: number }[]>([]);
   const [channelTrend, setChannelTrend] = useState<Record<string, any>[]>([]);
   const [topProducts, setTopProducts] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,13 +77,34 @@ export default function SalesPage() {
       if (!res.ok) throw new Error("fetch failed");
       const data = await res.json();
       setChannelPie(data.channelPie || []);
-      setCategoryPie(data.categoryPie || []);
+      setBrandPie(data.brandPie || []);
       setChannelTrend(data.channelTrend || []);
       setTopProducts(data.topProducts || []);
     } catch { /* ignore */ } finally { setLoading(false); }
   }, [filters]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Derive dynamic channel keys from channelTrend data
+  const trendChannels = useMemo(() => {
+    if (channelTrend.length === 0) return [];
+    const keys = new Set<string>();
+    for (const row of channelTrend) {
+      for (const key of Object.keys(row)) {
+        if (key !== "date") keys.add(key);
+      }
+    }
+    return Array.from(keys);
+  }, [channelTrend]);
+
+  // Ensure all 4 brands in brandPie
+  const fullBrandPie = useMemo(() => {
+    const allBrands = ["너티", "아이언펫", "사입", "밸런스랩"];
+    return allBrands.map(name => {
+      const found = brandPie.find(b => b.name === name);
+      return found || { name, value: 0 };
+    });
+  }, [brandPie]);
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -98,7 +118,7 @@ export default function SalesPage() {
           </div>
         ) : (
           <>
-            {/* Pie Charts */}
+            {/* Pie Charts: Channel + Brand (replaces Category) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader><CardTitle>채널별 매출</CardTitle></CardHeader>
@@ -107,7 +127,7 @@ export default function SalesPage() {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie data={channelPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                          {channelPie.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                          {channelPie.map((entry, i) => <Cell key={i} fill={CHANNEL_COLORS[entry.name] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]} />)}
                         </Pie>
                         <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
                       </PieChart>
@@ -116,27 +136,35 @@ export default function SalesPage() {
                 </CardContent>
               </Card>
 
+              {/* 브랜드별 매출 (replaces 카테고리별) */}
               <Card>
-                <CardHeader><CardTitle>카테고리별 매출</CardTitle></CardHeader>
+                <CardHeader><CardTitle>브랜드별 매출</CardTitle></CardHeader>
                 <CardContent>
                   <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={categoryPie}>
+                      <BarChart data={fullBrandPie} layout="vertical">
                         <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                        <XAxis dataKey="name" tick={{ fill: "#888", fontSize: 12 }} />
-                        <YAxis tick={{ fill: "#888", fontSize: 12 }} tickFormatter={(v: any) => formatCompact(v)} />
+                        <XAxis type="number" tick={{ fill: "#888", fontSize: 12 }} tickFormatter={(v: any) => formatCompact(v)} />
+                        <YAxis type="category" dataKey="name" width={70} tick={{ fill: "#aaa", fontSize: 12 }} />
                         <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
-                        <Bar dataKey="value" fill="#6366f1" radius={[6, 6, 0, 0]}>
-                          {categoryPie.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                        <Bar dataKey="value" radius={[0, 6, 6, 0]}>
+                          {fullBrandPie.map((entry, i) => (
+                            <Cell key={i} fill={BRAND_COLORS[entry.name] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]} />
+                          ))}
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
+                  {fullBrandPie.filter(b => b.value === 0).map(b => (
+                    <p key={b.name} className="text-xs text-zinc-500 mt-1">
+                      {b.name}: ₩0 — <span className="text-zinc-600 italic">데이터 없음</span>
+                    </p>
+                  ))}
                 </CardContent>
               </Card>
             </div>
 
-            {/* Channel Trend */}
+            {/* Channel Trend - dynamic channels */}
             <Card>
               <CardHeader><CardTitle>채널별 매출 트렌드</CardTitle></CardHeader>
               <CardContent>
@@ -147,8 +175,9 @@ export default function SalesPage() {
                       <XAxis dataKey="date" tick={{ fill: "#888", fontSize: 12 }} tickFormatter={(v: string) => v.slice(5)} />
                       <YAxis tick={{ fill: "#888", fontSize: 12 }} tickFormatter={(v: any) => formatCompact(v)} />
                       <Tooltip contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
-                      {Object.keys(CHANNEL_LABELS).map((ch, i) => (
-                        <Line key={ch} type="monotone" dataKey={ch} name={ch} stroke={COLORS[i]} dot={false} strokeWidth={2} />
+                      <Legend />
+                      {trendChannels.map((ch, i) => (
+                        <Line key={ch} type="monotone" dataKey={ch} name={ch} stroke={CHANNEL_COLORS[ch] || TREND_COLORS[i % TREND_COLORS.length]} dot={false} strokeWidth={2} />
                       ))}
                     </LineChart>
                   </ResponsiveContainer>
@@ -156,7 +185,7 @@ export default function SalesPage() {
               </CardContent>
             </Card>
 
-            {/* Northbeam-style 4-Quadrant Scatter */}
+            {/* CAC vs ROAS 4-Quadrant Scatter */}
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -211,42 +240,92 @@ export default function SalesPage() {
                     </ScatterChart>
                   </ResponsiveContainer>
                 </div>
+                {/* Legend */}
                 <div className="flex items-center justify-center gap-4 mt-2 text-[10px] text-zinc-500">
                   <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" /> Low CAC + High ROAS</span>
                   <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500" /> High CAC + High ROAS</span>
                   <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" /> Low CAC + Low ROAS</span>
                   <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> High CAC + Low ROAS</span>
                 </div>
+                {/* Quadrant explanation text */}
+                <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                  <div className="bg-green-950/20 border border-green-800/30 rounded-lg p-3">
+                    <p className="font-semibold text-green-400 mb-1">🟢 좌상단: 최적 (Low CAC + High ROAS)</p>
+                    <p className="text-zinc-400">고객 획득 비용이 낮고 수익률이 높은 최고 효율 영역. 예산 확대를 권장합니다.</p>
+                  </div>
+                  <div className="bg-yellow-950/20 border border-yellow-800/30 rounded-lg p-3">
+                    <p className="font-semibold text-yellow-400 mb-1">🟡 우상단: 성장 (High CAC + High ROAS)</p>
+                    <p className="text-zinc-400">수익률은 좋지만 획득 비용이 높습니다. CAC를 낮출 수 있는 최적화 여지가 있습니다.</p>
+                  </div>
+                  <div className="bg-blue-950/20 border border-blue-800/30 rounded-lg p-3">
+                    <p className="font-semibold text-blue-400 mb-1">🔵 좌하단: 관찰 (Low CAC + Low ROAS)</p>
+                    <p className="text-zinc-400">비용은 낮지만 수익도 낮습니다. 전환율 개선이나 타겟 최적화가 필요합니다.</p>
+                  </div>
+                  <div className="bg-red-950/20 border border-red-800/30 rounded-lg p-3">
+                    <p className="font-semibold text-red-400 mb-1">🔴 우하단: 위험 (High CAC + Low ROAS)</p>
+                    <p className="text-zinc-400">비용 대비 효율이 가장 나쁜 영역. 예산 축소 또는 전략 재검토가 시급합니다.</p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
-            {/* Top 10 Products */}
+            {/* Top 10 Products with horizontal bar chart */}
             <Card>
               <CardHeader><CardTitle>Top 10 상품</CardTitle></CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-zinc-700">
-                        <th className="text-left py-3 px-2 text-zinc-400">#</th>
-                        <th className="text-left py-3 px-2 text-zinc-400">상품명</th>
-                        <th className="text-right py-3 px-2 text-zinc-400">매출</th>
-                        <th className="text-right py-3 px-2 text-zinc-400">판매량</th>
-                        <th className="text-right py-3 px-2 text-zinc-400">구매자수</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {topProducts.map((row, i) => (
-                        <tr key={row.product} className="border-b border-zinc-800 hover:bg-zinc-800/50">
-                          <td className="py-2.5 px-2 text-zinc-500">{i + 1}</td>
-                          <td className="py-2.5 px-2 text-zinc-200">{row.product}</td>
-                          <td className="py-2.5 px-2 text-right text-zinc-100 font-medium">₩{formatCompact(row.revenue)}</td>
-                          <td className="py-2.5 px-2 text-right text-zinc-300">{row.quantity.toLocaleString()}</td>
-                          <td className="py-2.5 px-2 text-right text-zinc-300">{row.buyers.toLocaleString()}</td>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-zinc-700">
+                          <th className="text-left py-3 px-2 text-zinc-400">#</th>
+                          <th className="text-left py-3 px-2 text-zinc-400">상품명</th>
+                          <th className="text-right py-3 px-2 text-zinc-400">매출</th>
+                          <th className="text-right py-3 px-2 text-zinc-400">판매량</th>
+                          <th className="text-right py-3 px-2 text-zinc-400">구매자수</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {topProducts.map((row, i) => (
+                          <tr key={row.product} className="border-b border-zinc-800 hover:bg-zinc-800/50">
+                            <td className="py-2.5 px-2 text-zinc-500">{i + 1}</td>
+                            <td className="py-2.5 px-2 text-zinc-200 max-w-[200px] truncate">{row.product}</td>
+                            <td className="py-2.5 px-2 text-right text-zinc-100 font-medium">₩{formatCompact(row.revenue)}</td>
+                            <td className="py-2.5 px-2 text-right text-zinc-300">{row.quantity.toLocaleString()}</td>
+                            <td className="py-2.5 px-2 text-right text-zinc-300">{row.buyers.toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {/* Horizontal bar chart */}
+                  <div className="h-[400px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={topProducts.map((p, i) => ({
+                          name: p.product.length > 15 ? p.product.slice(0, 15) + "…" : p.product,
+                          revenue: p.revenue,
+                          idx: i,
+                        }))}
+                        layout="vertical"
+                        margin={{ left: 10, right: 20 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                        <XAxis type="number" tick={{ fill: "#888", fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
+                        <YAxis type="category" dataKey="name" width={120} tick={{ fill: "#aaa", fontSize: 11 }} />
+                        <Tooltip
+                          formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]}
+                          contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }}
+                        />
+                        <Bar dataKey="revenue" radius={[0, 6, 6, 0]}>
+                          {topProducts.map((_, i) => (
+                            <Cell key={i} fill={FALLBACK_COLORS[i % FALLBACK_COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               </CardContent>
             </Card>

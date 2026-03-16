@@ -22,14 +22,22 @@ export async function GET(request: NextRequest) {
     }
     const channelPie = Array.from(chMap.entries()).map(([k, v]) => ({ name: k, value: v }));
 
-    // Category pie
+    // Category pie (kept for backwards compat)
     const catMap = new Map<string, number>();
     for (const r of rows) {
       catMap.set(r.category, (catMap.get(r.category) || 0) + Number(r.revenue));
     }
     const categoryPie = Array.from(catMap.entries()).map(([k, v]) => ({ name: k, value: v }));
 
-    // Channel trend by date (daily)
+    // Brand pie - aggregate revenue by brand
+    const brandLabels: Record<string, string> = { nutty: "너티", ironpet: "아이언펫", saip: "사입", balancelab: "밸런스랩" };
+    const brandMap = new Map<string, number>();
+    for (const r of rows) {
+      brandMap.set(r.brand, (brandMap.get(r.brand) || 0) + Number(r.revenue));
+    }
+    const brandPie = Array.from(brandMap.entries()).map(([k, v]) => ({ name: brandLabels[k] || k, value: v }));
+
+    // Channel trend by date - use actual channel names from data (dynamic)
     const trendMap = new Map<string, Record<string, number>>();
     for (const r of rows) {
       const existing = trendMap.get(r.date) || {};
@@ -53,14 +61,6 @@ export async function GET(request: NextRequest) {
       .map(([product, d]) => ({ product, ...d }))
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10);
-
-    // Brand breakdown
-    const brandMap = new Map<string, number>();
-    for (const r of rows) {
-      brandMap.set(r.brand, (brandMap.get(r.brand) || 0) + Number(r.revenue));
-    }
-    const brandLabels: Record<string, string> = { nutty: "너티", ironpet: "아이언펫", saip: "사입", balancelab: "밸런스랩" };
-    const brandPie = Array.from(brandMap.entries()).map(([k, v]) => ({ name: brandLabels[k] || k, value: v }));
 
     return NextResponse.json({ channelPie, categoryPie, channelTrend, topProducts, brandPie });
   } catch (error) {

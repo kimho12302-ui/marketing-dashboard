@@ -8,12 +8,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompact } from "@/lib/utils";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  AreaChart, Area, Legend,
+  AreaChart, Area, Legend, Cell,
 } from "recharts";
 
-const COLORS = ["#6366f1", "#f97316", "#22c55e", "#eab308", "#ec4899"];
+const CHANNEL_COLORS: Record<string, string> = {
+  meta: "#3b82f6",
+  naver_search: "#22c55e",
+  naver_shopping: "#10b981",
+  google_search: "#ef4444",
+  "ga4_Performance Max": "#eab308",
+  "ga4_Search": "#ef4444",
+  coupang: "#f97316",
+  gdn: "#f43f5e",
+  gfa: "#14b8a6",
+};
+const FALLBACK_COLORS = ["#6366f1", "#f97316", "#22c55e", "#eab308", "#ec4899", "#8b5cf6", "#14b8a6", "#f43f5e"];
 
-// Creative Analytics — 실데이터 연결 전 더미
 const CREATIVES = [
   { name: "[더미] 사운드 냠단호박 릴스", ctr: 2.1, cpc: 280, roas: 4.2, spend: 1_850_000, revenue: 7_770_000 },
   { name: "[더미] 바삭닭가슴살 ASMR", ctr: 1.8, cpc: 320, roas: 3.8, spend: 1_600_000, revenue: 6_080_000 },
@@ -36,6 +46,7 @@ function getPerformanceBg(roas: number): string {
   if (roas >= 2.0) return "border-yellow-500/30 bg-yellow-950/10";
   return "border-red-500/30 bg-red-950/10";
 }
+
 const CH_LABELS: Record<string, string> = {
   meta: "Meta", naver_search: "네이버검색", naver_shopping: "네이버쇼핑",
   google_search: "구글검색", "ga4_Performance Max": "P-Max", "ga4_Search": "Google(GA4)",
@@ -84,7 +95,7 @@ export default function AdsPage() {
           </div>
         ) : (
           <>
-            {/* CAC Card */}
+            {/* CAC Card with explanation */}
             <Card>
               <CardContent className="pt-4">
                 <div className="flex items-center gap-4">
@@ -92,11 +103,15 @@ export default function AdsPage() {
                     <p className="text-sm text-zinc-400">CAC (Customer Acquisition Cost)</p>
                     <p className="text-2xl font-bold">₩{formatCompact(cac)}</p>
                   </div>
+                  <div className="text-xs text-zinc-500 border-l border-zinc-800 pl-4">
+                    <p className="text-zinc-400 font-medium">CAC = 총 광고비 ÷ 총 구매수 (구매 기준)</p>
+                    <p className="mt-1">전체 광고비를 구매 전환수로 나눈 고객 1인당 획득 비용입니다.</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* ROAS by Channel */}
+            {/* ROAS by Channel - with diverse colors */}
             <Card>
               <CardHeader><CardTitle>채널별 ROAS 비교</CardTitle></CardHeader>
               <CardContent>
@@ -108,7 +123,11 @@ export default function AdsPage() {
                       <YAxis tick={{ fill: "#888", fontSize: 12 }} />
                       <Tooltip contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }}
                         formatter={(value: any) => [`${Number(value).toFixed(2)}x`, "ROAS"]} />
-                      <Bar dataKey="roas" fill="#6366f1" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="roas" radius={[6, 6, 0, 0]}>
+                        {channels.map((c, i) => (
+                          <Cell key={c.channel} fill={CHANNEL_COLORS[c.channel] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]} />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -136,7 +155,10 @@ export default function AdsPage() {
                     <tbody>
                       {channels.map((ch) => (
                         <tr key={ch.channel} className="border-b border-zinc-800 hover:bg-zinc-800/50">
-                          <td className="py-2.5 px-2 text-zinc-200">{CH_LABELS[ch.channel] || ch.channel}</td>
+                          <td className="py-2.5 px-2 text-zinc-200 flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: CHANNEL_COLORS[ch.channel] || "#888" }} />
+                            {CH_LABELS[ch.channel] || ch.channel}
+                          </td>
                           <td className="py-2.5 px-2 text-right">₩{formatCompact(ch.spend)}</td>
                           <td className="py-2.5 px-2 text-right">{ch.impressions.toLocaleString()}</td>
                           <td className="py-2.5 px-2 text-right">{ch.clicks.toLocaleString()}</td>
@@ -152,28 +174,54 @@ export default function AdsPage() {
               </CardContent>
             </Card>
 
-            {/* Spend Trend - Stacked Area */}
+            {/* Spend Trend - Improved with gradient fills and channel colors */}
             <Card>
               <CardHeader><CardTitle>광고비 트렌드 (채널별)</CardTitle></CardHeader>
               <CardContent>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={spendTrend}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                    <AreaChart data={spendTrend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <defs>
+                        {channels.map((ch, i) => {
+                          const color = CHANNEL_COLORS[ch.channel] || FALLBACK_COLORS[i % FALLBACK_COLORS.length];
+                          return (
+                            <linearGradient key={ch.channel} id={`grad-${ch.channel.replace(/\s/g, "_")}`} x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor={color} stopOpacity={0.4} />
+                              <stop offset="95%" stopColor={color} stopOpacity={0.05} />
+                            </linearGradient>
+                          );
+                        })}
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                       <XAxis dataKey="date" tick={{ fill: "#888", fontSize: 12 }} tickFormatter={(v: string) => v.slice(5)} />
                       <YAxis tick={{ fill: "#888", fontSize: 12 }} tickFormatter={(v: any) => formatCompact(v)} />
-                      <Tooltip contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
-                      <Legend />
-                      {channels.map((ch, i) => (
-                        <Area key={ch.channel} type="monotone" dataKey={ch.channel} name={CH_LABELS[ch.channel] || ch.channel} stackId="1" fill={COLORS[i % COLORS.length]} stroke={COLORS[i % COLORS.length]} fillOpacity={0.6} />
-                      ))}
+                      <Tooltip
+                        contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }}
+                        formatter={(value: any, name: any) => [`₩${formatCompact(value)}`, name]}
+                      />
+                      <Legend wrapperStyle={{ paddingTop: 8 }} />
+                      {channels.map((ch, i) => {
+                        const color = CHANNEL_COLORS[ch.channel] || FALLBACK_COLORS[i % FALLBACK_COLORS.length];
+                        return (
+                          <Area
+                            key={ch.channel}
+                            type="monotone"
+                            dataKey={ch.channel}
+                            name={CH_LABELS[ch.channel] || ch.channel}
+                            stackId="1"
+                            fill={`url(#grad-${ch.channel.replace(/\s/g, "_")})`}
+                            stroke={color}
+                            strokeWidth={1.5}
+                          />
+                        );
+                      })}
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Gross Margin ROAS */}
+            {/* Gross Margin ROAS (kept here too for ads-specific context) */}
             <Card>
               <CardHeader><CardTitle>📊 Gross Margin ROAS</CardTitle></CardHeader>
               <CardContent>
@@ -183,7 +231,7 @@ export default function AdsPage() {
                   const cogs = totalRevenue * 0.4;
                   const grossMarginRoas = totalSpend > 0 ? (totalRevenue - cogs) / totalSpend : 0;
                   return (
-                    <div className="flex items-center gap-6">
+                    <div className="flex flex-wrap items-center gap-6">
                       <div>
                         <p className="text-sm text-zinc-400">GM-ROAS (매출원가 40% 가정)</p>
                         <p className={`text-3xl font-bold ${grossMarginRoas >= 2.0 ? "text-green-400" : grossMarginRoas >= 1.0 ? "text-yellow-400" : "text-red-400"}`}>
