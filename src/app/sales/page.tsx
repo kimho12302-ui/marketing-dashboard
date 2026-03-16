@@ -62,6 +62,7 @@ export default function SalesPage() {
   });
   const [channelPie, setChannelPie] = useState<{ name: string; value: number }[]>([]);
   const [brandPie, setBrandPie] = useState<{ name: string; value: number }[]>([]);
+  const [categoryPie, setCategoryPie] = useState<{ name: string; value: number }[]>([]);
   const [channelTrend, setChannelTrend] = useState<Record<string, any>[]>([]);
   const [topProducts, setTopProducts] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,6 +79,7 @@ export default function SalesPage() {
       const data = await res.json();
       setChannelPie(data.channelPie || []);
       setBrandPie(data.brandPie || []);
+      setCategoryPie(data.categoryPie || []);
       setChannelTrend(data.channelTrend || []);
       setTopProducts(data.topProducts || []);
     } catch { /* ignore */ } finally { setLoading(false); }
@@ -118,15 +120,16 @@ export default function SalesPage() {
           </div>
         ) : (
           <>
-            {/* Pie Charts: Channel + Brand (replaces Category) */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Row 1: Channel + Brand + Category */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* 채널별 매출 */}
               <Card>
-                <CardHeader><CardTitle>채널별 매출</CardTitle></CardHeader>
+                <CardHeader><CardTitle>📦 채널별 매출</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="h-72">
+                  <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={channelPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                        <Pie data={channelPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={85} label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={{ stroke: "#555" }}>
                           {channelPie.map((entry, i) => <Cell key={i} fill={CHANNEL_COLORS[entry.name] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]} />)}
                         </Pie>
                         <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
@@ -136,16 +139,16 @@ export default function SalesPage() {
                 </CardContent>
               </Card>
 
-              {/* 브랜드별 매출 (replaces 카테고리별) */}
+              {/* 브랜드별 매출 */}
               <Card>
-                <CardHeader><CardTitle>브랜드별 매출</CardTitle></CardHeader>
+                <CardHeader><CardTitle>🏷️ 브랜드별 매출</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="h-72">
+                  <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={fullBrandPie} layout="vertical">
                         <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                        <XAxis type="number" tick={{ fill: "#888", fontSize: 12 }} tickFormatter={(v: any) => formatCompact(v)} />
-                        <YAxis type="category" dataKey="name" width={70} tick={{ fill: "#aaa", fontSize: 12 }} />
+                        <XAxis type="number" tick={{ fill: "#888", fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
+                        <YAxis type="category" dataKey="name" width={65} tick={{ fill: "#aaa", fontSize: 11 }} />
                         <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
                         <Bar dataKey="value" radius={[0, 6, 6, 0]}>
                           {fullBrandPie.map((entry, i) => (
@@ -160,6 +163,24 @@ export default function SalesPage() {
                       {b.name}: ₩0 — <span className="text-zinc-600 italic">데이터 없음</span>
                     </p>
                   ))}
+                </CardContent>
+              </Card>
+
+              {/* 카테고리별 매출 */}
+              <Card>
+                <CardHeader><CardTitle>📋 카테고리별 매출</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={categoryPie} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={85} label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={{ stroke: "#555" }}>
+                          {categoryPie.map((_, i) => <Cell key={i} fill={["#f97316", "#8b5cf6", "#22c55e", "#ec4899", "#eab308", "#14b8a6"][i % 6]} />)}
+                        </Pie>
+                        <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  {categoryPie.length === 0 && <p className="text-xs text-zinc-500 text-center">카테고리 데이터 없음</p>}
                 </CardContent>
               </Card>
             </div>
