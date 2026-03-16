@@ -220,12 +220,26 @@ def sync_naver_sa(gc: gspread.Client, sb: Client, min_date: str | None):
         print(f"  ❌ 시트 열기 실패: {e}")
         return
 
-    rows = []
+    # Only read 캠페인_성과 tab (has daily campaign-level data)
+    target_tabs = ["캠페인_성과"]
+    # Also check Google campaign tab
     for ws in worksheets:
+        if ws.title.startswith("G_캠페인"):
+            target_tabs.append(ws.title)
+
+    rows = []
+    daily_agg = {}  # aggregate by date+brand+channel
+    for ws in worksheets:
+        if ws.title not in target_tabs:
+            continue
         try:
             records = ws.get_all_records()
         except Exception:
             continue
+
+        # Determine channel from tab name
+        is_google = ws.title.startswith("G_")
+        channel = "google_search" if is_google else "naver_search"
 
         for rec in records:
             date = parse_date(str(rec.get("날짜", rec.get("date", rec.get("일자", "")))))
@@ -234,36 +248,57 @@ def sync_naver_sa(gc: gspread.Client, sb: Client, min_date: str | None):
             if min_date and date < min_date:
                 continue
 
-            spend = safe_num(rec.get("비용", rec.get("spend", rec.get("광고비", 0))))
+            if is_google:
+                spend = safe_num(rec.get("cost", rec.get("비용", 0)))
+                impressions = safe_int(rec.get("impressions", rec.get("노출수", 0)))
+                clicks = safe_int(rec.get("clicks", rec.get("클릭수", 0)))
+                conversions = safe_int(rec.get("conversions", rec.get("전환수", 0)))
+                conv_value = safe_num(rec.get("conversion_value", rec.get("전환매출", 0)))
+            else:
+                spend = safe_num(rec.get("총비용", rec.get("비용", rec.get("spend", 0))))
+                impressions = safe_int(rec.get("노출수", rec.get("impressions", 0)))
+                clicks = safe_int(rec.get("클릭수", rec.get("clicks", 0)))
+                conversions = safe_int(rec.get("전환수", rec.get("conversions", 0)))
+                conv_value = safe_num(rec.get("전환매출", rec.get("전환값", 0)))
+
             if spend == 0:
                 continue
 
-            impressions = safe_int(rec.get("노출수", rec.get("impressions", 0)))
-            clicks = safe_int(rec.get("클릭수", rec.get("clicks", 0)))
-            conversions = safe_int(rec.get("전환수", rec.get("conversions", 0)))
-            conv_value = safe_num(rec.get("전환매출", rec.get("conversion_value", 0)))
-
-            # Determine brand from tab name or content
+            # Determine brand from campaign name or tab
             brand = "nutty"
-            tab_lower = ws.title.lower()
-            if "아이언펫" in tab_lower or "ironpet" in tab_lower:
+            campaign_name = str(rec.get("캠페인명", rec.get("campaign", "")))
+            if "아이언펫" in campaign_name or "[I]" in campaign_name:
                 brand = "ironpet"
-            elif "밸런스" in tab_lower or "balance" in tab_lower:
+            elif "밸런스" in campaign_name:
                 brand = "balancelab"
 
-            rows.append({
-                "date": date,
-                "brand": brand,
-                "channel": "naver_search",
-                "spend": spend,
-                "impressions": impressions,
-                "clicks": clicks,
-                "conversions": conversions,
-                "conversion_value": conv_value,
-                "roas": conv_value / spend if spend > 0 else 0,
-                "ctr": (clicks / impressions * 100) if impressions > 0 else 0,
-                "cpc": spend / clicks if clicks > 0 else 0,
-            })
+            key = f"{date}_{brand}_{channel}"
+            if key not in daily_agg:
+                daily_agg[key] = {"date": date, "brand": brand, "channel": channel, "spend": 0, "impressions": 0, "clicks": 0, "conversions": 0, "conversion_value": 0}
+            daily_agg[key]["spend"] += spend
+            daily_agg[key]["impressions"] += impressions
+            daily_agg[key]["clicks"] += clicks
+            daily_agg[key]["conversions"] += conversions
+            daily_agg[key]["conversion_value"] += conv_value
+
+    for agg in daily_agg.values():
+        sp = agg["spend"]
+        imp = agg["impressions"]
+        cl = agg["clicks"]
+        cv = agg["conversion_value"]
+        rows.append({
+            "date": agg["date"],
+            "brand": agg["brand"],
+            "channel": agg["channel"],
+            "spend": sp,
+            "impressions": imp,
+            "clicks": cl,
+            "conversions": agg["conversions"],
+            "conversion_value": cv,
+            "roas": cv / sp if sp > 0 else 0,
+            "ctr": (cl / imp * 100) if imp > 0 else 0,
+            "cpc": sp / cl if cl > 0 else 0,
+        })
 
     upsert_batch(sb, "daily_ad_spend", rows)
 
