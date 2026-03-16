@@ -3,6 +3,10 @@ on:
   push:
     branches: [master]
 
+env:
+  VERCEL_ORG_ID: team_pwM8l53dicCcgo4sXY0uuCte
+  VERCEL_PROJECT_ID: prj_cFKpbIwIYOTI91kAX2D4Fayd5Ci8
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -11,11 +15,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Install dependencies
+        run: npm ci
+      - name: Build Next.js
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://phcfydxgwkmjiogerqmm.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBoY2Z5ZHhnd2ttamlvZ2VycW1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1Njg4NjQsImV4cCI6MjA4OTE0NDg2NH0.M0ThTSK0kBvN71rccvzQpr3dQuL52oRs_Tj9MT7VWRg
       - name: Install Vercel CLI
         run: npm install -g vercel
-      - name: Pull Vercel Environment
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-      - name: Build
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-      - name: Deploy
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Deploy to Vercel
+        run: |
+          vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
+        env:
+          VERCEL_ORG_ID: team_pwM8l53dicCcgo4sXY0uuCte
+          VERCEL_PROJECT_ID: prj_cFKpbIwIYOTI91kAX2D4Fayd5Ci8
