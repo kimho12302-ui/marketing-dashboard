@@ -15,7 +15,7 @@ import {
 
 const COLORS = ["#6366f1", "#f97316", "#22c55e", "#eab308", "#ec4899", "#14b8a6", "#f43f5e", "#8b5cf6"];
 const CHANNEL_LABELS: Record<string, string> = {
-  cafe24: "카페24", smartstore: "스마트스토어", coupang: "쿠팡", ably: "에이블리",
+  카페24: "카페24", 스마트스토어: "스마트스토어", 쿠팡: "쿠팡", 에이블리: "에이블리", 펫프렌즈: "펫프렌즈", 피피: "피피",
 };
 const CATEGORY_LABELS: Record<string, string> = {
   간식: "간식 (너티)", 사료: "사료", 영양제: "영양제", 검사키트: "아이언펫",
@@ -148,7 +148,7 @@ export default function SalesPage() {
                       <YAxis tick={{ fill: "#888", fontSize: 12 }} tickFormatter={(v: any) => formatCompact(v)} />
                       <Tooltip contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
                       {Object.keys(CHANNEL_LABELS).map((ch, i) => (
-                        <Line key={ch} type="monotone" dataKey={ch} name={CHANNEL_LABELS[ch]} stroke={COLORS[i]} dot={false} strokeWidth={2} />
+                        <Line key={ch} type="monotone" dataKey={ch} name={ch} stroke={COLORS[i]} dot={false} strokeWidth={2} />
                       ))}
                     </LineChart>
                   </ResponsiveContainer>

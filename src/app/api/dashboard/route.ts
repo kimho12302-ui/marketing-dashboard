@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, data]) => ({ date, ...data }));
 
-    // Channel breakdown
+    // Channel breakdown (ad spend)
     const channelMap = new Map<string, { spend: number; revenue: number }>();
     for (const row of adSpend || []) {
       const ch = row.channel;
@@ -96,11 +96,54 @@ export async function GET(request: NextRequest) {
     }));
 
     // Brand revenue breakdown
-    const brandMap = new Map<string, number>();
+    const brandMap = new Map<string, { revenue: number; orders: number }>();
     for (const row of sales || []) {
-      brandMap.set(row.brand, (brandMap.get(row.brand) || 0) + Number(row.revenue));
+      const existing = brandMap.get(row.brand) || { revenue: 0, orders: 0 };
+      existing.revenue += Number(row.revenue);
+      existing.orders += Number(row.orders);
+      brandMap.set(row.brand, existing);
     }
-    const brandRevenue = Array.from(brandMap.entries()).map(([b, revenue]) => ({ brand: b, revenue }));
+    const brandRevenue = Array.from(brandMap.entries()).map(([b, d]) => ({ brand: b, revenue: d.revenue, orders: d.orders }));
+
+    // Funnel summary for overview
+    let funnelQuery = supabase.from("daily_funnel").select("*").gte("date", from).lte("date", to);
+    if (brand !== "all") funnelQuery = funnelQuery.eq("brand", brand);
+    const { data: funnelData } = await funnelQuery;
+    const funnelRows = funnelData || [];
+    const funnelSummary = {
+      impressions: funnelRows.reduce((s, r) => s + Number(r.impressions || 0), 0),
+      sessions: funnelRows.reduce((s, r) => s + Number(r.sessions || 0), 0),
+      cartAdds: funnelRows.reduce((s, r) => s + Number(r.cart_adds || 0), 0),
+      purchases: funnelRows.reduce((s, r) => s + Number(r.purchases || 0), 0),
+      repurchases: funnelRows.reduce((s, r) => s + Number(r.repurchases || 0), 0),
+    };
+    const convRate = funnelSummary.sessions > 0 ? (funnelSummary.purchases / funnelSummary.sessions) * 100 : 0;
+    const cartToOrderRate = funnelSummary.cartAdds > 0 ? (funnelSummary.purchases / funnelSummary.cartAdds) * 100 : 0;
+
+    // Top 5 products for overview
+    let prodQuery = supabase.from("product_sales").select("product,revenue,quantity").gte("date", from).lte("date", to);
+    if (brand !== "all") prodQuery = prodQuery.eq("brand", brand);
+    const { data: prodData } = await prodQuery;
+    const prodMap = new Map<string, { revenue: number; quantity: number }>();
+    for (const r of prodData || []) {
+      const existing = prodMap.get(r.product) || { revenue: 0, quantity: 0 };
+      existing.revenue += Number(r.revenue);
+      existing.quantity += Number(r.quantity);
+      prodMap.set(r.product, existing);
+    }
+    const topProducts = Array.from(prodMap.entries())
+      .map(([product, d]) => ({ product, ...d }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+
+    // Channel sales breakdown (from daily_sales)
+    const salesChannelMap = new Map<string, number>();
+    for (const row of sales || []) {
+      salesChannelMap.set(row.channel, (salesChannelMap.get(row.channel) || 0) + Number(row.revenue));
+    }
+    const salesByChannel = Array.from(salesChannelMap.entries())
+      .map(([channel, revenue]) => ({ channel, revenue }))
+      .sort((a, b) => b.revenue - a.revenue);
 
     return NextResponse.json({
       kpi: {
@@ -113,6 +156,8 @@ export async function GET(request: NextRequest) {
         aov, aovPrev: prevAov,
       },
       trend, channels, brandRevenue,
+      funnelSummary: { ...funnelSummary, convRate, cartToOrderRate },
+      topProducts, salesByChannel,
     });
   } catch (error) {
     console.error("Dashboard API error:", error);

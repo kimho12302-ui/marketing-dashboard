@@ -38,7 +38,8 @@ function getPerformanceBg(roas: number): string {
 }
 const CH_LABELS: Record<string, string> = {
   meta: "Meta", naver_search: "네이버검색", naver_shopping: "네이버쇼핑",
-  google_search: "구글검색", gdn: "GDN",
+  google_search: "구글검색", "ga4_Performance Max": "P-Max", "ga4_Search": "Google(GA4)",
+  coupang: "쿠팡광고", gdn: "GDN",
 };
 
 function getDefaultDates() {
@@ -163,8 +164,8 @@ export default function AdsPage() {
                       <YAxis tick={{ fill: "#888", fontSize: 12 }} tickFormatter={(v: any) => formatCompact(v)} />
                       <Tooltip contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
                       <Legend />
-                      {Object.keys(CH_LABELS).map((ch, i) => (
-                        <Area key={ch} type="monotone" dataKey={ch} name={CH_LABELS[ch]} stackId="1" fill={COLORS[i % COLORS.length]} stroke={COLORS[i % COLORS.length]} fillOpacity={0.6} />
+                      {channels.map((ch, i) => (
+                        <Area key={ch.channel} type="monotone" dataKey={ch.channel} name={CH_LABELS[ch.channel] || ch.channel} stackId="1" fill={COLORS[i % COLORS.length]} stroke={COLORS[i % COLORS.length]} fillOpacity={0.6} />
                       ))}
                     </AreaChart>
                   </ResponsiveContainer>

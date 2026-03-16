@@ -20,8 +20,7 @@ export async function GET(request: NextRequest) {
     for (const r of rows) {
       chMap.set(r.channel, (chMap.get(r.channel) || 0) + Number(r.revenue));
     }
-    const channelLabels: Record<string, string> = { cafe24: "카페24", smartstore: "스마트스토어", coupang: "쿠팡", ably: "에이블리" };
-    const channelPie = Array.from(chMap.entries()).map(([k, v]) => ({ name: channelLabels[k] || k, value: v }));
+    const channelPie = Array.from(chMap.entries()).map(([k, v]) => ({ name: k, value: v }));
 
     // Category pie
     const catMap = new Map<string, number>();
@@ -30,13 +29,12 @@ export async function GET(request: NextRequest) {
     }
     const categoryPie = Array.from(catMap.entries()).map(([k, v]) => ({ name: k, value: v }));
 
-    // Channel trend by week
+    // Channel trend by date (daily)
     const trendMap = new Map<string, Record<string, number>>();
     for (const r of rows) {
-      const weekKey = r.date.slice(0, 7) + "-" + String(Math.ceil(Number(r.date.slice(8, 10)) / 7)).padStart(2, "0");
-      const existing = trendMap.get(weekKey) || {};
+      const existing = trendMap.get(r.date) || {};
       existing[r.channel] = (existing[r.channel] || 0) + Number(r.revenue);
-      trendMap.set(weekKey, existing);
+      trendMap.set(r.date, existing);
     }
     const channelTrend = Array.from(trendMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
@@ -56,7 +54,15 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10);
 
-    return NextResponse.json({ channelPie, categoryPie, channelTrend, topProducts });
+    // Brand breakdown
+    const brandMap = new Map<string, number>();
+    for (const r of rows) {
+      brandMap.set(r.brand, (brandMap.get(r.brand) || 0) + Number(r.revenue));
+    }
+    const brandLabels: Record<string, string> = { nutty: "너티", ironpet: "아이언펫", saip: "사입", balancelab: "밸런스랩" };
+    const brandPie = Array.from(brandMap.entries()).map(([k, v]) => ({ name: brandLabels[k] || k, value: v }));
+
+    return NextResponse.json({ channelPie, categoryPie, channelTrend, topProducts, brandPie });
   } catch (error) {
     console.error("Product sales API error:", error);
     return NextResponse.json({ error: "Failed" }, { status: 500 });
