@@ -43,7 +43,7 @@ function getBenchmarkBadge(title: string, value: number): React.ReactNode {
 
 export default function KPICards({ data }: KPICardsProps) {
   // Calculate LTV:CAC
-  const ltv = (data.aov || 0) * 2.5; // Dummy LTV multiplier
+  const ltv = (data.aov || 0) * 2.5; // TODO: 실데이터 연결 필요
   const cac = data.orders > 0 ? data.adSpend / data.orders : 0;
   const ltvCacRatio = cac > 0 ? ltv / cac : 0;
 

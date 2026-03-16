@@ -13,16 +13,16 @@ import {
 
 const COLORS = ["#6366f1", "#f97316", "#22c55e", "#eab308", "#ec4899"];
 
-// Creative Analytics dummy data
+// Creative Analytics — 실데이터 연결 전 더미
 const CREATIVES = [
-  { name: "사운드 냠단호박 릴스", ctr: 2.1, cpc: 280, roas: 4.2, spend: 1_850_000, revenue: 7_770_000 },
-  { name: "바삭닭가슴살 ASMR", ctr: 1.8, cpc: 320, roas: 3.8, spend: 1_600_000, revenue: 6_080_000 },
-  { name: "하루루틴 캐러셀", ctr: 1.5, cpc: 450, roas: 2.9, spend: 2_100_000, revenue: 6_090_000 },
-  { name: "아이언펫 키트 소개", ctr: 0.9, cpc: 890, roas: 1.8, spend: 3_200_000, revenue: 5_760_000 },
-  { name: "반려묘 키트 리뷰", ctr: 0.7, cpc: 950, roas: 1.2, spend: 1_800_000, revenue: 2_160_000 },
-  { name: "너티 브랜드 스토리", ctr: 1.6, cpc: 380, roas: 3.2, spend: 1_200_000, revenue: 3_840_000 },
-  { name: "간식 비교 테스트", ctr: 2.4, cpc: 250, roas: 4.8, spend: 980_000, revenue: 4_704_000 },
-  { name: "영양제 번들 프로모", ctr: 1.1, cpc: 620, roas: 2.1, spend: 1_500_000, revenue: 3_150_000 },
+  { name: "[더미] 사운드 냠단호박 릴스", ctr: 2.1, cpc: 280, roas: 4.2, spend: 1_850_000, revenue: 7_770_000 },
+  { name: "[더미] 바삭닭가슴살 ASMR", ctr: 1.8, cpc: 320, roas: 3.8, spend: 1_600_000, revenue: 6_080_000 },
+  { name: "[더미] 하루루틴 캐러셀", ctr: 1.5, cpc: 450, roas: 2.9, spend: 2_100_000, revenue: 6_090_000 },
+  { name: "[더미] 아이언펫 키트 소개", ctr: 0.9, cpc: 890, roas: 1.8, spend: 3_200_000, revenue: 5_760_000 },
+  { name: "[더미] 반려묘 키트 리뷰", ctr: 0.7, cpc: 950, roas: 1.2, spend: 1_800_000, revenue: 2_160_000 },
+  { name: "[더미] 너티 브랜드 스토리", ctr: 1.6, cpc: 380, roas: 3.2, spend: 1_200_000, revenue: 3_840_000 },
+  { name: "[더미] 간식 비교 테스트", ctr: 2.4, cpc: 250, roas: 4.8, spend: 980_000, revenue: 4_704_000 },
+  { name: "[더미] 영양제 번들 프로모", ctr: 1.1, cpc: 620, roas: 2.1, spend: 1_500_000, revenue: 3_150_000 },
 ];
 
 function getPerformanceColor(value: number, thresholds: { good: number; mid: number }): string {
