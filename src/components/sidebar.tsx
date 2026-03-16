@@ -20,7 +20,6 @@ const NAV_ITEMS = [
   { href: "/ads", label: "Ads Performance", icon: Megaphone, emoji: "📢" },
   { href: "/funnel", label: "Funnel", icon: Filter, emoji: "🔄" },
   { href: "/keywords", label: "Keywords", icon: Search, emoji: "🔍" },
-  { href: "/saip", label: "사입", icon: Package, emoji: "📦" },
   { href: "/content", label: "Content", icon: FileText, emoji: "📝" },
   { href: "/insights", label: "Insights", icon: Lightbulb, emoji: "💡" },
 ];
