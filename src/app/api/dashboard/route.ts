@@ -95,6 +95,28 @@ export async function GET(request: NextRequest) {
       channel, spend: d.spend, roas: d.spend > 0 ? d.revenue / d.spend : 0,
     }));
 
+    // Channel ROAS trend by date
+    const chRoasTrendMap = new Map<string, Map<string, { spend: number; cv: number }>>();
+    for (const row of adSpend || []) {
+      const dateKey = getGroupKey(row.date);
+      if (!chRoasTrendMap.has(dateKey)) chRoasTrendMap.set(dateKey, new Map());
+      const dateChannels = chRoasTrendMap.get(dateKey)!;
+      const ch = row.channel;
+      const existing = dateChannels.get(ch) || { spend: 0, cv: 0 };
+      existing.spend += Number(row.spend);
+      existing.cv += Number(row.conversion_value);
+      dateChannels.set(ch, existing);
+    }
+    const channelRoasTrend = Array.from(chRoasTrendMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, chMap]) => {
+        const row: Record<string, any> = { date };
+        for (const [ch, d] of chMap.entries()) {
+          row[ch] = d.spend > 0 ? Math.round((d.cv / d.spend) * 100) / 100 : 0;
+        }
+        return row;
+      });
+
     // Brand revenue breakdown
     const brandMap = new Map<string, { revenue: number; orders: number }>();
     for (const row of sales || []) {
@@ -155,7 +177,7 @@ export async function GET(request: NextRequest) {
         mer, merPrev: prevMer,
         aov, aovPrev: prevAov,
       },
-      trend, channels, brandRevenue,
+      trend, channels, channelRoasTrend, brandRevenue,
       funnelSummary: { ...funnelSummary, convRate, cartToOrderRate },
       topProducts, salesByChannel,
     });

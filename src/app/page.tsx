@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompact } from "@/lib/utils";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, Legend,
-  PieChart, Pie,
+  PieChart, Pie, LineChart, Line,
 } from "recharts";
 
 function getDefaultDates() {
@@ -57,6 +57,7 @@ export default function OverviewPage() {
   const [kpi, setKpi] = useState<KPIData>(defaultKPI);
   const [trend, setTrend] = useState<TrendDataPoint[]>([]);
   const [channels, setChannels] = useState<ChannelData[]>([]);
+  const [channelRoasTrend, setChannelRoasTrend] = useState<Record<string, any>[]>([]);
   const [brandRevenue, setBrandRevenue] = useState<{ brand: string; revenue: number; orders: number }[]>([]);
   const [funnelSummary, setFunnelSummary] = useState<FunnelSummary>({ impressions: 0, sessions: 0, cartAdds: 0, purchases: 0, repurchases: 0, convRate: 0, cartToOrderRate: 0 });
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
@@ -84,6 +85,7 @@ export default function OverviewPage() {
       setKpi(data.kpi || defaultKPI);
       setTrend(data.trend || []);
       setChannels(data.channels || []);
+      setChannelRoasTrend(data.channelRoasTrend || []);
       setBrandRevenue(data.brandRevenue || []);
       setFunnelSummary(data.funnelSummary || { impressions: 0, sessions: 0, cartAdds: 0, purchases: 0, repurchases: 0, convRate: 0, cartToOrderRate: 0 });
       setTopProducts(data.topProducts || []);
@@ -291,9 +293,38 @@ export default function OverviewPage() {
                 <TrendChart data={trend} />
                 <ChannelChart data={channels} mode="spend" />
               </div>
-              <div className="grid grid-cols-1">
-                <ChannelChart data={channels} mode="roas" />
-              </div>
+              <Card>
+                <CardHeader><CardTitle>📊 채널별 ROAS 추이</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={channelRoasTrend}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                        <XAxis dataKey="date" tick={{ fill: "#888", fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
+                        <YAxis tick={{ fill: "#888", fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}x`} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }}
+                          formatter={(value: any, name: any) => [`${Number(value).toFixed(2)}x`, CH_LABELS[name as string] || name]}
+                          labelFormatter={(label: any) => String(label)}
+                        />
+                        <Legend formatter={(value: string) => CH_LABELS[value] || value} />
+                        {channels.map((ch) => (
+                          <Line
+                            key={ch.channel}
+                            type="monotone"
+                            dataKey={ch.channel}
+                            name={ch.channel}
+                            stroke={CHANNEL_COLORS[ch.channel] || "#888"}
+                            dot={false}
+                            strokeWidth={2}
+                            connectNulls
+                          />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
             </section>
 
             {/* Section 3: Brand Revenue + Top Products + Product Pie */}
