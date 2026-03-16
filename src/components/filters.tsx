@@ -59,6 +59,7 @@ const BRAND_OPTIONS: { value: Brand; label: string }[] = [
   { value: "nutty", label: "너티" },
   { value: "ironpet", label: "아이언펫" },
   { value: "balancelab", label: "밸런스랩" },
+  { value: "saip", label: "사입" },
 ];
 
 function getDateRange(period: Period) {

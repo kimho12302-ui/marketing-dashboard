@@ -1,5 +1,5 @@
 export type Period = "daily" | "weekly" | "monthly";
-export type Brand = "all" | "nutty" | "ironpet" | "balancelab";
+export type Brand = "all" | "nutty" | "ironpet" | "balancelab" | "saip";
 
 export interface DailySales {
   date: string;
