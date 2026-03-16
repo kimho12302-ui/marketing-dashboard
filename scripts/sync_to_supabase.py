@@ -126,13 +126,16 @@ def sync_cafe24_sales(gc: gspread.Client, sb: Client, min_date: str | None):
         if min_date and date < min_date:
             continue
 
+        revenue = safe_num(rec.get("결제금액", rec.get("매출", rec.get("revenue", rec.get("매출액", 0)))))
+        orders = safe_int(rec.get("주문수", rec.get("orders", rec.get("주문건수", 0))))
+        aov = round(revenue / orders) if orders > 0 else 0
         rows.append({
             "date": date,
             "brand": "nutty",
             "channel": "cafe24",
-            "revenue": safe_num(rec.get("매출", rec.get("revenue", rec.get("매출액", 0)))),
-            "orders": safe_int(rec.get("주문수", rec.get("orders", rec.get("주문건수", 0)))),
-            "avg_order_value": safe_num(rec.get("객단가", rec.get("avg_order_value", 0))),
+            "revenue": revenue,
+            "orders": orders,
+            "avg_order_value": aov,
         })
 
     upsert_batch(sb, "daily_sales", rows)

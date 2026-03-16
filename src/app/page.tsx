@@ -76,7 +76,7 @@ export default function OverviewPage() {
           </div>
         ) : (
           <>
-            <KPICards data={kpi} />
+            <KPICards data={kpi} periodLabel={`${filters.from} ~ ${filters.to}`} />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <TrendChart data={trend} />
               <ChannelChart data={channels} />
