@@ -20,7 +20,34 @@ const BRAND_OPTIONS: { value: Brand; label: string }[] = [
   { value: "balancelab", label: "밸런스랩" },
 ];
 
+function getDateRange(period: Period) {
+  const today = new Date();
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+
+  if (period === "daily") {
+    // 어제 하루
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return { from: fmt(yesterday), to: fmt(yesterday) };
+  } else if (period === "weekly") {
+    // 이번 주 (월요일 ~ 오늘)
+    const day = today.getDay();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
+    return { from: fmt(monday), to: fmt(today) };
+  } else {
+    // 이번 달
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    return { from: fmt(firstDay), to: fmt(today) };
+  }
+}
+
 export default function Filters({ filters, onChange }: FiltersProps) {
+  const handlePeriod = (period: Period) => {
+    const range = getDateRange(period);
+    onChange({ ...filters, period, from: range.from, to: range.to });
+  };
+
   return (
     <div className="flex flex-wrap items-center gap-3">
       {/* Period Toggle */}
@@ -28,7 +55,7 @@ export default function Filters({ filters, onChange }: FiltersProps) {
         {PERIOD_OPTIONS.map((opt) => (
           <button
             key={opt.value}
-            onClick={() => onChange({ ...filters, period: opt.value })}
+            onClick={() => handlePeriod(opt.value)}
             className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
               filters.period === opt.value
                 ? "bg-indigo-600 text-white"
