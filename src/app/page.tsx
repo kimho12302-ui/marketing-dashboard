@@ -391,31 +391,27 @@ export default function OverviewPage() {
                 )}
               </div>
 
-              {/* Product Pie Chart for 너티 */}
-              {nuttyProducts.length > 0 && (
+              {/* Brand Revenue Pie Chart */}
+              {fullBrandRevenue.some(b => b.revenue > 0) && (
                 <div className="mt-6">
                   <Card>
-                    <CardHeader><CardTitle>🥜 너티 제품별 매출 비중</CardTitle></CardHeader>
+                    <CardHeader><CardTitle>🏷️ 브랜드별 매출 비중</CardTitle></CardHeader>
                     <CardContent>
                       <div className="h-72">
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie
-                              data={nuttyProducts.map(p => ({ name: p.product, value: p.revenue }))}
+                              data={fullBrandRevenue.filter(b => b.revenue > 0).map(b => ({ name: BRAND_LABELS[b.brand] || b.brand, value: b.revenue, brand: b.brand }))}
                               dataKey="value"
                               nameKey="name"
                               cx="50%"
                               cy="50%"
                               outerRadius={100}
                               innerRadius={40}
-                              label={({ name, percent }: any) => {
-                                const n = name || "";
-                                const shortName = n.length > 10 ? n.slice(0, 10) + "…" : n;
-                                return `${shortName} ${((percent || 0) * 100).toFixed(0)}%`;
-                              }}
+                              label={({ name, percent }: any) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
                             >
-                              {nuttyProducts.map((_, i) => (
-                                <Cell key={i} fill={PRODUCT_COLORS[i % PRODUCT_COLORS.length]} />
+                              {fullBrandRevenue.filter(b => b.revenue > 0).map((b, i) => (
+                                <Cell key={i} fill={BRAND_COLORS[b.brand] || PRODUCT_COLORS[i % PRODUCT_COLORS.length]} />
                               ))}
                             </Pie>
                             <Tooltip
