@@ -8,14 +8,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompact } from "@/lib/utils";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
+  AreaChart, Area, Legend,
 } from "recharts";
 
-const GRADIENT_COLORS = ["#6366f1", "#818cf8", "#a78bfa", "#c084fc", "#e879f9", "#f472b6"];
+const FUNNEL_COLORS = ["#6366f1", "#818cf8", "#a78bfa", "#22c55e", "#14b8a6"];
 
 function getDefaultDates() {
   const to = new Date(); const from = new Date(); from.setDate(from.getDate() - 30);
   return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
 }
+
+interface TrendPoint { date: string; sessions: number; cart_adds: number; purchases: number; }
 
 export default function FunnelPage() {
   const dates = getDefaultDates();
@@ -24,6 +27,7 @@ export default function FunnelPage() {
   });
   const [funnel, setFunnel] = useState<FunnelStep[]>([]);
   const [prevFunnel, setPrevFunnel] = useState<FunnelStep[]>([]);
+  const [trend, setTrend] = useState<TrendPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -34,6 +38,7 @@ export default function FunnelPage() {
       if (!res.ok) throw new Error("fetch failed");
       const data = await res.json();
       setFunnel(data.funnel || []);
+      setTrend(data.trend || []);
 
       // Fetch previous period
       const fromDate = new Date(filters.from);
@@ -52,6 +57,22 @@ export default function FunnelPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Calculate overall conversion rate
+  const sessionsStep = funnel.find(s => s.name === "유입");
+  const purchaseStep = funnel.find(s => s.name === "구매");
+  const overallConvRate = sessionsStep && sessionsStep.value > 0 && purchaseStep
+    ? ((purchaseStep.value / sessionsStep.value) * 100) : 0;
+
+  // Cart abandonment
+  const cartStep = funnel.find(s => s.name === "장바구니");
+  const cartVal = cartStep?.value || 0;
+  const purchaseVal = purchaseStep?.value || 0;
+  const abandonRate = cartVal > 0 ? ((cartVal - purchaseVal) / cartVal) * 100 : 0;
+  const prevCartStep = prevFunnel.find(s => s.name === "장바구니");
+  const prevPurchaseStep = prevFunnel.find(s => s.name === "구매");
+  const prevAbandonRate = (prevCartStep?.value || 0) > 0
+    ? (((prevCartStep?.value || 0) - (prevPurchaseStep?.value || 0)) / (prevCartStep?.value || 1)) * 100 : 0;
+
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
@@ -64,85 +85,93 @@ export default function FunnelPage() {
           </div>
         ) : (
           <>
-            {/* Funnel Visualization */}
+            {/* Key Metrics Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Card>
+                <CardContent className="pt-4 text-center">
+                  <p className="text-xs text-zinc-400">총 세션</p>
+                  <p className="text-2xl font-bold text-indigo-400">{formatCompact(sessionsStep?.value || 0)}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-4 text-center">
+                  <p className="text-xs text-zinc-400">구매 전환율</p>
+                  <p className={`text-2xl font-bold ${overallConvRate >= 2 ? "text-green-400" : overallConvRate >= 1 ? "text-yellow-400" : "text-red-400"}`}>
+                    {overallConvRate.toFixed(2)}%
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className={abandonRate > 50 ? "border-red-500/30" : abandonRate > 35 ? "border-yellow-500/30" : "border-green-500/30"}>
+                <CardContent className="pt-4 text-center">
+                  <p className="text-xs text-zinc-400">장바구니 이탈률</p>
+                  <p className={`text-2xl font-bold ${abandonRate > 50 ? "text-red-400" : abandonRate > 35 ? "text-yellow-400" : "text-green-400"}`}>
+                    {abandonRate.toFixed(1)}%
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-4 text-center">
+                  <p className="text-xs text-zinc-400">총 구매</p>
+                  <p className="text-2xl font-bold text-green-400">{formatCompact(purchaseVal)}</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Funnel Visualization — Trapezoid style */}
             <Card>
-              <CardHeader><CardTitle>퍼널: 노출 → 유입 → 장바구니 → 결제시작 → 구매 → 재구매</CardTitle></CardHeader>
+              <CardHeader><CardTitle>퍼널: 노출 → 유입 → 장바구니 → 구매 → 재구매</CardTitle></CardHeader>
               <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={funnel}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                      <XAxis dataKey="name" tick={{ fill: "#888", fontSize: 12 }} />
-                      <YAxis tick={{ fill: "#888", fontSize: 12 }} tickFormatter={(v: any) => formatCompact(v)} />
-                      <Tooltip contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }}
-                        formatter={(value: any) => [formatCompact(value), "수량"]} />
-                      <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                        {funnel.map((_, i) => <Cell key={i} fill={GRADIENT_COLORS[i % GRADIENT_COLORS.length]} />)}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                {/* Conversion rates */}
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-4">
-                  {funnel.slice(1).map((step, i) => (
-                    <div key={step.name} className="text-center rounded-lg bg-zinc-800/50 p-3">
-                      <div className="text-[10px] text-zinc-500">{funnel[i].name} → {step.name}</div>
-                      <div className="text-lg font-bold text-zinc-200 mt-1">
-                        {step.rate !== undefined ? `${step.rate.toFixed(1)}%` : "-"}
+                <div className="space-y-1">
+                  {funnel.map((step, i) => {
+                    const maxVal = funnel[0]?.value || 1;
+                    const pct = maxVal > 0 ? (step.value / maxVal) * 100 : 0;
+                    const width = Math.max(pct, 8); // minimum width 8%
+                    return (
+                      <div key={step.name} className="flex items-center gap-3">
+                        <span className="text-xs text-zinc-400 w-16 text-right">{step.name}</span>
+                        <div className="flex-1 relative" style={{ paddingLeft: `${(100 - width) / 2}%`, paddingRight: `${(100 - width) / 2}%` }}>
+                          <div className="h-10 rounded-md flex items-center justify-between px-3 transition-all"
+                            style={{ backgroundColor: FUNNEL_COLORS[i], opacity: 0.85 }}>
+                            <span className="text-sm font-medium text-white">{formatCompact(step.value)}</span>
+                            {step.rate !== undefined && i > 0 && (
+                              <span className="text-[10px] text-white/70">{step.rate.toFixed(1)}%</span>
+                            )}
+                          </div>
+                        </div>
+                        {i > 0 && step.rate !== undefined && (
+                          <span className="text-xs text-zinc-500 w-16">
+                            Drop {(100 - step.rate).toFixed(0)}%
+                          </span>
+                        )}
                       </div>
-                      <div className="text-[10px] text-zinc-600">
-                        Drop: {step.rate !== undefined ? `${(100 - step.rate).toFixed(1)}%` : "-"}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
 
-            {/* Cart Abandonment Rate */}
-            {(() => {
-              const cartStep = funnel.find(s => s.name === "장바구니");
-              const purchaseStep = funnel.find(s => s.name === "구매");
-              const prevCartStep = prevFunnel.find(s => s.name === "장바구니");
-              const prevPurchaseStep = prevFunnel.find(s => s.name === "구매");
-
-              const cartVal = cartStep?.value || 0;
-              const purchaseVal = purchaseStep?.value || 0;
-              const abandonRate = cartVal > 0 ? ((cartVal - purchaseVal) / cartVal) * 100 : 0;
-
-              const prevCartVal = prevCartStep?.value || 0;
-              const prevPurchaseVal = prevPurchaseStep?.value || 0;
-              const prevAbandonRate = prevCartVal > 0 ? ((prevCartVal - prevPurchaseVal) / prevCartVal) * 100 : 0;
-
-              const diff = abandonRate - prevAbandonRate;
-
-              return (
-                <Card className={abandonRate > 50 ? "border-red-500/30" : abandonRate > 35 ? "border-yellow-500/30" : "border-green-500/30"}>
-                  <CardHeader><CardTitle>🛒 장바구니 이탈률</CardTitle></CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-6">
-                      <div>
-                        <p className={`text-5xl font-bold ${abandonRate > 50 ? "text-red-400" : abandonRate > 35 ? "text-yellow-400" : "text-green-400"}`}>
-                          {abandonRate.toFixed(1)}%
-                        </p>
-                        <p className="text-xs text-zinc-500 mt-1">
-                          장바구니 {formatCompact(cartVal)} → 구매 {formatCompact(purchaseVal)}
-                        </p>
-                      </div>
-                      {prevFunnel.length > 0 && (
-                        <div className={`flex items-center gap-1 text-sm ${diff > 0 ? "text-red-400" : "text-green-400"}`}>
-                          <span className="text-xl">{diff > 0 ? "↑" : "↓"}</span>
-                          <div>
-                            <p className="font-medium">{Math.abs(diff).toFixed(1)}%p</p>
-                            <p className="text-[10px] text-zinc-500">이전: {prevAbandonRate.toFixed(1)}%</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })()}
+            {/* Funnel Trend */}
+            {trend.length > 0 && (
+              <Card>
+                <CardHeader><CardTitle>퍼널 일별 트렌드</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={trend}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                        <XAxis dataKey="date" tick={{ fill: "#888", fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
+                        <YAxis tick={{ fill: "#888", fontSize: 11 }} />
+                        <Tooltip contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
+                        <Legend />
+                        <Area type="monotone" dataKey="sessions" name="세션" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} />
+                        <Area type="monotone" dataKey="cart_adds" name="장바구니" stroke="#a78bfa" fill="#a78bfa" fillOpacity={0.2} />
+                        <Area type="monotone" dataKey="purchases" name="구매" stroke="#22c55e" fill="#22c55e" fillOpacity={0.2} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Period Comparison */}
             {prevFunnel.length > 0 && (
@@ -180,6 +209,34 @@ export default function FunnelPage() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Cart Abandonment Detail */}
+            <Card className={abandonRate > 50 ? "border-red-500/30" : ""}>
+              <CardHeader><CardTitle>🛒 장바구니 이탈 분석</CardTitle></CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-6">
+                  <div>
+                    <p className={`text-4xl font-bold ${abandonRate > 50 ? "text-red-400" : abandonRate > 35 ? "text-yellow-400" : "text-green-400"}`}>
+                      {abandonRate.toFixed(1)}%
+                    </p>
+                    <p className="text-xs text-zinc-500 mt-1">
+                      장바구니 {formatCompact(cartVal)} → 구매 {formatCompact(purchaseVal)}
+                    </p>
+                  </div>
+                  {prevFunnel.length > 0 && (
+                    <div className={`text-sm ${(abandonRate - prevAbandonRate) > 0 ? "text-red-400" : "text-green-400"}`}>
+                      <span className="text-xl">{(abandonRate - prevAbandonRate) > 0 ? "↑" : "↓"}</span>
+                      <span className="font-medium ml-1">{Math.abs(abandonRate - prevAbandonRate).toFixed(1)}%p</span>
+                      <p className="text-[10px] text-zinc-500">이전: {prevAbandonRate.toFixed(1)}%</p>
+                    </div>
+                  )}
+                  <div className="text-xs text-zinc-500 space-y-1 ml-auto">
+                    <p>💡 이커머스 평균 이탈률: 65~75%</p>
+                    <p>🎯 {abandonRate < 65 ? "업계 평균 이하 — 양호" : "업계 평균 수준 — 개선 여지 있음"}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </>
         )}
       </div>
