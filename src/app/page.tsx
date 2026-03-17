@@ -270,14 +270,17 @@ export default function OverviewPage() {
       const costBreakdown = [
         { label: "매출", value: kpi.revenue, color: "text-green-400", icon: "💰" },
         { label: "제품원가 (COGS)", value: kpi.cogs || 0, color: "text-orange-400", icon: "📦", sub: [
-          { label: "판매원가", value: (kpi.cogs || 0) - (kpi.manufacturing || 0) - (kpi.shipping || 0) },
+          { label: "판매원가", value: (kpi.cogs || 0) - (kpi.manufacturing || 0) - (kpi.productShipping || 0) },
           { label: "제작원가", value: kpi.manufacturing || 0 },
-          { label: "배송비", value: kpi.shipping || 0 },
+          { label: "제품 배송비", value: kpi.productShipping || 0 },
         ]},
         { label: "광고비", value: kpi.adSpend - (kpi.miscCost || 0), color: "text-red-400", icon: "📢" },
         { label: "건별 마케팅비", value: kpi.miscCost || 0, color: "text-pink-400", icon: "🧾" },
+        { label: "배송비", value: kpi.shippingCost || 0, color: "text-blue-400", icon: "📦", sub: kpi.shippingOrders ? [
+          { label: `${kpi.shippingOrders.toLocaleString()}건`, value: kpi.shippingOrders > 0 ? (kpi.shippingCost || 0) / kpi.shippingOrders : 0 },
+        ] : undefined },
       ];
-      const totalCost = (kpi.cogs || 0) + kpi.adSpend;
+      const totalCost = (kpi.cogs || 0) + kpi.adSpend + (kpi.shippingCost || 0);
       return (
         <Card className="border-yellow-500/30 animate-in slide-in-from-top-2 duration-200">
           <CardContent className="pt-4">

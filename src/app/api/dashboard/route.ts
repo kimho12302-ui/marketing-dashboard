@@ -42,6 +42,21 @@ export async function GET(request: NextRequest) {
     const { data: miscCosts } = await miscQuery;
     const totalMiscCost = (miscCosts || []).reduce((s, r) => s + Number(r.value || 0), 0);
 
+    // Fetch shipping costs from manual_monthly
+    let shipQuery = supabase.from("manual_monthly")
+      .select("*").eq("category", "shipping_cost").gte("month", from).lte("month", to);
+    if (brand !== "all") shipQuery = shipQuery.eq("brand", brand);
+    const { data: shipCosts } = await shipQuery;
+    let totalShippingCost = 0;
+    let totalShippingOrders = 0;
+    for (const r of shipCosts || []) {
+      totalShippingCost += Number(r.value || 0);
+      try {
+        const details = JSON.parse(r.note || "{}");
+        totalShippingOrders += Number(details.total_orders || 0);
+      } catch {}
+    }
+
     // Fetch product costs for COGS calculation
     const { data: productCostsData } = await supabase.from("product_costs").select("product,brand,cost_price,manufacturing_cost,shipping_cost");
     const costMap = new Map<string, { cost_price: number; manufacturing_cost: number; shipping_cost: number }>();
@@ -80,7 +95,7 @@ export async function GET(request: NextRequest) {
     const totalAdSpendOnly = (adSpend || []).reduce((s, r) => s + Number(r.spend), 0);
     const totalAdSpend = totalAdSpendOnly + totalMiscCost;
     const roas = totalAdSpend > 0 ? totalRevenue / totalAdSpend : 0;
-    const profit = totalRevenue - totalAdSpend - totalCOGS;
+    const profit = totalRevenue - totalAdSpend - totalCOGS - totalShippingCost;
     const mer = totalAdSpend > 0 ? totalRevenue / totalAdSpend : 0;
     const aov = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
@@ -234,8 +249,9 @@ export async function GET(request: NextRequest) {
         profit, profitPrev: prevProfit,
         mer, merPrev: prevMer,
         aov, aovPrev: prevAov,
-        cogs: totalCOGS, manufacturing: totalManufacturing, shipping: totalShipping,
+        cogs: totalCOGS, manufacturing: totalManufacturing, productShipping: totalShipping,
         miscCost: totalMiscCost,
+        shippingCost: totalShippingCost, shippingOrders: totalShippingOrders,
       },
       trend, channels, channelRoasTrend, brandRevenue, brandRevenueTrend,
       funnelSummary: { ...funnelSummary, convRate, cartToOrderRate },

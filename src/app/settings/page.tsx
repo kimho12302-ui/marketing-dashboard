@@ -40,7 +40,7 @@ const MANUAL_CHANNELS = [
 ];
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<"costs" | "manual_ads" | "misc_costs" | "info">("costs");
+  const [activeTab, setActiveTab] = useState<"costs" | "manual_ads" | "misc_costs" | "shipping" | "info">("costs");
   const [productCosts, setProductCosts] = useState<ProductCost[]>([]);
   const [productList, setProductList] = useState<{ product: string; brand: string; category: string; revenue: number; hasCost: boolean }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -56,6 +56,16 @@ export default function SettingsPage() {
   const [uploadChannel, setUploadChannel] = useState("coupang_ads");
   const [uploadBrand, setUploadBrand] = useState("nutty");
   const [uploadResult, setUploadResult] = useState<any>(null);
+
+  // Shipping cost form
+  const [shippingForm, setShippingForm] = useState({
+    month: new Date().toISOString().slice(0, 7),
+    brand: "all",
+    total_cost: 0,
+    total_orders: 0,
+    note: "",
+  });
+  const [shippingCosts, setShippingCosts] = useState<any[]>([]);
 
   // Misc marketing cost form
   const [miscForm, setMiscForm] = useState({
@@ -86,6 +96,16 @@ export default function SettingsPage() {
     } catch { /* ignore */ }
   }, []);
 
+  const fetchShippingCosts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/settings?type=shipping_costs");
+      if (res.ok) {
+        const data = await res.json();
+        setShippingCosts(data.shippingCosts || []);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   const fetchMiscCosts = useCallback(async () => {
     try {
       const res = await fetch("/api/settings?type=misc_costs");
@@ -96,7 +116,7 @@ export default function SettingsPage() {
     } catch { /* ignore */ }
   }, []);
 
-  useEffect(() => { fetchCosts(); fetchMiscCosts(); }, [fetchCosts, fetchMiscCosts]);
+  useEffect(() => { fetchCosts(); fetchMiscCosts(); fetchShippingCosts(); }, [fetchCosts, fetchMiscCosts, fetchShippingCosts]);
 
   const postWithDupCheck = async (type: string, data: any): Promise<boolean> => {
     const res = await fetch("/api/settings", {
@@ -128,6 +148,22 @@ export default function SettingsPage() {
         setMessage("✅ 저장 완료");
         setCostForm({ product: "", brand: "nutty", cost_price: 0, manufacturing_cost: 0, shipping_cost: 0, category: "" });
         fetchCosts();
+      } else {
+        setMessage("취소됨");
+      }
+    } catch { setMessage("❌ 오류 발생"); }
+    setLoading(false);
+  };
+
+  const saveShipping = async () => {
+    if (shippingForm.total_cost <= 0) { setMessage("배송비를 입력하세요"); return; }
+    setLoading(true);
+    try {
+      const ok = await postWithDupCheck("shipping_cost", shippingForm);
+      if (ok) {
+        setMessage("✅ 배송비 저장 완료");
+        setShippingForm(prev => ({ ...prev, total_cost: 0, total_orders: 0, note: "" }));
+        fetchShippingCosts();
       } else {
         setMessage("취소됨");
       }
@@ -202,6 +238,7 @@ export default function SettingsPage() {
             { key: "costs" as const, label: "💰 제품 원가" },
             { key: "manual_ads" as const, label: "📢 수동 광고비" },
             { key: "misc_costs" as const, label: "🧾 건별 비용" },
+            { key: "shipping" as const, label: "📦 배송비" },
             { key: "info" as const, label: "ℹ️ 데이터 소스" },
           ].map(tab => (
             <button key={tab.key}
@@ -548,6 +585,91 @@ export default function SettingsPage() {
                             <td className="py-2 px-2">{c.description}</td>
                             <td className="py-2 px-2 text-right font-medium">₩{formatCompact(c.amount)}</td>
                             <td className="py-2 px-2 text-gray-400 dark:text-zinc-500">{c.note}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Shipping Costs Tab */}
+        {activeTab === "shipping" && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader><CardTitle>📦 월별 배송비 입력</CardTitle></CardHeader>
+              <CardContent>
+                <p className="text-xs text-gray-500 dark:text-zinc-500 mb-4">택배사 청구 기준 월별 배송비와 출고 건수를 기록합니다.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">월</label>
+                    <input type="month" className={inputClass} value={shippingForm.month}
+                      onChange={e => setShippingForm(prev => ({ ...prev, month: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">브랜드</label>
+                    <select className={selectClass} value={shippingForm.brand}
+                      onChange={e => setShippingForm(prev => ({ ...prev, brand: e.target.value }))}>
+                      <option value="all">전체</option>
+                      {BRANDS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">총 배송비 (₩)</label>
+                    <input type="number" className={inputClass} value={shippingForm.total_cost || ""}
+                      onChange={e => setShippingForm(prev => ({ ...prev, total_cost: Number(e.target.value) }))}
+                      placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">출고 건수</label>
+                    <input type="number" className={inputClass} value={shippingForm.total_orders || ""}
+                      onChange={e => setShippingForm(prev => ({ ...prev, total_orders: Number(e.target.value) }))}
+                      placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">메모 (선택)</label>
+                    <input className={inputClass} value={shippingForm.note}
+                      onChange={e => setShippingForm(prev => ({ ...prev, note: e.target.value }))}
+                      placeholder="CJ대한통운, 한진 등" />
+                  </div>
+                </div>
+                <button onClick={saveShipping} disabled={loading}
+                  className="mt-4 px-6 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50">
+                  {loading ? "저장 중..." : "저장"}
+                </button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader><CardTitle>등록된 배송비 ({shippingCosts.length}건)</CardTitle></CardHeader>
+              <CardContent>
+                {shippingCosts.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-zinc-500">등록된 배송비 데이터가 없습니다.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-200 dark:border-zinc-700">
+                          <th className="text-left py-2 px-2 text-gray-500 dark:text-zinc-400">월</th>
+                          <th className="text-left py-2 px-2 text-gray-500 dark:text-zinc-400">브랜드</th>
+                          <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">배송비</th>
+                          <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">건수</th>
+                          <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">건당 배송비</th>
+                          <th className="text-left py-2 px-2 text-gray-500 dark:text-zinc-400">메모</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {shippingCosts.map((s: any, i: number) => (
+                          <tr key={i} className="border-b border-gray-100 dark:border-zinc-800">
+                            <td className="py-2 px-2">{s.month}</td>
+                            <td className="py-2 px-2">{s.brand === "all" ? "전체" : BRANDS.find(b => b.value === s.brand)?.label || s.brand}</td>
+                            <td className="py-2 px-2 text-right font-medium">₩{formatCompact(s.total_cost)}</td>
+                            <td className="py-2 px-2 text-right">{s.total_orders?.toLocaleString() || 0}건</td>
+                            <td className="py-2 px-2 text-right text-gray-400">₩{s.total_orders > 0 ? formatCompact(s.total_cost / s.total_orders) : "-"}</td>
+                            <td className="py-2 px-2 text-gray-400 dark:text-zinc-500">{s.note}</td>
                           </tr>
                         ))}
                       </tbody>

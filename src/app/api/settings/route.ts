@@ -52,6 +52,21 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    if (type === "all" || type === "shipping_costs") {
+      const { data } = await supabase.from("manual_monthly")
+        .select("*")
+        .eq("category", "shipping_cost")
+        .order("month", { ascending: false });
+      result.shippingCosts = (data || []).map((r: any) => {
+        try {
+          const details = JSON.parse(r.note || "{}");
+          return { id: r.id, month: r.month, brand: r.brand, total_cost: r.value, total_orders: details.total_orders || 0, note: details.note || "" };
+        } catch {
+          return { id: r.id, month: r.month, brand: r.brand, total_cost: r.value, total_orders: 0, note: r.note };
+        }
+      });
+    }
+
     return NextResponse.json(result);
   } catch (error) {
     console.error("Settings GET error:", error);
@@ -110,6 +125,35 @@ export async function POST(request: NextRequest) {
         metric: data.description,
         value: data.amount,
         note: JSON.stringify({ category: data.category, description: data.description, note: data.note }),
+      };
+      if (existing && existing.length > 0 && forceOverride) {
+        const { error } = await supabase.from("manual_monthly").update(row).eq("id", existing[0].id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("manual_monthly").insert(row);
+        if (error) throw error;
+      }
+      return NextResponse.json({ ok: true });
+    }
+
+    if (type === "shipping_cost") {
+      const { data: existing } = await supabase.from("manual_monthly")
+        .select("*").eq("month", data.month).eq("brand", data.brand).eq("category", "shipping_cost").limit(1);
+      if (existing && existing.length > 0 && !forceOverride) {
+        return NextResponse.json({
+          duplicate: true,
+          message: `${data.month} / ${data.brand} 배송비가 이미 등록되어 있습니다. (₩${existing[0].value?.toLocaleString()}) 덮어쓰시겠습니까?`,
+          existing: existing[0],
+        }, { status: 409 });
+      }
+      const row = {
+        month: data.month,
+        brand: data.brand,
+        channel: "shipping",
+        category: "shipping_cost",
+        metric: "monthly_shipping",
+        value: data.total_cost,
+        note: JSON.stringify({ total_orders: data.total_orders, note: data.note }),
       };
       if (existing && existing.length > 0 && forceOverride) {
         const { error } = await supabase.from("manual_monthly").update(row).eq("id", existing[0].id);
