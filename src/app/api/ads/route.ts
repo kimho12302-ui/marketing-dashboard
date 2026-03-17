@@ -55,7 +55,45 @@ export async function GET(request: NextRequest) {
     const totalConv = rows.reduce((s, r) => s + Number(r.conversions), 0);
     const cac = totalConv > 0 ? totalSpend / totalConv : 0;
 
-    return NextResponse.json({ channels, spendTrend, cac });
+    // Period-based spend: daily / weekly / monthly
+    const brandLabels: Record<string, string> = { nutty: "너티", ironpet: "아이언펫", saip: "사입", balancelab: "밸런스랩" };
+    const getWeekKey = (dateStr: string) => {
+      const d = new Date(dateStr);
+      const day = d.getDay();
+      const monday = new Date(d);
+      monday.setDate(d.getDate() - ((day + 6) % 7));
+      return monday.toISOString().slice(0, 10);
+    };
+    const getMonthKey = (dateStr: string) => dateStr.slice(0, 7);
+
+    // Build period data for all three granularities
+    const buildPeriodData = (groupFn: (date: string) => string) => {
+      const map = new Map<string, Record<string, number>>();
+      for (const r of rows) {
+        const key = groupFn(r.date);
+        const existing = map.get(key) || {};
+        if (brand === "all") {
+          const bl = brandLabels[r.brand] || r.brand;
+          existing[bl] = (existing[bl] || 0) + Number(r.spend);
+        } else {
+          existing[r.channel] = (existing[r.channel] || 0) + Number(r.spend);
+        }
+        existing["_total"] = (existing["_total"] || 0) + Number(r.spend);
+        map.set(key, existing);
+      }
+      return Array.from(map.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, d]) => {
+          const { _total, ...rest } = d;
+          return { date, total: _total, ...rest };
+        });
+    };
+
+    const dailySpend = buildPeriodData((d) => d);
+    const weeklySpend = buildPeriodData(getWeekKey);
+    const monthlySpend = buildPeriodData(getMonthKey);
+
+    return NextResponse.json({ channels, spendTrend, cac, dailySpend, weeklySpend, monthlySpend });
   } catch (error) {
     console.error("Ads API error:", error);
     return NextResponse.json({ error: "Failed" }, { status: 500 });

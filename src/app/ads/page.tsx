@@ -67,6 +67,10 @@ export default function AdsPage() {
   });
   const [channels, setChannels] = useState<AdsChannelSummary[]>([]);
   const [spendTrend, setSpendTrend] = useState<Record<string, any>[]>([]);
+  const [dailySpend, setDailySpend] = useState<Record<string, any>[]>([]);
+  const [weeklySpend, setWeeklySpend] = useState<Record<string, any>[]>([]);
+  const [monthlySpend, setMonthlySpend] = useState<Record<string, any>[]>([]);
+  const [spendPeriod, setSpendPeriod] = useState<"daily" | "weekly" | "monthly">("weekly");
   const [cac, setCac] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
@@ -79,6 +83,9 @@ export default function AdsPage() {
       const data = await res.json();
       setChannels(data.channels || []);
       setSpendTrend(data.spendTrend || []);
+      setDailySpend(data.dailySpend || []);
+      setWeeklySpend(data.weeklySpend || []);
+      setMonthlySpend(data.monthlySpend || []);
       setCac(data.cac || 0);
     } catch { /* ignore */ } finally { setLoading(false); }
   }, [filters]);
@@ -244,6 +251,60 @@ export default function AdsPage() {
                     </div>
                   );
                 })()}
+              </CardContent>
+            </Card>
+
+            {/* 기간별 광고비 변화 */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>📊 기간별 광고비 변화</CardTitle>
+                  <div className="flex gap-1">
+                    {(["daily", "weekly", "monthly"] as const).map(p => (
+                      <button key={p} onClick={() => setSpendPeriod(p)}
+                        className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+                          spendPeriod === p
+                            ? "bg-indigo-600 text-white"
+                            : "bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:bg-gray-200 dark:hover:bg-zinc-700"
+                        }`}>
+                        {p === "daily" ? "일별" : p === "weekly" ? "주별" : "월별"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {(() => {
+                  const periodData = spendPeriod === "daily" ? dailySpend : spendPeriod === "weekly" ? weeklySpend : monthlySpend;
+                  const keys = periodData.length > 0
+                    ? Object.keys(periodData[0]).filter(k => k !== "date" && k !== "total")
+                    : [];
+                  const BRAND_COLORS_MAP: Record<string, string> = { "너티": "#6366f1", "아이언펫": "#22c55e", "사입": "#f97316", "밸런스랩": "#ec4899" };
+                  return (
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={periodData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                          <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }}
+                            tickFormatter={(v: string) => spendPeriod === "monthly" ? v.slice(2) : v.slice(5)} />
+                          <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
+                          <Tooltip contentStyle={chartTheme.tooltipStyle}
+                            formatter={(v: any, name: any) => [`₩${formatCompact(v)}`, name === "total" ? "합계" : name]}
+                            labelFormatter={(v) => String(v)} />
+                          <Legend />
+                          {keys.map((key, i) => (
+                            <Bar key={key} dataKey={key} stackId="a"
+                              fill={BRAND_COLORS_MAP[key] || CHANNEL_COLORS[key] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]}
+                              radius={i === keys.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
+                          ))}
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  );
+                })()}
+                <p className="text-[10px] text-gray-400 dark:text-zinc-500 mt-2">
+                  {filters.brand === "all" ? "브랜드별 스택 막대" : "채널별 스택 막대"} · {spendPeriod === "daily" ? "일별" : spendPeriod === "weekly" ? "주별" : "월별"} 집계
+                </p>
               </CardContent>
             </Card>
 
