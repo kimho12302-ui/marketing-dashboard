@@ -11,6 +11,7 @@ import {
   FileText,
   Lightbulb,
   Package,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,7 @@ const NAV_ITEMS = [
   { href: "/keywords", label: "Keywords", icon: Search, emoji: "🔍" },
   { href: "/content", label: "Content", icon: FileText, emoji: "📝" },
   { href: "/insights", label: "Insights", icon: Lightbulb, emoji: "💡" },
+  { href: "/settings", label: "설정", icon: Settings, emoji: "⚙️" },
 ];
 
 export default function Sidebar() {

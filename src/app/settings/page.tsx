@@ -1,0 +1,334 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import PageHeader from "@/components/page-header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatCompact } from "@/lib/utils";
+
+interface ProductCost {
+  product: string;
+  brand: string;
+  cost_price: number;
+  shipping_cost: number;
+  category: string;
+}
+
+interface ManualAdEntry {
+  date: string;
+  brand: string;
+  channel: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  conversion_value: number;
+}
+
+const BRANDS = [
+  { value: "nutty", label: "너티" },
+  { value: "ironpet", label: "아이언펫" },
+  { value: "saip", label: "사입" },
+  { value: "balancelab", label: "밸런스랩" },
+];
+
+const MANUAL_CHANNELS = [
+  { value: "coupang_ads", label: "쿠팡 광고" },
+  { value: "influencer", label: "인플루언서/체험단" },
+  { value: "gfa", label: "네이버 GFA" },
+  { value: "smartstore_ads", label: "스마트스토어 광고" },
+  { value: "other", label: "기타" },
+];
+
+export default function SettingsPage() {
+  const [activeTab, setActiveTab] = useState<"costs" | "manual_ads" | "info">("costs");
+  const [productCosts, setProductCosts] = useState<ProductCost[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+
+  // Product cost form
+  const [costForm, setCostForm] = useState<ProductCost>({
+    product: "", brand: "nutty", cost_price: 0, shipping_cost: 0, category: "",
+  });
+
+  // Manual ad spend form
+  const [adForm, setAdForm] = useState<ManualAdEntry>({
+    date: new Date().toISOString().slice(0, 10),
+    brand: "nutty", channel: "coupang_ads",
+    spend: 0, impressions: 0, clicks: 0, conversion_value: 0,
+  });
+
+  const fetchCosts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/settings?type=product_costs");
+      if (res.ok) {
+        const data = await res.json();
+        setProductCosts(data.productCosts || []);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => { fetchCosts(); }, [fetchCosts]);
+
+  const saveCost = async () => {
+    if (!costForm.product) { setMessage("제품명을 입력하세요"); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "product_cost", data: costForm }),
+      });
+      if (res.ok) {
+        setMessage("✅ 저장 완료");
+        setCostForm({ product: "", brand: "nutty", cost_price: 0, shipping_cost: 0, category: "" });
+        fetchCosts();
+      } else {
+        setMessage("❌ 저장 실패");
+      }
+    } catch { setMessage("❌ 오류 발생"); }
+    setLoading(false);
+  };
+
+  const saveAdSpend = async () => {
+    if (!adForm.date || adForm.spend <= 0) { setMessage("날짜와 광고비를 입력하세요"); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "manual_ad_spend", data: adForm }),
+      });
+      if (res.ok) {
+        setMessage("✅ 광고비 저장 완료");
+        setAdForm(prev => ({ ...prev, spend: 0, impressions: 0, clicks: 0, conversion_value: 0 }));
+      } else {
+        setMessage("❌ 저장 실패");
+      }
+    } catch { setMessage("❌ 오류 발생"); }
+    setLoading(false);
+  };
+
+  const inputClass = "bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:outline-none w-full";
+  const selectClass = "bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:outline-none w-full";
+
+  return (
+    <main className="min-h-screen bg-zinc-950 text-zinc-100">
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 space-y-6">
+        <PageHeader title="⚙️ 설정" subtitle="원가 관리 & 수동 데이터 입력" />
+
+        {/* Tab Navigation */}
+        <div className="flex gap-2">
+          {[
+            { key: "costs" as const, label: "💰 제품 원가" },
+            { key: "manual_ads" as const, label: "📢 수동 광고비" },
+            { key: "info" as const, label: "ℹ️ 데이터 소스" },
+          ].map(tab => (
+            <button key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-4 py-2 rounded-lg text-sm transition-colors ${
+                activeTab === tab.key
+                  ? "bg-indigo-600/20 text-indigo-400 font-medium"
+                  : "bg-zinc-800 text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {message && (
+          <div className={`text-sm px-4 py-2 rounded-lg ${message.startsWith("✅") ? "bg-green-900/20 text-green-400" : "bg-red-900/20 text-red-400"}`}>
+            {message}
+          </div>
+        )}
+
+        {/* Product Costs Tab */}
+        {activeTab === "costs" && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader><CardTitle>제품 원가 등록</CardTitle></CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                  <div>
+                    <label className="text-xs text-zinc-400 mb-1 block">제품명</label>
+                    <input className={inputClass} value={costForm.product}
+                      onChange={e => setCostForm(prev => ({ ...prev, product: e.target.value }))}
+                      placeholder="예: 스트레스제로껌" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-zinc-400 mb-1 block">브랜드</label>
+                    <select className={selectClass} value={costForm.brand}
+                      onChange={e => setCostForm(prev => ({ ...prev, brand: e.target.value }))}>
+                      {BRANDS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-zinc-400 mb-1 block">원가 (₩)</label>
+                    <input type="number" className={inputClass} value={costForm.cost_price || ""}
+                      onChange={e => setCostForm(prev => ({ ...prev, cost_price: Number(e.target.value) }))}
+                      placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-zinc-400 mb-1 block">배송비 (₩)</label>
+                    <input type="number" className={inputClass} value={costForm.shipping_cost || ""}
+                      onChange={e => setCostForm(prev => ({ ...prev, shipping_cost: Number(e.target.value) }))}
+                      placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-zinc-400 mb-1 block">카테고리</label>
+                    <input className={inputClass} value={costForm.category}
+                      onChange={e => setCostForm(prev => ({ ...prev, category: e.target.value }))}
+                      placeholder="간식" />
+                  </div>
+                </div>
+                <button onClick={saveCost} disabled={loading}
+                  className="mt-4 px-6 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">
+                  {loading ? "저장 중..." : "저장"}
+                </button>
+              </CardContent>
+            </Card>
+
+            {/* Existing Costs */}
+            <Card>
+              <CardHeader><CardTitle>등록된 제품 원가 ({productCosts.length}건)</CardTitle></CardHeader>
+              <CardContent>
+                {productCosts.length === 0 ? (
+                  <p className="text-sm text-zinc-500">등록된 원가 데이터가 없습니다. 위에서 제품별 원가를 입력하세요.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-zinc-700">
+                          <th className="text-left py-2 px-2 text-zinc-400">제품</th>
+                          <th className="text-left py-2 px-2 text-zinc-400">브랜드</th>
+                          <th className="text-right py-2 px-2 text-zinc-400">원가</th>
+                          <th className="text-right py-2 px-2 text-zinc-400">배송비</th>
+                          <th className="text-left py-2 px-2 text-zinc-400">카테고리</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {productCosts.map((p, i) => (
+                          <tr key={i} className="border-b border-zinc-800">
+                            <td className="py-2 px-2">{p.product}</td>
+                            <td className="py-2 px-2">{BRANDS.find(b => b.value === p.brand)?.label || p.brand}</td>
+                            <td className="py-2 px-2 text-right">₩{formatCompact(p.cost_price)}</td>
+                            <td className="py-2 px-2 text-right">₩{formatCompact(p.shipping_cost)}</td>
+                            <td className="py-2 px-2">{p.category}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Manual Ad Spend Tab */}
+        {activeTab === "manual_ads" && (
+          <Card>
+            <CardHeader><CardTitle>수동 광고비 입력</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-xs text-zinc-500 mb-4">API로 자동 수집이 안 되는 광고비를 수동으로 입력합니다. (쿠팡 광고, 인플루언서, GFA 등)</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div>
+                  <label className="text-xs text-zinc-400 mb-1 block">날짜</label>
+                  <input type="date" className={inputClass} value={adForm.date}
+                    onChange={e => setAdForm(prev => ({ ...prev, date: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400 mb-1 block">브랜드</label>
+                  <select className={selectClass} value={adForm.brand}
+                    onChange={e => setAdForm(prev => ({ ...prev, brand: e.target.value }))}>
+                    {BRANDS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400 mb-1 block">채널</label>
+                  <select className={selectClass} value={adForm.channel}
+                    onChange={e => setAdForm(prev => ({ ...prev, channel: e.target.value }))}>
+                    {MANUAL_CHANNELS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400 mb-1 block">광고비 (₩)</label>
+                  <input type="number" className={inputClass} value={adForm.spend || ""}
+                    onChange={e => setAdForm(prev => ({ ...prev, spend: Number(e.target.value) }))}
+                    placeholder="0" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+                <div>
+                  <label className="text-xs text-zinc-400 mb-1 block">노출수 (선택)</label>
+                  <input type="number" className={inputClass} value={adForm.impressions || ""}
+                    onChange={e => setAdForm(prev => ({ ...prev, impressions: Number(e.target.value) }))} />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400 mb-1 block">클릭수 (선택)</label>
+                  <input type="number" className={inputClass} value={adForm.clicks || ""}
+                    onChange={e => setAdForm(prev => ({ ...prev, clicks: Number(e.target.value) }))} />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400 mb-1 block">전환매출 (선택)</label>
+                  <input type="number" className={inputClass} value={adForm.conversion_value || ""}
+                    onChange={e => setAdForm(prev => ({ ...prev, conversion_value: Number(e.target.value) }))} />
+                </div>
+              </div>
+              <button onClick={saveAdSpend} disabled={loading}
+                className="mt-4 px-6 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">
+                {loading ? "저장 중..." : "저장"}
+              </button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Data Source Info Tab */}
+        {activeTab === "info" && (
+          <div className="space-y-4">
+            <Card>
+              <CardHeader><CardTitle>🔄 자동 수집 데이터</CardTitle></CardHeader>
+              <CardContent>
+                <div className="space-y-3 text-sm">
+                  {[
+                    { name: "Meta Ads (너티+아이언펫)", status: "✅", desc: "일별 크론, 광고비/ROAS/노출/클릭" },
+                    { name: "Naver 검색광고", status: "✅", desc: "일별 크론, 캠페인+키워드 성과" },
+                    { name: "Google Ads (P-Max)", status: "✅", desc: "GA4 시트 경유" },
+                    { name: "GA4 퍼널", status: "✅", desc: "page_view/add_to_cart/purchase" },
+                    { name: "Cafe24 매출", status: "✅", desc: "API 직접, 주문/제품/매출" },
+                    { name: "통계시트 Funnel", status: "✅", desc: "카페24+스마트스토어+쿠팡 퍼널" },
+                  ].map(item => (
+                    <div key={item.name} className="flex items-center gap-3">
+                      <span>{item.status}</span>
+                      <span className="font-medium text-zinc-200 w-48">{item.name}</span>
+                      <span className="text-zinc-500">{item.desc}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle>✍️ 수동 입력 필요</CardTitle></CardHeader>
+              <CardContent>
+                <div className="space-y-3 text-sm">
+                  {[
+                    { name: "쿠팡 광고비", status: "⚠️", desc: "API 없음 → 수동 광고비 탭에서 입력" },
+                    { name: "인플루언서/체험단 비용", status: "⚠️", desc: "수동 광고비 탭에서 입력" },
+                    { name: "네이버 GFA", status: "⚠️", desc: "API 제한 → 수동 입력" },
+                    { name: "제품 원가", status: "⚠️", desc: "제품 원가 탭에서 입력 → 영업이익 계산" },
+                    { name: "스마트스토어 매출", status: "⚠️", desc: "통합매니저 계정 필요" },
+                  ].map(item => (
+                    <div key={item.name} className="flex items-center gap-3">
+                      <span>{item.status}</span>
+                      <span className="font-medium text-zinc-200 w-48">{item.name}</span>
+                      <span className="text-zinc-500">{item.desc}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}
