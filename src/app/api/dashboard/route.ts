@@ -35,10 +35,18 @@ export async function GET(request: NextRequest) {
     if (brand !== "all") prevAdQuery = prevAdQuery.eq("brand", brand);
     const { data: prevAd } = await prevAdQuery;
 
+    // Fetch misc marketing costs from manual_monthly
+    let miscQuery = supabase.from("manual_monthly")
+      .select("*").eq("category", "misc_cost").gte("month", from).lte("month", to);
+    if (brand !== "all") miscQuery = miscQuery.eq("brand", brand);
+    const { data: miscCosts } = await miscQuery;
+    const totalMiscCost = (miscCosts || []).reduce((s, r) => s + Number(r.value || 0), 0);
+
     // Aggregate KPIs
     const totalRevenue = (sales || []).reduce((s, r) => s + Number(r.revenue), 0);
     const totalOrders = (sales || []).reduce((s, r) => s + Number(r.orders), 0);
-    const totalAdSpend = (adSpend || []).reduce((s, r) => s + Number(r.spend), 0);
+    const totalAdSpendOnly = (adSpend || []).reduce((s, r) => s + Number(r.spend), 0);
+    const totalAdSpend = totalAdSpendOnly + totalMiscCost;
     const roas = totalAdSpend > 0 ? totalRevenue / totalAdSpend : 0;
     const profit = totalRevenue - totalAdSpend;
     const mer = totalAdSpend > 0 ? totalRevenue / totalAdSpend : 0;

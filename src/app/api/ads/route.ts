@@ -50,10 +50,18 @@ export async function GET(request: NextRequest) {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, d]) => ({ date, ...d }));
 
+    // Fetch misc marketing costs
+    let miscQuery = supabase.from("manual_monthly")
+      .select("*").eq("category", "misc_cost").gte("month", from).lte("month", to);
+    if (brand !== "all") miscQuery = miscQuery.eq("brand", brand);
+    const { data: miscCosts } = await miscQuery;
+    const totalMiscCost = (miscCosts || []).reduce((s, r) => s + Number(r.value || 0), 0);
+
     // CAC = total spend / total conversions
-    const totalSpend = rows.reduce((s, r) => s + Number(r.spend), 0);
+    const totalSpend = rows.reduce((s, r) => s + Number(r.spend), 0) + totalMiscCost;
     const totalConv = rows.reduce((s, r) => s + Number(r.conversions), 0);
     const cac = totalConv > 0 ? totalSpend / totalConv : 0;
+    const miscCostTotal = totalMiscCost;
 
     // Period-based spend: daily / weekly / monthly
     const brandLabels: Record<string, string> = { nutty: "너티", ironpet: "아이언펫", saip: "사입", balancelab: "밸런스랩" };
@@ -93,7 +101,7 @@ export async function GET(request: NextRequest) {
     const weeklySpend = buildPeriodData(getWeekKey);
     const monthlySpend = buildPeriodData(getMonthKey);
 
-    return NextResponse.json({ channels, spendTrend, cac, dailySpend, weeklySpend, monthlySpend });
+    return NextResponse.json({ channels, spendTrend, cac, dailySpend, weeklySpend, monthlySpend, miscCostTotal });
   } catch (error) {
     console.error("Ads API error:", error);
     return NextResponse.json({ error: "Failed" }, { status: 500 });
