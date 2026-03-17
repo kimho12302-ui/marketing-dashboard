@@ -259,11 +259,11 @@ export default function SettingsPage() {
           <Card>
             <CardHeader><CardTitle>📁 CSV 파일 업로드</CardTitle></CardHeader>
             <CardContent>
-              <p className="text-xs text-zinc-500 mb-4">쿠팡 광고 등 CSV 파일을 업로드하면 자동으로 파싱해서 DB에 저장합니다. (날짜, 광고비, 노출, 클릭, 전환매출 컬럼 자동 감지)</p>
+              <p className="text-xs text-zinc-500 mb-4">쿠팡 광고 등 CSV/XLSX 파일을 업로드하면 자동으로 파싱해서 DB에 저장합니다. (날짜, 광고비, 노출, 클릭, 전환매출 컬럼 자동 감지)</p>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">파일 (.csv)</label>
-                  <input type="file" accept=".csv" className="text-sm text-zinc-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-zinc-700 file:text-zinc-200 file:cursor-pointer hover:file:bg-zinc-600"
+                  <label className="text-xs text-zinc-400 mb-1 block">파일 (.csv, .xlsx)</label>
+                  <input type="file" accept=".csv,.xlsx,.xls" className="text-sm text-zinc-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-zinc-700 file:text-zinc-200 file:cursor-pointer hover:file:bg-zinc-600"
                     onChange={e => setUploadFile(e.target.files?.[0] || null)} />
                 </div>
                 <div>

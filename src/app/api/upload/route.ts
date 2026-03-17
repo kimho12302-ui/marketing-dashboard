@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import * as XLSX from "xlsx";
 
 // Parse CSV text into rows
 function parseCSV(text: string): Record<string, string>[] {
@@ -16,6 +17,21 @@ function parseCSV(text: string): Record<string, string>[] {
     rows.push(row);
   }
   return rows;
+}
+
+// Parse XLSX buffer into rows
+function parseXLSX(buffer: ArrayBuffer): Record<string, string>[] {
+  const wb = XLSX.read(buffer, { type: "array" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const jsonData = XLSX.utils.sheet_to_json<Record<string, any>>(ws, { defval: "" });
+  // Convert all values to strings for consistent processing
+  return jsonData.map(row => {
+    const mapped: Record<string, string> = {};
+    for (const [k, v] of Object.entries(row)) {
+      mapped[k] = String(v);
+    }
+    return mapped;
+  });
 }
 
 function safeNum(v: string): number {
@@ -43,8 +59,16 @@ export async function POST(request: NextRequest) {
     
     if (!file) return NextResponse.json({ error: "No file" }, { status: 400 });
     
-    const text = await file.text();
-    const rows = parseCSV(text);
+    const fileName = file.name.toLowerCase();
+    let rows: Record<string, string>[];
+    
+    if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
+      const buffer = await file.arrayBuffer();
+      rows = parseXLSX(buffer);
+    } else {
+      const text = await file.text();
+      rows = parseCSV(text);
+    }
     
     if (rows.length === 0) {
       return NextResponse.json({ error: "빈 파일이거나 CSV 형식이 아닙니다" }, { status: 400 });
