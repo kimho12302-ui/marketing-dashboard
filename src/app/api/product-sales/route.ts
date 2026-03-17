@@ -62,7 +62,32 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10);
 
-    return NextResponse.json({ channelPie, categoryPie, channelTrend, topProducts, brandPie });
+    // Brand trend by date
+    const brandTrendMap = new Map<string, Record<string, number>>();
+    for (const r of rows) {
+      const existing = brandTrendMap.get(r.date) || {};
+      const bl = brandLabels[r.brand] || r.brand;
+      existing[bl] = (existing[bl] || 0) + Number(r.revenue);
+      brandTrendMap.set(r.date, existing);
+    }
+    const brandTrend = Array.from(brandTrendMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, d]) => ({ date, ...d }));
+
+    // Product trend by date (top 5 products only)
+    const top5Names = new Set(topProducts.slice(0, 5).map(p => p.product));
+    const prodTrendMap = new Map<string, Record<string, number>>();
+    for (const r of rows) {
+      if (!top5Names.has(r.product)) continue;
+      const existing = prodTrendMap.get(r.date) || {};
+      existing[r.product] = (existing[r.product] || 0) + Number(r.revenue);
+      prodTrendMap.set(r.date, existing);
+    }
+    const productTrend = Array.from(prodTrendMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, d]) => ({ date, ...d }));
+
+    return NextResponse.json({ channelPie, categoryPie, channelTrend, topProducts, brandPie, brandTrend, productTrend });
   } catch (error) {
     console.error("Product sales API error:", error);
     return NextResponse.json({ error: "Failed" }, { status: 500 });

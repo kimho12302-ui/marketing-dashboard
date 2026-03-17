@@ -127,6 +127,20 @@ export async function GET(request: NextRequest) {
     }
     const brandRevenue = Array.from(brandMap.entries()).map(([b, d]) => ({ brand: b, revenue: d.revenue, orders: d.orders }));
 
+    // Brand revenue trend by date
+    const brandLabels: Record<string, string> = { nutty: "너티", ironpet: "아이언펫", saip: "사입", balancelab: "밸런스랩" };
+    const brandTrendMap = new Map<string, Record<string, number>>();
+    for (const row of sales || []) {
+      const dateKey = getGroupKey(row.date);
+      const existing = brandTrendMap.get(dateKey) || {};
+      const bl = brandLabels[row.brand] || row.brand;
+      existing[bl] = (existing[bl] || 0) + Number(row.revenue);
+      brandTrendMap.set(dateKey, existing);
+    }
+    const brandRevenueTrend = Array.from(brandTrendMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, d]) => ({ date, ...d }));
+
     // Funnel summary for overview
     let funnelQuery = supabase.from("daily_funnel").select("*").gte("date", from).lte("date", to);
     if (brand !== "all") funnelQuery = funnelQuery.eq("brand", brand);
@@ -177,7 +191,7 @@ export async function GET(request: NextRequest) {
         mer, merPrev: prevMer,
         aov, aovPrev: prevAov,
       },
-      trend, channels, channelRoasTrend, brandRevenue,
+      trend, channels, channelRoasTrend, brandRevenue, brandRevenueTrend,
       funnelSummary: { ...funnelSummary, convRate, cartToOrderRate },
       topProducts, salesByChannel,
     });

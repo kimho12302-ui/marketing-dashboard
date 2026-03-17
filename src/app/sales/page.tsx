@@ -64,6 +64,8 @@ export default function SalesPage() {
   const [brandPie, setBrandPie] = useState<{ name: string; value: number }[]>([]);
   const [categoryPie, setCategoryPie] = useState<{ name: string; value: number }[]>([]);
   const [channelTrend, setChannelTrend] = useState<Record<string, any>[]>([]);
+  const [brandTrend, setBrandTrend] = useState<Record<string, any>[]>([]);
+  const [productTrend, setProductTrend] = useState<Record<string, any>[]>([]);
   const [topProducts, setTopProducts] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [quadrantFilter, setQuadrantFilter] = useState<QuadrantFilter>("all");
@@ -81,6 +83,8 @@ export default function SalesPage() {
       setBrandPie(data.brandPie || []);
       setCategoryPie(data.categoryPie || []);
       setChannelTrend(data.channelTrend || []);
+      setBrandTrend(data.brandTrend || []);
+      setProductTrend(data.productTrend || []);
       setTopProducts(data.topProducts || []);
     } catch { /* ignore */ } finally { setLoading(false); }
   }, [filters]);
@@ -98,6 +102,30 @@ export default function SalesPage() {
     }
     return Array.from(keys);
   }, [channelTrend]);
+
+  // Derive dynamic brand keys from brandTrend
+  const trendBrands = useMemo(() => {
+    if (brandTrend.length === 0) return [];
+    const keys = new Set<string>();
+    for (const row of brandTrend) {
+      for (const key of Object.keys(row)) {
+        if (key !== "date") keys.add(key);
+      }
+    }
+    return Array.from(keys);
+  }, [brandTrend]);
+
+  // Derive dynamic product keys from productTrend
+  const trendProducts = useMemo(() => {
+    if (productTrend.length === 0) return [];
+    const keys = new Set<string>();
+    for (const row of productTrend) {
+      for (const key of Object.keys(row)) {
+        if (key !== "date") keys.add(key);
+      }
+    }
+    return Array.from(keys);
+  }, [productTrend]);
 
   // Ensure all 4 brands in brandPie
   const fullBrandPie = useMemo(() => {
@@ -205,6 +233,51 @@ export default function SalesPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Brand Trend + Product Trend */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* 브랜드별 매출 트렌드 */}
+              <Card>
+                <CardHeader><CardTitle>🏷️ 브랜드별 매출 트렌드</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={brandTrend}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                        <XAxis dataKey="date" tick={{ fill: "#888", fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
+                        <YAxis tick={{ fill: "#888", fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
+                        <Tooltip contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} formatter={(v: any) => [`₩${formatCompact(v)}`, ""]} />
+                        <Legend />
+                        {trendBrands.map((b, i) => (
+                          <Line key={b} type="monotone" dataKey={b} name={b} stroke={BRAND_COLORS[b] || TREND_COLORS[i % TREND_COLORS.length]} dot={false} strokeWidth={2} />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 제품별 매출 트렌드 (TOP 5) */}
+              <Card>
+                <CardHeader><CardTitle>📦 제품별 매출 트렌드 (TOP 5)</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={productTrend}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                        <XAxis dataKey="date" tick={{ fill: "#888", fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
+                        <YAxis tick={{ fill: "#888", fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
+                        <Tooltip contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} formatter={(v: any) => [`₩${formatCompact(v)}`, ""]} />
+                        <Legend formatter={(value: string) => value.length > 12 ? value.slice(0, 12) + "…" : value} />
+                        {trendProducts.map((p, i) => (
+                          <Line key={p} type="monotone" dataKey={p} name={p} stroke={TREND_COLORS[i % TREND_COLORS.length]} dot={false} strokeWidth={2} />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* CAC vs ROAS 4-Quadrant Scatter */}
             <Card>

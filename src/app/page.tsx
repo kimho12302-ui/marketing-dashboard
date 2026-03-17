@@ -59,6 +59,7 @@ export default function OverviewPage() {
   const [channels, setChannels] = useState<ChannelData[]>([]);
   const [channelRoasTrend, setChannelRoasTrend] = useState<Record<string, any>[]>([]);
   const [brandRevenue, setBrandRevenue] = useState<{ brand: string; revenue: number; orders: number }[]>([]);
+  const [brandRevenueTrend, setBrandRevenueTrend] = useState<Record<string, any>[]>([]);
   const [funnelSummary, setFunnelSummary] = useState<FunnelSummary>({ impressions: 0, sessions: 0, cartAdds: 0, purchases: 0, repurchases: 0, convRate: 0, cartToOrderRate: 0 });
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [salesByChannel, setSalesByChannel] = useState<SalesChannel[]>([]);
@@ -87,6 +88,7 @@ export default function OverviewPage() {
       setChannels(data.channels || []);
       setChannelRoasTrend(data.channelRoasTrend || []);
       setBrandRevenue(data.brandRevenue || []);
+      setBrandRevenueTrend(data.brandRevenueTrend || []);
       setFunnelSummary(data.funnelSummary || { impressions: 0, sessions: 0, cartAdds: 0, purchases: 0, repurchases: 0, convRate: 0, cartToOrderRate: 0 });
       setTopProducts(data.topProducts || []);
       setSalesByChannel(data.salesByChannel || []);
@@ -361,6 +363,30 @@ export default function OverviewPage() {
                   </CardContent>
                 </Card>
 
+                {/* Brand Revenue Trend */}
+                <Card>
+                  <CardHeader><CardTitle>📈 브랜드별 매출 트렌드</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="h-56">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={brandRevenueTrend}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                          <XAxis dataKey="date" tick={{ fill: "#888", fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
+                          <YAxis tick={{ fill: "#888", fontSize: 11 }} tickFormatter={(v: number) => formatCompact(v)} />
+                          <Tooltip contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} formatter={(v: any) => [`₩${formatCompact(v)}`, ""]} />
+                          <Legend />
+                          {Object.keys(BRAND_LABELS).map(k => {
+                            const label = BRAND_LABELS[k];
+                            return <Line key={label} type="monotone" dataKey={label} name={label} stroke={BRAND_COLORS[k] || "#888"} dot={false} strokeWidth={2} connectNulls />;
+                          })}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
                 {/* Top 5 Products */}
                 {topProducts.length > 0 && (
                   <Card>
