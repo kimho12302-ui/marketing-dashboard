@@ -12,6 +12,22 @@ export async function GET(request: NextRequest) {
     if (type === "all" || type === "product_costs") {
       const { data } = await supabase.from("product_costs").select("*").order("product");
       result.productCosts = data || [];
+
+      // Get product list from product_sales for reference
+      const { data: prodData } = await supabase.from("product_sales").select("product,brand,category,revenue");
+      const prodMap = new Map<string, { brand: string; category: string; revenue: number }>();
+      for (const r of prodData || []) {
+        const existing = prodMap.get(r.product);
+        if (existing) {
+          existing.revenue += Number(r.revenue);
+        } else {
+          prodMap.set(r.product, { brand: r.brand, category: r.category, revenue: Number(r.revenue) });
+        }
+      }
+      const costSet = new Set((data || []).map((c: any) => c.product));
+      result.productList = Array.from(prodMap.entries())
+        .map(([product, d]) => ({ product, ...d, hasCost: costSet.has(product) }))
+        .sort((a, b) => b.revenue - a.revenue);
     }
 
     if (type === "all" || type === "manual_costs") {

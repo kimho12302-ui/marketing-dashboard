@@ -41,6 +41,7 @@ const MANUAL_CHANNELS = [
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<"costs" | "manual_ads" | "info">("costs");
   const [productCosts, setProductCosts] = useState<ProductCost[]>([]);
+  const [productList, setProductList] = useState<{ product: string; brand: string; category: string; revenue: number; hasCost: boolean }[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -68,6 +69,7 @@ export default function SettingsPage() {
       if (res.ok) {
         const data = await res.json();
         setProductCosts(data.productCosts || []);
+        setProductList(data.productList || []);
       }
     } catch { /* ignore */ }
   }, []);
@@ -175,18 +177,25 @@ export default function SettingsPage() {
             <Card>
               <CardHeader><CardTitle>제품 원가 등록</CardTitle></CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-                  <div>
-                    <label className="text-xs text-zinc-400 mb-1 block">제품명</label>
-                    <input className={inputClass} value={costForm.product}
-                      onChange={e => setCostForm(prev => ({ ...prev, product: e.target.value }))}
-                      placeholder="예: 스트레스제로껌" />
-                  </div>
-                  <div>
-                    <label className="text-xs text-zinc-400 mb-1 block">브랜드</label>
-                    <select className={selectClass} value={costForm.brand}
-                      onChange={e => setCostForm(prev => ({ ...prev, brand: e.target.value }))}>
-                      {BRANDS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="lg:col-span-2">
+                    <label className="text-xs text-zinc-400 mb-1 block">제품 선택</label>
+                    <select className={selectClass} value={costForm.product}
+                      onChange={e => {
+                        const prod = productList.find(p => p.product === e.target.value);
+                        setCostForm(prev => ({
+                          ...prev,
+                          product: e.target.value,
+                          brand: prod?.brand || prev.brand,
+                          category: prod?.category || prev.category,
+                        }));
+                      }}>
+                      <option value="">-- 제품 선택 --</option>
+                      {productList.map(p => (
+                        <option key={p.product} value={p.product}>
+                          {p.hasCost ? "✅" : "⚠️"} [{BRANDS.find(b => b.value === p.brand)?.label || p.brand}] {p.product} (₩{formatCompact(p.revenue)})
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -214,6 +223,42 @@ export default function SettingsPage() {
                 </button>
               </CardContent>
             </Card>
+
+            {/* Missing Costs Warning */}
+            {productList.filter(p => !p.hasCost).length > 0 && (
+              <Card className="border-yellow-500/30">
+                <CardHeader>
+                  <CardTitle>⚠️ 원가 미등록 제품 ({productList.filter(p => !p.hasCost).length}건)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs text-zinc-500 mb-3">매출이 있지만 원가가 등록되지 않은 제품입니다. 원가를 등록하면 정확한 영업이익을 계산할 수 있습니다.</p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-zinc-700">
+                          <th className="text-left py-2 px-2 text-zinc-400">제품</th>
+                          <th className="text-left py-2 px-2 text-zinc-400">브랜드</th>
+                          <th className="text-left py-2 px-2 text-zinc-400">카테고리</th>
+                          <th className="text-right py-2 px-2 text-zinc-400">누적 매출</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {productList.filter(p => !p.hasCost).map((p) => (
+                          <tr key={p.product} className="border-b border-zinc-800 cursor-pointer hover:bg-zinc-800/50"
+                            onClick={() => setCostForm({ product: p.product, brand: p.brand, cost_price: 0, shipping_cost: 0, category: p.category })}>
+                            <td className="py-2 px-2 text-yellow-400">{p.product}</td>
+                            <td className="py-2 px-2">{BRANDS.find(b => b.value === p.brand)?.label || p.brand}</td>
+                            <td className="py-2 px-2">{p.category}</td>
+                            <td className="py-2 px-2 text-right">₩{formatCompact(p.revenue)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-[10px] text-zinc-600 mt-2">💡 행을 클릭하면 위 폼에 자동으로 채워집니다</p>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Existing Costs */}
             <Card>
