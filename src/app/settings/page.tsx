@@ -137,11 +137,11 @@ export default function SettingsPage() {
     setLoading(false);
   };
 
-  const inputClass = "bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:outline-none w-full";
-  const selectClass = "bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:outline-none w-full";
+  const inputClass = "bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-zinc-100 focus:border-indigo-500 focus:outline-none w-full";
+  const selectClass = "bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-zinc-100 focus:border-indigo-500 focus:outline-none w-full";
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100">
+    <main className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-zinc-100">
       <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 space-y-6">
         <PageHeader title="⚙️ 설정" subtitle="원가 관리 & 수동 데이터 입력" />
 
@@ -157,7 +157,7 @@ export default function SettingsPage() {
               className={`px-4 py-2 rounded-lg text-sm transition-colors ${
                 activeTab === tab.key
                   ? "bg-indigo-600/20 text-indigo-400 font-medium"
-                  : "bg-zinc-800 text-zinc-400 hover:text-zinc-200"
+                  : "bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-200"
               }`}
             >
               {tab.label}
@@ -166,7 +166,7 @@ export default function SettingsPage() {
         </div>
 
         {message && (
-          <div className={`text-sm px-4 py-2 rounded-lg ${message.startsWith("✅") ? "bg-green-900/20 text-green-400" : "bg-red-900/20 text-red-400"}`}>
+          <div className={`text-sm px-4 py-2 rounded-lg ${message.startsWith("✅") ? "bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400" : "bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400"}`}>
             {message}
           </div>
         )}
@@ -179,7 +179,7 @@ export default function SettingsPage() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div className="lg:col-span-2">
-                    <label className="text-xs text-zinc-400 mb-1 block">제품 선택</label>
+                    <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">제품 선택</label>
                     <select className={selectClass} value={costForm.product}
                       onChange={e => {
                         const prod = productList.find(p => p.product === e.target.value);
@@ -199,19 +199,19 @@ export default function SettingsPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs text-zinc-400 mb-1 block">원가 (₩)</label>
+                    <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">원가 (₩)</label>
                     <input type="number" className={inputClass} value={costForm.cost_price || ""}
                       onChange={e => setCostForm(prev => ({ ...prev, cost_price: Number(e.target.value) }))}
                       placeholder="0" />
                   </div>
                   <div>
-                    <label className="text-xs text-zinc-400 mb-1 block">배송비 (₩)</label>
+                    <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">배송비 (₩)</label>
                     <input type="number" className={inputClass} value={costForm.shipping_cost || ""}
                       onChange={e => setCostForm(prev => ({ ...prev, shipping_cost: Number(e.target.value) }))}
                       placeholder="0" />
                   </div>
                   <div>
-                    <label className="text-xs text-zinc-400 mb-1 block">카테고리</label>
+                    <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">카테고리</label>
                     <input className={inputClass} value={costForm.category}
                       onChange={e => setCostForm(prev => ({ ...prev, category: e.target.value }))}
                       placeholder="간식" />
@@ -231,11 +231,11 @@ export default function SettingsPage() {
                   <CardTitle>⚠️ 원가 미등록 제품 ({productList.filter(p => !p.hasCost).length}건)</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-xs text-zinc-500 mb-3">매출이 있지만 원가가 등록되지 않은 제품입니다. 원가를 등록하면 정확한 영업이익을 계산할 수 있습니다.</p>
+                  <p className="text-xs text-gray-500 dark:text-zinc-500 mb-3">매출이 있지만 원가가 등록되지 않은 제품입니다. 원가를 등록하면 정확한 영업이익을 계산할 수 있습니다.</p>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-zinc-700">
+                        <tr className="border-b border-gray-200 dark:border-zinc-700">
                           <th className="text-left py-2 px-2 text-zinc-400">제품</th>
                           <th className="text-left py-2 px-2 text-zinc-400">브랜드</th>
                           <th className="text-left py-2 px-2 text-zinc-400">카테고리</th>
@@ -244,7 +244,7 @@ export default function SettingsPage() {
                       </thead>
                       <tbody>
                         {productList.filter(p => !p.hasCost).map((p) => (
-                          <tr key={p.product} className="border-b border-zinc-800 cursor-pointer hover:bg-zinc-800/50"
+                          <tr key={p.product} className="border-b border-gray-200 dark:border-zinc-800 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800/50"
                             onClick={() => setCostForm({ product: p.product, brand: p.brand, cost_price: 0, shipping_cost: 0, category: p.category })}>
                             <td className="py-2 px-2 text-yellow-400">{p.product}</td>
                             <td className="py-2 px-2">{BRANDS.find(b => b.value === p.brand)?.label || p.brand}</td>
@@ -255,7 +255,7 @@ export default function SettingsPage() {
                       </tbody>
                     </table>
                   </div>
-                  <p className="text-[10px] text-zinc-600 mt-2">💡 행을 클릭하면 위 폼에 자동으로 채워집니다</p>
+                  <p className="text-[10px] text-gray-400 dark:text-zinc-600 mt-2">💡 행을 클릭하면 위 폼에 자동으로 채워집니다</p>
                 </CardContent>
               </Card>
             )}
@@ -265,12 +265,12 @@ export default function SettingsPage() {
               <CardHeader><CardTitle>등록된 제품 원가 ({productCosts.length}건)</CardTitle></CardHeader>
               <CardContent>
                 {productCosts.length === 0 ? (
-                  <p className="text-sm text-zinc-500">등록된 원가 데이터가 없습니다. 위에서 제품별 원가를 입력하세요.</p>
+                  <p className="text-sm text-gray-500 dark:text-zinc-500">등록된 원가 데이터가 없습니다. 위에서 제품별 원가를 입력하세요.</p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-zinc-700">
+                        <tr className="border-b border-gray-200 dark:border-zinc-700">
                           <th className="text-left py-2 px-2 text-zinc-400">제품</th>
                           <th className="text-left py-2 px-2 text-zinc-400">브랜드</th>
                           <th className="text-right py-2 px-2 text-zinc-400">원가</th>
@@ -280,7 +280,7 @@ export default function SettingsPage() {
                       </thead>
                       <tbody>
                         {productCosts.map((p, i) => (
-                          <tr key={i} className="border-b border-zinc-800">
+                          <tr key={i} className="border-b border-gray-200 dark:border-zinc-800">
                             <td className="py-2 px-2">{p.product}</td>
                             <td className="py-2 px-2">{BRANDS.find(b => b.value === p.brand)?.label || p.brand}</td>
                             <td className="py-2 px-2 text-right">₩{formatCompact(p.cost_price)}</td>
@@ -304,22 +304,22 @@ export default function SettingsPage() {
           <Card>
             <CardHeader><CardTitle>📁 CSV 파일 업로드</CardTitle></CardHeader>
             <CardContent>
-              <p className="text-xs text-zinc-500 mb-4">쿠팡 광고 등 CSV/XLSX 파일을 업로드하면 자동으로 파싱해서 DB에 저장합니다. (날짜, 광고비, 노출, 클릭, 전환매출 컬럼 자동 감지)</p>
+              <p className="text-xs text-gray-500 dark:text-zinc-500 mb-4">쿠팡 광고 등 CSV/XLSX 파일을 업로드하면 자동으로 파싱해서 DB에 저장합니다. (날짜, 광고비, 노출, 클릭, 전환매출 컬럼 자동 감지)</p>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">파일 (.csv, .xlsx)</label>
-                  <input type="file" accept=".csv,.xlsx,.xls" className="text-sm text-zinc-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-zinc-700 file:text-zinc-200 file:cursor-pointer hover:file:bg-zinc-600"
+                  <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">파일 (.csv, .xlsx)</label>
+                  <input type="file" accept=".csv,.xlsx,.xls" className="text-sm text-gray-500 dark:text-zinc-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-200 dark:file:bg-zinc-700 file:text-gray-700 dark:file:text-zinc-200 file:cursor-pointer hover:file:bg-gray-300 dark:hover:file:bg-zinc-600"
                     onChange={e => setUploadFile(e.target.files?.[0] || null)} />
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">채널</label>
+                  <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">채널</label>
                   <select className={selectClass} value={uploadChannel}
                     onChange={e => setUploadChannel(e.target.value)}>
                     {MANUAL_CHANNELS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">브랜드</label>
+                  <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">브랜드</label>
                   <select className={selectClass} value={uploadBrand}
                     onChange={e => setUploadBrand(e.target.value)}>
                     {BRANDS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
@@ -331,7 +331,7 @@ export default function SettingsPage() {
                 </button>
               </div>
               {uploadResult && (
-                <div className="mt-4 bg-zinc-800/50 rounded-lg p-4 text-sm">
+                <div className="mt-4 bg-gray-100 dark:bg-zinc-800/50 rounded-lg p-4 text-sm">
                   <p className="text-green-400 font-medium">{uploadResult.rows}건 저장 완료</p>
                   <p className="text-zinc-400 mt-1">기간: {uploadResult.dateRange}</p>
                   <p className="text-zinc-400">총 광고비: ₩{formatCompact(uploadResult.totalSpend)}</p>
@@ -344,29 +344,29 @@ export default function SettingsPage() {
           <Card>
             <CardHeader><CardTitle>✍️ 수동 광고비 입력</CardTitle></CardHeader>
             <CardContent>
-              <p className="text-xs text-zinc-500 mb-4">API로 자동 수집이 안 되는 광고비를 수동으로 입력합니다. (쿠팡 광고, 인플루언서, GFA 등)</p>
+              <p className="text-xs text-gray-500 dark:text-zinc-500 mb-4">API로 자동 수집이 안 되는 광고비를 수동으로 입력합니다. (쿠팡 광고, 인플루언서, GFA 등)</p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">날짜</label>
+                  <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">날짜</label>
                   <input type="date" className={inputClass} value={adForm.date}
                     onChange={e => setAdForm(prev => ({ ...prev, date: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">브랜드</label>
+                  <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">브랜드</label>
                   <select className={selectClass} value={adForm.brand}
                     onChange={e => setAdForm(prev => ({ ...prev, brand: e.target.value }))}>
                     {BRANDS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">채널</label>
+                  <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">채널</label>
                   <select className={selectClass} value={adForm.channel}
                     onChange={e => setAdForm(prev => ({ ...prev, channel: e.target.value }))}>
                     {MANUAL_CHANNELS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">광고비 (₩)</label>
+                  <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">광고비 (₩)</label>
                   <input type="number" className={inputClass} value={adForm.spend || ""}
                     onChange={e => setAdForm(prev => ({ ...prev, spend: Number(e.target.value) }))}
                     placeholder="0" />
@@ -374,17 +374,17 @@ export default function SettingsPage() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">노출수 (선택)</label>
+                  <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">노출수 (선택)</label>
                   <input type="number" className={inputClass} value={adForm.impressions || ""}
                     onChange={e => setAdForm(prev => ({ ...prev, impressions: Number(e.target.value) }))} />
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">클릭수 (선택)</label>
+                  <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">클릭수 (선택)</label>
                   <input type="number" className={inputClass} value={adForm.clicks || ""}
                     onChange={e => setAdForm(prev => ({ ...prev, clicks: Number(e.target.value) }))} />
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">전환매출 (선택)</label>
+                  <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">전환매출 (선택)</label>
                   <input type="number" className={inputClass} value={adForm.conversion_value || ""}
                     onChange={e => setAdForm(prev => ({ ...prev, conversion_value: Number(e.target.value) }))} />
                 </div>
@@ -415,8 +415,8 @@ export default function SettingsPage() {
                   ].map(item => (
                     <div key={item.name} className="flex items-center gap-3">
                       <span>{item.status}</span>
-                      <span className="font-medium text-zinc-200 w-48">{item.name}</span>
-                      <span className="text-zinc-500">{item.desc}</span>
+                      <span className="font-medium text-gray-800 dark:text-zinc-200 w-48">{item.name}</span>
+                      <span className="text-gray-500 dark:text-zinc-500">{item.desc}</span>
                     </div>
                   ))}
                 </div>
@@ -435,8 +435,8 @@ export default function SettingsPage() {
                   ].map(item => (
                     <div key={item.name} className="flex items-center gap-3">
                       <span>{item.status}</span>
-                      <span className="font-medium text-zinc-200 w-48">{item.name}</span>
-                      <span className="text-zinc-500">{item.desc}</span>
+                      <span className="font-medium text-gray-800 dark:text-zinc-200 w-48">{item.name}</span>
+                      <span className="text-gray-500 dark:text-zinc-500">{item.desc}</span>
                     </div>
                   ))}
                 </div>
