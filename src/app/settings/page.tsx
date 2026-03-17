@@ -49,6 +49,12 @@ export default function SettingsPage() {
     product: "", brand: "nutty", cost_price: 0, shipping_cost: 0, category: "",
   });
 
+  // File upload state
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadChannel, setUploadChannel] = useState("coupang_ads");
+  const [uploadBrand, setUploadBrand] = useState("nutty");
+  const [uploadResult, setUploadResult] = useState<any>(null);
+
   // Manual ad spend form
   const [adForm, setAdForm] = useState<ManualAdEntry>({
     date: new Date().toISOString().slice(0, 10),
@@ -104,6 +110,28 @@ export default function SettingsPage() {
         setMessage("❌ 저장 실패");
       }
     } catch { setMessage("❌ 오류 발생"); }
+    setLoading(false);
+  };
+
+  const handleUpload = async () => {
+    if (!uploadFile) { setMessage("파일을 선택하세요"); return; }
+    setLoading(true);
+    setUploadResult(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", uploadFile);
+      formData.append("channel", uploadChannel);
+      formData.append("brand", uploadBrand);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (res.ok) {
+        setMessage(`✅ ${data.message}`);
+        setUploadResult(data.summary);
+        setUploadFile(null);
+      } else {
+        setMessage(`❌ ${data.error}`);
+      }
+    } catch { setMessage("❌ 업로드 오류"); }
     setLoading(false);
   };
 
@@ -226,8 +254,50 @@ export default function SettingsPage() {
 
         {/* Manual Ad Spend Tab */}
         {activeTab === "manual_ads" && (
+          <div className="space-y-6">
+          {/* CSV Upload */}
           <Card>
-            <CardHeader><CardTitle>수동 광고비 입력</CardTitle></CardHeader>
+            <CardHeader><CardTitle>📁 CSV 파일 업로드</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-xs text-zinc-500 mb-4">쿠팡 광고 등 CSV 파일을 업로드하면 자동으로 파싱해서 DB에 저장합니다. (날짜, 광고비, 노출, 클릭, 전환매출 컬럼 자동 감지)</p>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                <div>
+                  <label className="text-xs text-zinc-400 mb-1 block">파일 (.csv)</label>
+                  <input type="file" accept=".csv" className="text-sm text-zinc-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-zinc-700 file:text-zinc-200 file:cursor-pointer hover:file:bg-zinc-600"
+                    onChange={e => setUploadFile(e.target.files?.[0] || null)} />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400 mb-1 block">채널</label>
+                  <select className={selectClass} value={uploadChannel}
+                    onChange={e => setUploadChannel(e.target.value)}>
+                    {MANUAL_CHANNELS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400 mb-1 block">브랜드</label>
+                  <select className={selectClass} value={uploadBrand}
+                    onChange={e => setUploadBrand(e.target.value)}>
+                    {BRANDS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+                  </select>
+                </div>
+                <button onClick={handleUpload} disabled={loading || !uploadFile}
+                  className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">
+                  {loading ? "업로드 중..." : "업로드"}
+                </button>
+              </div>
+              {uploadResult && (
+                <div className="mt-4 bg-zinc-800/50 rounded-lg p-4 text-sm">
+                  <p className="text-green-400 font-medium">{uploadResult.rows}건 저장 완료</p>
+                  <p className="text-zinc-400 mt-1">기간: {uploadResult.dateRange}</p>
+                  <p className="text-zinc-400">총 광고비: ₩{formatCompact(uploadResult.totalSpend)}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Manual Single Entry */}
+          <Card>
+            <CardHeader><CardTitle>✍️ 수동 광고비 입력</CardTitle></CardHeader>
             <CardContent>
               <p className="text-xs text-zinc-500 mb-4">API로 자동 수집이 안 되는 광고비를 수동으로 입력합니다. (쿠팡 광고, 인플루언서, GFA 등)</p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -280,6 +350,7 @@ export default function SettingsPage() {
               </button>
             </CardContent>
           </Card>
+          </div>
         )}
 
         {/* Data Source Info Tab */}
