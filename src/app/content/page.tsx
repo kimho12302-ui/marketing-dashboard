@@ -6,6 +6,7 @@ import Filters from "@/components/filters";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompact } from "@/lib/utils";
+import { useChartTheme } from "@/hooks/use-chart-theme";
 import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from "recharts";
@@ -22,6 +23,7 @@ interface FollowerTrend { date: string; followers: number; }
 
 export default function ContentPage() {
   const dates = getDefaultDates();
+  const chart = useChartTheme();
   const [filters, setFilters] = useState<DashboardFilters>({
     period: "daily", brand: "all", from: dates.from, to: dates.to,
   });
@@ -46,7 +48,7 @@ export default function ContentPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100">
+    <main className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-zinc-100">
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
         <PageHeader title="📝 Content" subtitle="콘텐츠 성과" />
         <Filters filters={filters} onChange={setFilters} />
@@ -59,18 +61,18 @@ export default function ContentPage() {
           <>
             {/* Content Type Summary */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {byType.map((ct, i) => (
+              {byType.map((ct) => (
                 <Card key={ct.content_type}>
                   <CardHeader>
                     <CardTitle>{ct.content_type}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-1 text-sm">
-                      <div className="flex justify-between"><span className="text-zinc-400">발행수</span><span>{ct.posts}</span></div>
-                      <div className="flex justify-between"><span className="text-zinc-400">노출</span><span>{formatCompact(ct.impressions)}</span></div>
-                      <div className="flex justify-between"><span className="text-zinc-400">클릭</span><span>{formatCompact(ct.clicks)}</span></div>
-                      <div className="flex justify-between"><span className="text-zinc-400">CTR</span><span>{(ct.ctr * 100).toFixed(2)}%</span></div>
-                      <div className="flex justify-between"><span className="text-zinc-400">참여율</span><span>{(ct.engagement * 100).toFixed(2)}%</span></div>
+                      <div className="flex justify-between"><span className="text-gray-500 dark:text-zinc-400">발행수</span><span>{ct.posts}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-500 dark:text-zinc-400">노출</span><span>{formatCompact(ct.impressions)}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-500 dark:text-zinc-400">클릭</span><span>{formatCompact(ct.clicks)}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-500 dark:text-zinc-400">CTR</span><span>{(ct.ctr * 100).toFixed(2)}%</span></div>
+                      <div className="flex justify-between"><span className="text-gray-500 dark:text-zinc-400">참여율</span><span>{(ct.engagement * 100).toFixed(2)}%</span></div>
                     </div>
                   </CardContent>
                 </Card>
@@ -84,10 +86,10 @@ export default function ContentPage() {
                 <div className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={postsTrend}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                      <XAxis dataKey="date" tick={{ fill: "#888", fontSize: 12 }} tickFormatter={(v: string) => v.slice(5)} />
-                      <YAxis tick={{ fill: "#888", fontSize: 12 }} />
-                      <Tooltip contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={chart.gridColor} />
+                      <XAxis dataKey="date" tick={{ fill: chart.tickColor, fontSize: 12 }} tickFormatter={(v: string) => v.slice(5)} />
+                      <YAxis tick={{ fill: chart.tickColor, fontSize: 12 }} />
+                      <Tooltip contentStyle={chart.tooltipStyle} />
                       <Legend />
                       {["블로그", "피드", "릴스", "스토리"].map((type, i) => (
                         <Bar key={type} dataKey={type} stackId="a" fill={COLORS[i]} />
@@ -105,10 +107,10 @@ export default function ContentPage() {
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={followerTrend}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                      <XAxis dataKey="date" tick={{ fill: "#888", fontSize: 12 }} tickFormatter={(v: string) => v.slice(5)} />
-                      <YAxis tick={{ fill: "#888", fontSize: 12 }} />
-                      <Tooltip contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={chart.gridColor} />
+                      <XAxis dataKey="date" tick={{ fill: chart.tickColor, fontSize: 12 }} tickFormatter={(v: string) => v.slice(5)} />
+                      <YAxis tick={{ fill: chart.tickColor, fontSize: 12 }} />
+                      <Tooltip contentStyle={chart.tooltipStyle} />
                       <Line type="monotone" dataKey="followers" stroke="#6366f1" strokeWidth={2} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>

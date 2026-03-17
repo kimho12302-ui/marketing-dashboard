@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import PageHeader from "@/components/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { AlertTriangle, AlertCircle, Zap, Info } from "lucide-react";
 
 function getDefaultDates() {
@@ -17,10 +17,10 @@ interface Insight {
 }
 
 const TYPE_CONFIG = {
-  critical: { icon: AlertTriangle, label: "🚨 Critical", border: "border-red-500/30", bg: "bg-red-900/10", iconColor: "text-red-400", badge: "bg-red-500/20 text-red-400" },
-  warning: { icon: AlertCircle, label: "⚠️ Warning", border: "border-yellow-500/30", bg: "bg-yellow-900/10", iconColor: "text-yellow-400", badge: "bg-yellow-500/20 text-yellow-400" },
-  opportunity: { icon: Zap, label: "🟢 Opportunity", border: "border-green-500/30", bg: "bg-green-900/10", iconColor: "text-green-400", badge: "bg-green-500/20 text-green-400" },
-  info: { icon: Info, label: "ℹ️ Info", border: "border-blue-500/30", bg: "bg-blue-900/10", iconColor: "text-blue-400", badge: "bg-blue-500/20 text-blue-400" },
+  critical: { icon: AlertTriangle, label: "🚨 Critical", border: "border-red-500/30", bg: "bg-red-50 dark:bg-red-900/10", iconColor: "text-red-400", badge: "bg-red-500/20 text-red-400" },
+  warning: { icon: AlertCircle, label: "⚠️ Warning", border: "border-yellow-500/30", bg: "bg-yellow-50 dark:bg-yellow-900/10", iconColor: "text-yellow-400", badge: "bg-yellow-500/20 text-yellow-400" },
+  opportunity: { icon: Zap, label: "🟢 Opportunity", border: "border-green-500/30", bg: "bg-green-50 dark:bg-green-900/10", iconColor: "text-green-400", badge: "bg-green-500/20 text-green-400" },
+  info: { icon: Info, label: "ℹ️ Info", border: "border-blue-500/30", bg: "bg-blue-50 dark:bg-blue-900/10", iconColor: "text-blue-400", badge: "bg-blue-500/20 text-blue-400" },
 };
 
 export default function InsightsPage() {
@@ -49,28 +49,28 @@ export default function InsightsPage() {
   insights.forEach(i => counts[i.type]++);
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100">
+    <main className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-zinc-100">
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
         <PageHeader title="💡 Insights" subtitle="실데이터 기반 마케팅 인사이트" />
 
         {/* Date Range */}
         <div className="flex gap-2 items-center">
           <input type="date" value={from} onChange={e => setFrom(e.target.value)}
-            className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-zinc-200" />
-          <span className="text-zinc-500">~</span>
+            className="bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-gray-800 dark:text-zinc-200" />
+          <span className="text-gray-400 dark:text-zinc-500">~</span>
           <input type="date" value={to} onChange={e => setTo(e.target.value)}
-            className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-zinc-200" />
+            className="bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-gray-800 dark:text-zinc-200" />
         </div>
 
         {/* Filter Tabs */}
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => setFilter("all")}
-            className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${filter === "all" ? "bg-indigo-600 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"}`}>
+            className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${filter === "all" ? "bg-indigo-600 text-white" : "bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:bg-gray-200 dark:hover:bg-zinc-700"}`}>
             전체 ({insights.length})
           </button>
           {(["critical", "warning", "opportunity", "info"] as const).map(type => (
             <button key={type} onClick={() => setFilter(type)}
-              className={`px-3 py-1.5 text-sm rounded-lg transition-colors flex items-center gap-1.5 ${filter === type ? TYPE_CONFIG[type].badge : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"}`}>
+              className={`px-3 py-1.5 text-sm rounded-lg transition-colors flex items-center gap-1.5 ${filter === type ? TYPE_CONFIG[type].badge : "bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:bg-gray-200 dark:hover:bg-zinc-700"}`}>
               {TYPE_CONFIG[type].label} ({counts[type]})
             </button>
           ))}
@@ -82,7 +82,7 @@ export default function InsightsPage() {
           </div>
         ) : filtered.length === 0 ? (
           <Card>
-            <CardContent className="py-10 text-center text-zinc-500">
+            <CardContent className="py-10 text-center text-gray-500 dark:text-zinc-500">
               해당 기간에 발견된 인사이트가 없습니다.
             </CardContent>
           </Card>
@@ -96,10 +96,10 @@ export default function InsightsPage() {
                   <Icon className={`h-5 w-5 mt-0.5 flex-shrink-0 ${config.iconColor}`} />
                   <div className="space-y-1 flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm text-zinc-200 font-medium">{insight.text}</p>
+                      <p className="text-sm text-gray-800 dark:text-zinc-200 font-medium">{insight.text}</p>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded ${config.badge} uppercase font-medium`}>{insight.type}</span>
                     </div>
-                    {insight.detail && <p className="text-xs text-zinc-500">{insight.detail}</p>}
+                    {insight.detail && <p className="text-xs text-gray-500 dark:text-zinc-500">{insight.detail}</p>}
                   </div>
                 </div>
               );
