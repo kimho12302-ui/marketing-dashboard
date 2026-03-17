@@ -159,6 +159,7 @@ export default function AdsPage() {
                         <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">Clicks</th>
                         <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">CTR</th>
                         <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">CPC</th>
+                        <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">전환매출</th>
                         <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">Conv.</th>
                         <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">ROAS</th>
                       </tr>
@@ -174,7 +175,8 @@ export default function AdsPage() {
                           <td className="py-2.5 px-2 text-right">{ch.impressions.toLocaleString()}</td>
                           <td className="py-2.5 px-2 text-right">{ch.clicks.toLocaleString()}</td>
                           <td className="py-2.5 px-2 text-right">{(ch.ctr * 100).toFixed(2)}%</td>
-                          <td className="py-2.5 px-2 text-right">₩{formatCompact(ch.cpc)}</td>
+                          <td className="py-2.5 px-2 text-right">₩{Math.round(ch.cpc).toLocaleString()}</td>
+                          <td className="py-2.5 px-2 text-right">₩{formatCompact(ch.conversionValue || 0)}</td>
                           <td className="py-2.5 px-2 text-right">{ch.conversions.toLocaleString()}</td>
                           <td className="py-2.5 px-2 text-right font-medium">{ch.roas.toFixed(2)}x</td>
                         </tr>
