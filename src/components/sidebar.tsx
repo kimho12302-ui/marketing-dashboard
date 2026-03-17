@@ -95,38 +95,47 @@ export default function Sidebar() {
         </div>
       </aside>
 
-      {/* Mobile Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-800 flex md:hidden">
-        {NAV_ITEMS.map((item) => {
-          const isActive =
-            pathname === item.href ||
-            (item.href !== "/" && pathname.startsWith(item.href));
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] transition-colors",
-                isActive
-                  ? "text-indigo-600 dark:text-indigo-400"
-                  : "text-gray-400 dark:text-zinc-500"
+      {/* Mobile Bottom Nav — show top 4 + more */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-800 md:hidden">
+        <div className="flex">
+          {NAV_ITEMS.slice(0, 4).map((item) => {
+            const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+            return (
+              <Link key={item.href} href={item.href}
+                className={cn("flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] transition-colors",
+                  isActive ? "text-indigo-600 dark:text-indigo-400" : "text-gray-400 dark:text-zinc-500")}>
+                <span className="text-base">{item.emoji}</span>
+                <span className="truncate">{item.label}</span>
+              </Link>
+            );
+          })}
+          <div className="flex-1 relative group">
+            <button className={cn("w-full flex flex-col items-center gap-0.5 py-2 text-[10px] transition-colors",
+              NAV_ITEMS.slice(4).some(i => pathname === i.href || (i.href !== "/" && pathname.startsWith(i.href)))
+                ? "text-indigo-600 dark:text-indigo-400" : "text-gray-400 dark:text-zinc-500")}>
+              <span className="text-base">⋯</span>
+              <span>더보기</span>
+            </button>
+            <div className="absolute bottom-full right-0 mb-1 hidden group-hover:block group-focus-within:block bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg shadow-lg py-1 min-w-[140px]">
+              {NAV_ITEMS.slice(4).map((item) => {
+                const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+                return (
+                  <Link key={item.href} href={item.href}
+                    className={cn("flex items-center gap-2 px-3 py-2 text-xs transition-colors",
+                      isActive ? "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20" : "text-gray-600 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-800")}>
+                    <span>{item.emoji}</span> {item.label}
+                  </Link>
+                );
+              })}
+              {mounted && (
+                <button onClick={toggleTheme}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-600 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-800">
+                  <span>{theme === "dark" ? "☀️" : "🌙"}</span> 테마 변경
+                </button>
               )}
-            >
-              <span className="text-sm">{item.emoji}</span>
-              <span className="truncate">{item.label}</span>
-            </Link>
-          );
-        })}
-        {/* Theme toggle in mobile nav */}
-        {mounted && (
-          <button
-            onClick={toggleTheme}
-            className="flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] text-gray-400 dark:text-zinc-500"
-          >
-            <span className="text-sm">{theme === "dark" ? "☀️" : "🌙"}</span>
-            <span>테마</span>
-          </button>
-        )}
+            </div>
+          </div>
+        </div>
       </nav>
     </>
   );
