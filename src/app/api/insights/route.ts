@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const funnelRows = funnel || [];
     const prodRows = products || [];
 
-    const insights: { type: "critical" | "warning" | "opportunity" | "info"; text: string; detail?: string }[] = [];
+    const insights: { type: "critical" | "warning" | "opportunity" | "info"; text: string; detail?: string; actions?: string[] }[] = [];
 
     // ===== REVENUE ANALYSIS =====
     const totalRevenue = salesRows.reduce((s, r) => s + Number(r.revenue), 0);
@@ -27,9 +27,9 @@ export async function GET(request: NextRequest) {
     const roas = totalAdSpend > 0 ? totalRevenue / totalAdSpend : 0;
 
     if (roas < 2.0 && totalAdSpend > 0) {
-      insights.push({ type: "critical", text: `전체 ROAS ${roas.toFixed(2)}x — 목표 3.0x 미달`, detail: `매출 ₩${(totalRevenue/10000).toFixed(0)}만 대비 광고비 ₩${(totalAdSpend/10000).toFixed(0)}만. 광고 효율 개선 필요` });
+      insights.push({ type: "critical", text: `전체 ROAS ${roas.toFixed(2)}x — 목표 3.0x 미달`, detail: `매출 ₩${(totalRevenue/10000).toFixed(0)}만 대비 광고비 ₩${(totalAdSpend/10000).toFixed(0)}만`, actions: ["ROAS 1.0 미만 채널 예산 50% 감축", "상위 ROAS 크리에이티브 예산 집중", "리타겟팅 캠페인 신설 (ROAS 3x+ 기대)"] });
     } else if (roas >= 3.0) {
-      insights.push({ type: "opportunity", text: `전체 ROAS ${roas.toFixed(2)}x — 양호! 예산 증액 검토`, detail: `현재 효율이 좋으므로 일 예산 증액 시 매출 성장 가능` });
+      insights.push({ type: "opportunity", text: `전체 ROAS ${roas.toFixed(2)}x — 양호! 예산 증액 검토`, detail: `현재 효율이 좋으므로 일 예산 증액 시 매출 성장 가능`, actions: ["일 예산 20% 증액 테스트 (1주)", "상위 소재 A/B 변형 추가", "유사 타겟 확장"] });
     }
 
     // ===== CHANNEL ANALYSIS =====
@@ -44,9 +44,9 @@ export async function GET(request: NextRequest) {
     for (const [channel, d] of channelSpend.entries()) {
       const chRoas = d.spend > 0 ? d.convValue / d.spend : 0;
       if (d.spend > 100000 && chRoas < 1.0) {
-        insights.push({ type: "critical", text: `${channel} ROAS ${chRoas.toFixed(2)}x — 적자 채널`, detail: `광고비 ₩${(d.spend/10000).toFixed(0)}만 투입 대비 전환매출 ₩${(d.convValue/10000).toFixed(0)}만. 예산 재검토 필요` });
+        insights.push({ type: "critical", text: `${channel} ROAS ${chRoas.toFixed(2)}x — 적자 채널`, detail: `광고비 ₩${(d.spend/10000).toFixed(0)}만 투입 대비 전환매출 ₩${(d.convValue/10000).toFixed(0)}만`, actions: [`${channel} 일 예산 50% 감축`, "전환 추적 코드 재확인 (conversion_value=0이면 추적 문제)", "2주간 모니터링 후 중단 여부 결정"] });
       } else if (d.spend > 100000 && chRoas < 2.0) {
-        insights.push({ type: "warning", text: `${channel} ROAS ${chRoas.toFixed(2)}x — 효율 저조`, detail: `크리에이티브 교체 또는 타겟팅 재설정 권장` });
+        insights.push({ type: "warning", text: `${channel} ROAS ${chRoas.toFixed(2)}x — 효율 저조`, detail: `크리에이티브 교체 또는 타겟팅 재설정 권장`, actions: ["하위 20% 소재 OFF", "새 크리에이티브 2-3개 테스트", "타겟 연령/관심사 재설정"] });
       }
     }
 

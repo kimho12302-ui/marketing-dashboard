@@ -14,6 +14,7 @@ interface Insight {
   type: "critical" | "warning" | "opportunity" | "info";
   text: string;
   detail?: string;
+  actions?: string[];
 }
 
 const TYPE_CONFIG = {
@@ -100,6 +101,17 @@ export default function InsightsPage() {
                       <span className={`text-[10px] px-1.5 py-0.5 rounded ${config.badge} uppercase font-medium`}>{insight.type}</span>
                     </div>
                     {insight.detail && <p className="text-xs text-gray-500 dark:text-zinc-500">{insight.detail}</p>}
+                    {insight.actions && insight.actions.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-medium uppercase">추천 액션</p>
+                        {insight.actions.map((action, j) => (
+                          <div key={j} className="flex items-start gap-2 text-xs text-gray-600 dark:text-zinc-300">
+                            <span className="text-indigo-400 mt-0.5">→</span>
+                            <span>{action}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
