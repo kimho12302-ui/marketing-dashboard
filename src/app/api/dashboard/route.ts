@@ -65,17 +65,21 @@ export async function GET(request: NextRequest) {
       return dateStr;
     };
 
-    const trendMap = new Map<string, { revenue: number; adSpend: number }>();
+    const brandLabelsMap: Record<string, string> = { nutty: "너티", ironpet: "아이언펫", saip: "사입", balancelab: "밸런스랩" };
+    const trendMap = new Map<string, Record<string, number>>();
     for (const row of sales || []) {
       const key = getGroupKey(row.date);
       const existing = trendMap.get(key) || { revenue: 0, adSpend: 0 };
-      existing.revenue += Number(row.revenue);
+      existing.revenue = (existing.revenue || 0) + Number(row.revenue);
+      // Brand-level revenue
+      const bl = brandLabelsMap[row.brand] || row.brand;
+      existing[bl] = (existing[bl] || 0) + Number(row.revenue);
       trendMap.set(key, existing);
     }
     for (const row of adSpend || []) {
       const key = getGroupKey(row.date);
       const existing = trendMap.get(key) || { revenue: 0, adSpend: 0 };
-      existing.adSpend += Number(row.spend);
+      existing.adSpend = (existing.adSpend || 0) + Number(row.spend);
       trendMap.set(key, existing);
     }
     const trend = Array.from(trendMap.entries())

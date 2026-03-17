@@ -15,6 +15,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompact } from "@/lib/utils";
 import type { TrendDataPoint } from "@/lib/types";
 
+const BRAND_COLORS: Record<string, string> = {
+  "너티": "#6366f1",
+  "아이언펫": "#22c55e",
+  "사입": "#f97316",
+  "밸런스랩": "#ec4899",
+};
+
+const BRAND_KEYS = ["너티", "아이언펫", "사입", "밸런스랩"];
+
 interface TrendChartProps {
   data: TrendDataPoint[];
 }
@@ -25,7 +34,7 @@ function CustomTooltip({
   label,
 }: {
   active?: boolean;
-  payload?: Array<{ value: number; name: string; color: string }>;
+  payload?: Array<{ value: number; name: string; color: string; dataKey: string }>;
   label?: string;
 }) {
   if (!active || !payload) return null;
@@ -42,6 +51,11 @@ function CustomTooltip({
 }
 
 export default function TrendChart({ data }: TrendChartProps) {
+  // Check which brands have data
+  const activeBrands = BRAND_KEYS.filter(b =>
+    data.some(d => (d as any)[b] > 0)
+  );
+
   return (
     <Card>
       <CardHeader>
@@ -72,20 +86,24 @@ export default function TrendChart({ data }: TrendChartProps) {
               <Legend
                 wrapperStyle={{ color: "#aaa", fontSize: 13, paddingTop: 8 }}
               />
-              <Bar
-                yAxisId="left"
-                dataKey="revenue"
-                name="매출"
-                fill="#6366f1"
-                radius={[4, 4, 0, 0]}
-                opacity={0.8}
-              />
+              {activeBrands.map((brand) => (
+                <Bar
+                  key={brand}
+                  yAxisId="left"
+                  dataKey={brand}
+                  name={brand}
+                  fill={BRAND_COLORS[brand] || "#888"}
+                  stackId="revenue"
+                  radius={brand === activeBrands[activeBrands.length - 1] ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                  opacity={0.85}
+                />
+              ))}
               <Line
                 yAxisId="right"
                 type="monotone"
                 dataKey="adSpend"
                 name="광고비"
-                stroke="#f97316"
+                stroke="#ef4444"
                 strokeWidth={2}
                 dot={false}
               />
