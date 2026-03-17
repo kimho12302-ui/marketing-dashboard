@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompact } from "@/lib/utils";
 import { useChartTheme } from "@/hooks/use-chart-theme";
 import {
-  ResponsiveContainer, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ZAxis,
+  ResponsiveContainer, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ZAxis, ReferenceLine, Cell,
 } from "recharts";
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -46,14 +46,28 @@ export default function KeywordsPage() {
   const filtered = platformTab === "all" ? keywords : keywords.filter(k => k.platform === platformTab);
   const scatterData = filtered.map(k => ({
     keyword: k.keyword,
+    platform: k.platform,
     ctr: +(k.ctr * 100).toFixed(2),
     cpc: k.cpc,
     cost: k.cost,
     clicks: k.clicks,
+    impressions: k.impressions,
+    conversions: k.conversions,
   }));
 
   const avgCtr = scatterData.length > 0 ? scatterData.reduce((s, d) => s + d.ctr, 0) / scatterData.length : 0;
   const avgCpc = scatterData.length > 0 ? scatterData.reduce((s, d) => s + d.cpc, 0) / scatterData.length : 0;
+
+  // Quadrant classification
+  const getQuadrant = (ctr: number, cpc: number) => {
+    if (ctr >= avgCtr && cpc <= avgCpc) return "star";     // High CTR, Low CPC — 스타 키워드
+    if (ctr >= avgCtr && cpc > avgCpc) return "expensive";  // High CTR, High CPC — 비용 최적화 필요
+    if (ctr < avgCtr && cpc <= avgCpc) return "potential";  // Low CTR, Low CPC — 잠재력
+    return "review";                                         // Low CTR, High CPC — 재검토
+  };
+  const QUAD_COLORS: Record<string, string> = {
+    star: "#22c55e", expensive: "#f97316", potential: "#6366f1", review: "#ef4444",
+  };
 
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-zinc-100">
@@ -77,32 +91,72 @@ export default function KeywordsPage() {
         ) : (
           <>
             <Card>
-              <CardHeader><CardTitle>키워드 효율 매트릭스 (CTR vs CPC)</CardTitle></CardHeader>
+              <CardHeader><CardTitle>🔬 키워드 효율 매트릭스 (버블차트)</CardTitle></CardHeader>
               <CardContent>
-                <div className="h-80">
+                <div className="h-96">
                   <ResponsiveContainer width="100%" height="100%">
-                    <ScatterChart>
+                    <ScatterChart margin={{ bottom: 20, left: 10, right: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
-                      <XAxis type="number" dataKey="cpc" name="CPC" tick={{ fill: chartTheme.tickColor, fontSize: 12 }}
-                        label={{ value: "CPC (₩)", position: "bottom", fill: chartTheme.axisColor, fontSize: 11 }} />
-                      <YAxis type="number" dataKey="ctr" name="CTR" tick={{ fill: chartTheme.tickColor, fontSize: 12 }}
-                        label={{ value: "CTR (%)", angle: -90, position: "insideLeft", fill: chartTheme.axisColor, fontSize: 11 }} />
-                      <ZAxis type="number" dataKey="clicks" range={[30, 300]} />
-                      <Tooltip contentStyle={chartTheme.tooltipStyle}
-                        formatter={(value: any, name: any) => {
-                          if (name === "CPC") return [`₩${formatCompact(value)}`, name];
-                          if (name === "CTR") return [`${value}%`, name];
-                          return [value, name];
+                      <XAxis type="number" dataKey="ctr" name="CTR" tick={{ fill: chartTheme.tickColor, fontSize: 11 }}
+                        label={{ value: "CTR (%)", position: "bottom", fill: chartTheme.axisColor, fontSize: 11, dy: 10 }}
+                        domain={[0, "auto"]} />
+                      <YAxis type="number" dataKey="cpc" name="CPC" tick={{ fill: chartTheme.tickColor, fontSize: 11 }}
+                        label={{ value: "CPC (₩)", angle: -90, position: "insideLeft", fill: chartTheme.axisColor, fontSize: 11, dx: -5 }}
+                        reversed />
+                      <ZAxis type="number" dataKey="clicks" range={[40, 400]} name="클릭수" />
+                      <ReferenceLine y={avgCpc} stroke="#ef4444" strokeDasharray="5 5" strokeOpacity={0.6} />
+                      <ReferenceLine x={avgCtr} stroke="#ef4444" strokeDasharray="5 5" strokeOpacity={0.6} />
+                      <Tooltip
+                        contentStyle={chartTheme.tooltipStyle}
+                        content={({ active, payload }: any) => {
+                          if (!active || !payload?.length) return null;
+                          const d = payload[0].payload;
+                          return (
+                            <div style={chartTheme.tooltipStyle} className="rounded-lg shadow-lg p-3 min-w-[180px]">
+                              <p className="font-bold text-sm mb-1" style={{ color: QUAD_COLORS[getQuadrant(d.ctr, d.cpc)] }}>{d.keyword}</p>
+                              <p className="text-xs text-gray-400">{PLATFORM_LABELS[d.platform] || d.platform}</p>
+                              <div className="mt-2 space-y-0.5 text-xs">
+                                <p>CTR: <span className="font-medium">{d.ctr}%</span></p>
+                                <p>CPC: <span className="font-medium">₩{formatCompact(d.cpc)}</span></p>
+                                <p>클릭: <span className="font-medium">{d.clicks.toLocaleString()}</span></p>
+                                <p>노출: <span className="font-medium">{d.impressions.toLocaleString()}</span></p>
+                                <p>비용: <span className="font-medium">₩{formatCompact(d.cost)}</span></p>
+                                <p>전환: <span className="font-medium">{d.conversions}</span></p>
+                              </div>
+                            </div>
+                          );
                         }}
-                        labelFormatter={() => ""} />
-                      <Scatter data={scatterData} fill="#6366f1" />
+                      />
+                      <Scatter data={scatterData}>
+                        {scatterData.map((d, i) => (
+                          <Cell key={i} fill={QUAD_COLORS[getQuadrant(d.ctr, d.cpc)]} fillOpacity={0.7} />
+                        ))}
+                      </Scatter>
                     </ScatterChart>
                   </ResponsiveContainer>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 text-xs">
+                  <div className="flex items-center gap-1.5 bg-green-50 dark:bg-green-900/10 rounded px-2 py-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                    <span className="text-gray-600 dark:text-zinc-300">⭐ 스타 (높은CTR, 낮은CPC)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-orange-50 dark:bg-orange-900/10 rounded px-2 py-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
+                    <span className="text-gray-600 dark:text-zinc-300">💸 비용최적화 (높은CTR, 높은CPC)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-900/10 rounded px-2 py-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
+                    <span className="text-gray-600 dark:text-zinc-300">💡 잠재력 (낮은CTR, 낮은CPC)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-red-50 dark:bg-red-900/10 rounded px-2 py-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                    <span className="text-gray-600 dark:text-zinc-300">🚨 재검토 (낮은CTR, 높은CPC)</span>
+                  </div>
                 </div>
                 <div className="flex gap-4 mt-2 text-xs text-gray-400 dark:text-zinc-500">
                   <span>평균 CTR: {avgCtr.toFixed(2)}%</span>
                   <span>평균 CPC: ₩{formatCompact(avgCpc)}</span>
-                  <span className="text-green-400">💡 좌상단 = 집중해야 할 키워드 (높은 CTR, 낮은 CPC)</span>
+                  <span>버블 크기 = 클릭수</span>
                 </div>
               </CardContent>
             </Card>
