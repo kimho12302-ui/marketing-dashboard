@@ -6,6 +6,7 @@ import Filters from "@/components/filters";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompact } from "@/lib/utils";
+import { useChartTheme } from "@/hooks/use-chart-theme";
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -57,6 +58,7 @@ function getQuadrantColor(cacIndex: number, roasIndex: number): string {
 
 export default function SalesPage() {
   const dates = getDefaultDates();
+  const chartTheme = useChartTheme();
   const [filters, setFilters] = useState<DashboardFilters>({
     period: "daily", brand: "all", from: dates.from, to: dates.to,
   });
@@ -91,7 +93,6 @@ export default function SalesPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Derive dynamic channel keys from channelTrend data
   const trendChannels = useMemo(() => {
     if (channelTrend.length === 0) return [];
     const keys = new Set<string>();
@@ -103,7 +104,6 @@ export default function SalesPage() {
     return Array.from(keys);
   }, [channelTrend]);
 
-  // Derive dynamic brand keys from brandTrend
   const trendBrands = useMemo(() => {
     if (brandTrend.length === 0) return [];
     const keys = new Set<string>();
@@ -115,7 +115,6 @@ export default function SalesPage() {
     return Array.from(keys);
   }, [brandTrend]);
 
-  // Derive dynamic product keys from productTrend
   const trendProducts = useMemo(() => {
     if (productTrend.length === 0) return [];
     const keys = new Set<string>();
@@ -127,7 +126,6 @@ export default function SalesPage() {
     return Array.from(keys);
   }, [productTrend]);
 
-  // Ensure all 4 brands in brandPie
   const fullBrandPie = useMemo(() => {
     const allBrands = ["너티", "아이언펫", "사입", "밸런스랩"];
     return allBrands.map(name => {
@@ -137,7 +135,7 @@ export default function SalesPage() {
   }, [brandPie]);
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100">
+    <main className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-zinc-100">
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
         <PageHeader title="💰 Sales" subtitle="매출 분석" />
         <Filters filters={filters} onChange={setFilters} />
@@ -148,26 +146,23 @@ export default function SalesPage() {
           </div>
         ) : (
           <>
-            {/* Row 1: Channel + Brand/Category (adaptive) */}
             <div className={`grid grid-cols-1 ${filters.brand === "all" ? "lg:grid-cols-3" : "lg:grid-cols-2"} gap-6`}>
-              {/* 채널별 매출 */}
               <Card>
                 <CardHeader><CardTitle>📦 채널별 매출</CardTitle></CardHeader>
                 <CardContent>
                   <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={channelPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={85} label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={{ stroke: "#555" }}>
+                        <Pie data={channelPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={85} label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={{ stroke: chartTheme.isDark ? "#555" : "#9ca3af" }}>
                           {channelPie.map((entry, i) => <Cell key={i} fill={CHANNEL_COLORS[entry.name] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]} />)}
                         </Pie>
-                        <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
+                        <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={chartTheme.tooltipStyle} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* 브랜드별 매출 - only show for "all" filter */}
               {filters.brand === "all" && (
                 <Card>
                   <CardHeader><CardTitle>🏷️ 브랜드별 매출</CardTitle></CardHeader>
@@ -175,10 +170,10 @@ export default function SalesPage() {
                     <div className="h-64">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={fullBrandPie} layout="vertical">
-                          <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                          <XAxis type="number" tick={{ fill: "#888", fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
-                          <YAxis type="category" dataKey="name" width={65} tick={{ fill: "#aaa", fontSize: 11 }} />
-                          <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
+                          <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                          <XAxis type="number" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
+                          <YAxis type="category" dataKey="name" width={65} tick={{ fill: chartTheme.labelColor, fontSize: 11 }} />
+                          <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={chartTheme.tooltipStyle} />
                           <Bar dataKey="value" radius={[0, 6, 6, 0]}>
                             {fullBrandPie.map((entry, i) => (
                               <Cell key={i} fill={BRAND_COLORS[entry.name] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]} />
@@ -188,57 +183,42 @@ export default function SalesPage() {
                       </ResponsiveContainer>
                     </div>
                     {fullBrandPie.filter(b => b.value === 0).map(b => (
-                      <p key={b.name} className="text-xs text-zinc-500 mt-1">
-                        {b.name}: ₩0 — <span className="text-zinc-600 italic">데이터 없음</span>
+                      <p key={b.name} className="text-xs text-gray-400 dark:text-zinc-500 mt-1">
+                        {b.name}: ₩0 — <span className="text-gray-300 dark:text-zinc-600 italic">데이터 없음</span>
                       </p>
                     ))}
                   </CardContent>
                 </Card>
               )}
 
-              {/* 카테고리별 or 제품별 매출 (카테고리 1개면 제품별로) */}
               <Card>
-                <CardHeader>
-                  <CardTitle>{categoryPie.length <= 1 ? "📦 제품별 매출" : "📋 카테고리별 매출"}</CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle>📋 카테고리별 매출</CardTitle></CardHeader>
                 <CardContent>
                   <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        {categoryPie.length <= 1 ? (
-                          <>
-                            <Pie data={topProducts.slice(0, 7).map(p => ({ name: p.product.length > 12 ? p.product.slice(0, 12) + "…" : p.product, value: p.revenue, fullName: p.product }))} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={85} label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={{ stroke: "#555" }}>
-                              {topProducts.slice(0, 7).map((_, i) => <Cell key={i} fill={TREND_COLORS[i % TREND_COLORS.length]} />)}
-                            </Pie>
-                            <Tooltip formatter={(value: any, name: any, props: any) => [`₩${formatCompact(value)}`, props?.payload?.fullName || name]} contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
-                          </>
-                        ) : (
-                          <>
-                            <Pie data={categoryPie} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={85} label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={{ stroke: "#555" }}>
-                              {categoryPie.map((_, i) => <Cell key={i} fill={["#f97316", "#8b5cf6", "#22c55e", "#ec4899", "#eab308", "#14b8a6"][i % 6]} />)}
-                            </Pie>
-                            <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
-                          </>
-                        )}
+                        <Pie data={categoryPie} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={85} label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={{ stroke: chartTheme.isDark ? "#555" : "#9ca3af" }}>
+                          {categoryPie.map((_, i) => <Cell key={i} fill={["#f97316", "#8b5cf6", "#22c55e", "#ec4899", "#eab308", "#14b8a6"][i % 6]} />)}
+                        </Pie>
+                        <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={chartTheme.tooltipStyle} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
-                  {categoryPie.length === 0 && topProducts.length === 0 && <p className="text-xs text-zinc-500 text-center">데이터 없음</p>}
+                  {categoryPie.length === 0 && <p className="text-xs text-gray-400 dark:text-zinc-500 text-center">카테고리 데이터 없음</p>}
                 </CardContent>
               </Card>
             </div>
 
-            {/* Channel Trend - dynamic channels */}
             <Card>
               <CardHeader><CardTitle>채널별 매출 트렌드</CardTitle></CardHeader>
               <CardContent>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={channelTrend}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                      <XAxis dataKey="date" tick={{ fill: "#888", fontSize: 12 }} tickFormatter={(v: string) => v.slice(5)} />
-                      <YAxis tick={{ fill: "#888", fontSize: 12 }} tickFormatter={(v: any) => formatCompact(v)} />
-                      <Tooltip contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                      <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 12 }} tickFormatter={(v: string) => v.slice(5)} />
+                      <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 12 }} tickFormatter={(v: any) => formatCompact(v)} />
+                      <Tooltip contentStyle={chartTheme.tooltipStyle} />
                       <Legend />
                       {trendChannels.map((ch, i) => (
                         <Line key={ch} type="monotone" dataKey={ch} name={ch} stroke={CHANNEL_COLORS[ch] || TREND_COLORS[i % TREND_COLORS.length]} dot={false} strokeWidth={2} />
@@ -249,19 +229,17 @@ export default function SalesPage() {
               </CardContent>
             </Card>
 
-            {/* Brand Trend + Product Trend */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* 브랜드별 매출 트렌드 */}
               <Card>
                 <CardHeader><CardTitle>🏷️ 브랜드별 매출 트렌드</CardTitle></CardHeader>
                 <CardContent>
                   <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={brandTrend}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                        <XAxis dataKey="date" tick={{ fill: "#888", fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
-                        <YAxis tick={{ fill: "#888", fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
-                        <Tooltip contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} formatter={(v: any) => [`₩${formatCompact(v)}`, ""]} />
+                        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                        <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
+                        <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
+                        <Tooltip contentStyle={chartTheme.tooltipStyle} formatter={(v: any) => [`₩${formatCompact(v)}`, ""]} />
                         <Legend />
                         {trendBrands.map((b, i) => (
                           <Line key={b} type="monotone" dataKey={b} name={b} stroke={BRAND_COLORS[b] || TREND_COLORS[i % TREND_COLORS.length]} dot={false} strokeWidth={2} />
@@ -272,17 +250,16 @@ export default function SalesPage() {
                 </CardContent>
               </Card>
 
-              {/* 제품별 매출 트렌드 (TOP 5) */}
               <Card>
                 <CardHeader><CardTitle>📦 제품별 매출 트렌드 (TOP 5)</CardTitle></CardHeader>
                 <CardContent>
                   <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={productTrend}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                        <XAxis dataKey="date" tick={{ fill: "#888", fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
-                        <YAxis tick={{ fill: "#888", fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
-                        <Tooltip contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} formatter={(v: any) => [`₩${formatCompact(v)}`, ""]} />
+                        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                        <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
+                        <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
+                        <Tooltip contentStyle={chartTheme.tooltipStyle} formatter={(v: any) => [`₩${formatCompact(v)}`, ""]} />
                         <Legend formatter={(value: string) => value.length > 12 ? value.slice(0, 12) + "…" : value} />
                         {trendProducts.map((p, i) => (
                           <Line key={p} type="monotone" dataKey={p} name={p} stroke={TREND_COLORS[i % TREND_COLORS.length]} dot={false} strokeWidth={2} />
@@ -294,7 +271,6 @@ export default function SalesPage() {
               </Card>
             </div>
 
-            {/* CAC vs ROAS 4-Quadrant Scatter */}
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -307,7 +283,7 @@ export default function SalesPage() {
                         className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
                           quadrantFilter === f
                             ? "bg-indigo-600 text-white"
-                            : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                            : "bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:bg-gray-200 dark:hover:bg-zinc-700"
                         }`}
                       >
                         {f === "all" ? "전체" : f === "product" ? "상품" : f === "channel" ? "채널" : "캠페인"}
@@ -320,18 +296,18 @@ export default function SalesPage() {
                 <div className="h-96">
                   <ResponsiveContainer width="100%" height="100%">
                     <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                      <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
                       <XAxis type="number" dataKey="cacIndex" name="CAC Index" domain={[0, 100]}
-                        tick={{ fill: "#888", fontSize: 12 }}
-                        label={{ value: "CAC Index →", position: "bottom", fill: "#666", fontSize: 11 }} />
+                        tick={{ fill: chartTheme.tickColor, fontSize: 12 }}
+                        label={{ value: "CAC Index →", position: "bottom", fill: chartTheme.axisColor, fontSize: 11 }} />
                       <YAxis type="number" dataKey="roasIndex" name="ROAS Index" domain={[0, 100]}
-                        tick={{ fill: "#888", fontSize: 12 }}
-                        label={{ value: "ROAS Index →", angle: -90, position: "left", fill: "#666", fontSize: 11 }} />
+                        tick={{ fill: chartTheme.tickColor, fontSize: 12 }}
+                        label={{ value: "ROAS Index →", angle: -90, position: "left", fill: chartTheme.axisColor, fontSize: 11 }} />
                       <ZAxis type="number" dataKey="spend" range={[100, 1000]} name="광고비" />
-                      <ReferenceLine x={50} stroke="#555" strokeDasharray="5 5" />
-                      <ReferenceLine y={50} stroke="#555" strokeDasharray="5 5" />
+                      <ReferenceLine x={50} stroke={chartTheme.referenceLine} strokeDasharray="5 5" />
+                      <ReferenceLine y={50} stroke={chartTheme.referenceLine} strokeDasharray="5 5" />
                       <Tooltip
-                        contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }}
+                        contentStyle={chartTheme.tooltipStyle}
                         formatter={(value: any, name: any) => {
                           if (name === "광고비") return [`₩${formatCompact(value as number)}`, name];
                           return [value, name];
@@ -349,66 +325,61 @@ export default function SalesPage() {
                     </ScatterChart>
                   </ResponsiveContainer>
                 </div>
-                {/* Legend */}
-                <div className="flex items-center justify-center gap-4 mt-2 text-[10px] text-zinc-500">
+                <div className="flex items-center justify-center gap-4 mt-2 text-[10px] text-gray-400 dark:text-zinc-500">
                   <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" /> Low CAC + High ROAS</span>
                   <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500" /> High CAC + High ROAS</span>
                   <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" /> Low CAC + Low ROAS</span>
                   <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> High CAC + Low ROAS</span>
                 </div>
-                {/* Quadrant explanation text */}
                 <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
-                  <div className="bg-green-950/20 border border-green-800/30 rounded-lg p-3">
-                    <p className="font-semibold text-green-400 mb-1">🟢 좌상단: 최적 (Low CAC + High ROAS)</p>
-                    <p className="text-zinc-400">고객 획득 비용이 낮고 수익률이 높은 최고 효율 영역. 예산 확대를 권장합니다.</p>
+                  <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800/30 rounded-lg p-3">
+                    <p className="font-semibold text-green-600 dark:text-green-400 mb-1">🟢 좌상단: 최적 (Low CAC + High ROAS)</p>
+                    <p className="text-gray-500 dark:text-zinc-400">고객 획득 비용이 낮고 수익률이 높은 최고 효율 영역. 예산 확대를 권장합니다.</p>
                   </div>
-                  <div className="bg-yellow-950/20 border border-yellow-800/30 rounded-lg p-3">
-                    <p className="font-semibold text-yellow-400 mb-1">🟡 우상단: 성장 (High CAC + High ROAS)</p>
-                    <p className="text-zinc-400">수익률은 좋지만 획득 비용이 높습니다. CAC를 낮출 수 있는 최적화 여지가 있습니다.</p>
+                  <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800/30 rounded-lg p-3">
+                    <p className="font-semibold text-yellow-600 dark:text-yellow-400 mb-1">🟡 우상단: 성장 (High CAC + High ROAS)</p>
+                    <p className="text-gray-500 dark:text-zinc-400">수익률은 좋지만 획득 비용이 높습니다. CAC를 낮출 수 있는 최적화 여지가 있습니다.</p>
                   </div>
-                  <div className="bg-blue-950/20 border border-blue-800/30 rounded-lg p-3">
-                    <p className="font-semibold text-blue-400 mb-1">🔵 좌하단: 관찰 (Low CAC + Low ROAS)</p>
-                    <p className="text-zinc-400">비용은 낮지만 수익도 낮습니다. 전환율 개선이나 타겟 최적화가 필요합니다.</p>
+                  <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/30 rounded-lg p-3">
+                    <p className="font-semibold text-blue-600 dark:text-blue-400 mb-1">🔵 좌하단: 관찰 (Low CAC + Low ROAS)</p>
+                    <p className="text-gray-500 dark:text-zinc-400">비용은 낮지만 수익도 낮습니다. 전환율 개선이나 타겟 최적화가 필요합니다.</p>
                   </div>
-                  <div className="bg-red-950/20 border border-red-800/30 rounded-lg p-3">
-                    <p className="font-semibold text-red-400 mb-1">🔴 우하단: 위험 (High CAC + Low ROAS)</p>
-                    <p className="text-zinc-400">비용 대비 효율이 가장 나쁜 영역. 예산 축소 또는 전략 재검토가 시급합니다.</p>
+                  <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/30 rounded-lg p-3">
+                    <p className="font-semibold text-red-600 dark:text-red-400 mb-1">🔴 우하단: 위험 (High CAC + Low ROAS)</p>
+                    <p className="text-gray-500 dark:text-zinc-400">비용 대비 효율이 가장 나쁜 영역. 예산 축소 또는 전략 재검토가 시급합니다.</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Top 10 Products with horizontal bar chart */}
             <Card>
               <CardHeader><CardTitle>Top 10 상품</CardTitle></CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Table */}
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-zinc-700">
-                          <th className="text-left py-3 px-2 text-zinc-400">#</th>
-                          <th className="text-left py-3 px-2 text-zinc-400">상품명</th>
-                          <th className="text-right py-3 px-2 text-zinc-400">매출</th>
-                          <th className="text-right py-3 px-2 text-zinc-400">판매량</th>
-                          <th className="text-right py-3 px-2 text-zinc-400">구매자수</th>
+                        <tr className="border-b border-gray-200 dark:border-zinc-700">
+                          <th className="text-left py-3 px-2 text-gray-500 dark:text-zinc-400">#</th>
+                          <th className="text-left py-3 px-2 text-gray-500 dark:text-zinc-400">상품명</th>
+                          <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">매출</th>
+                          <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">판매량</th>
+                          <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">구매자수</th>
                         </tr>
                       </thead>
                       <tbody>
                         {topProducts.map((row, i) => (
-                          <tr key={row.product} className="border-b border-zinc-800 hover:bg-zinc-800/50">
-                            <td className="py-2.5 px-2 text-zinc-500">{i + 1}</td>
-                            <td className="py-2.5 px-2 text-zinc-200 max-w-[200px] truncate">{row.product}</td>
-                            <td className="py-2.5 px-2 text-right text-zinc-100 font-medium">₩{formatCompact(row.revenue)}</td>
-                            <td className="py-2.5 px-2 text-right text-zinc-300">{row.quantity.toLocaleString()}</td>
-                            <td className="py-2.5 px-2 text-right text-zinc-300">{row.buyers.toLocaleString()}</td>
+                          <tr key={row.product} className="border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50">
+                            <td className="py-2.5 px-2 text-gray-400 dark:text-zinc-500">{i + 1}</td>
+                            <td className="py-2.5 px-2 text-gray-800 dark:text-zinc-200 max-w-[200px] truncate">{row.product}</td>
+                            <td className="py-2.5 px-2 text-right text-gray-900 dark:text-zinc-100 font-medium">₩{formatCompact(row.revenue)}</td>
+                            <td className="py-2.5 px-2 text-right text-gray-600 dark:text-zinc-300">{row.quantity.toLocaleString()}</td>
+                            <td className="py-2.5 px-2 text-right text-gray-600 dark:text-zinc-300">{row.buyers.toLocaleString()}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                  {/* Horizontal bar chart */}
                   <div className="h-[400px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
@@ -420,12 +391,12 @@ export default function SalesPage() {
                         layout="vertical"
                         margin={{ left: 10, right: 20 }}
                       >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                        <XAxis type="number" tick={{ fill: "#888", fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
-                        <YAxis type="category" dataKey="name" width={120} tick={{ fill: "#aaa", fontSize: 11 }} />
+                        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                        <XAxis type="number" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
+                        <YAxis type="category" dataKey="name" width={120} tick={{ fill: chartTheme.labelColor, fontSize: 11 }} />
                         <Tooltip
                           formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]}
-                          contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }}
+                          contentStyle={chartTheme.tooltipStyle}
                         />
                         <Bar dataKey="revenue" radius={[0, 6, 6, 0]}>
                           {topProducts.map((_, i) => (

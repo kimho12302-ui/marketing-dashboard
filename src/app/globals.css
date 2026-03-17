@@ -25,6 +25,47 @@ body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
+/* ── Light mode overrides ── */
+/* When NOT .dark, override hardcoded dark classes */
+:root:not(.dark) .bg-zinc-950 { background-color: #f9fafb !important; }
+:root:not(.dark) .bg-zinc-900 { background-color: #ffffff !important; }
+:root:not(.dark) .bg-zinc-800 { background-color: #f3f4f6 !important; }
+:root:not(.dark) .bg-zinc-800\/50 { background-color: rgba(243,244,246,0.7) !important; }
+:root:not(.dark) .text-zinc-100 { color: #111827 !important; }
+:root:not(.dark) .text-zinc-200 { color: #1f2937 !important; }
+:root:not(.dark) .text-zinc-300 { color: #374151 !important; }
+:root:not(.dark) .text-zinc-400 { color: #6b7280 !important; }
+:root:not(.dark) .text-zinc-500 { color: #9ca3af !important; }
+:root:not(.dark) .text-zinc-600 { color: #d1d5db !important; }
+:root:not(.dark) .border-zinc-800 { border-color: #e5e7eb !important; }
+:root:not(.dark) .border-zinc-700 { border-color: #e5e7eb !important; }
+:root:not(.dark) .divide-zinc-800 > :not(:last-child) { border-color: #e5e7eb !important; }
+
+/* Cards in light mode */
+:root:not(.dark) [class*="rounded"][class*="border"][class*="bg-"] {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* Sidebar light */
+:root:not(.dark) aside.bg-zinc-900,
+:root:not(.dark) aside { background-color: #ffffff !important; border-right-color: #e5e7eb !important; }
+
+/* Mobile nav light */
+:root:not(.dark) nav.bg-zinc-900 { background-color: #ffffff !important; border-top-color: #e5e7eb !important; }
+
+/* Input fields light */
+:root:not(.dark) .bg-zinc-800[class*="border"] { background-color: #ffffff !important; border-color: #d1d5db !important; }
+:root:not(.dark) input.bg-zinc-800, :root:not(.dark) select.bg-zinc-800 { background-color: #ffffff !important; border-color: #d1d5db !important; color: #111827 !important; }
+
+/* Hover states */
+:root:not(.dark) .hover\:bg-zinc-800:hover { background-color: #f3f4f6 !important; }
+:root:not(.dark) .hover\:text-zinc-200:hover { color: #111827 !important; }
+
+/* Gradient areas and special bgs */
+:root:not(.dark) .bg-red-900\/20 { background-color: rgba(254,226,226,0.5) !important; }
+:root:not(.dark) .bg-green-900\/20 { background-color: rgba(220,252,231,0.5) !important; }
+:root:not(.dark) .bg-indigo-600\/20 { background-color: rgba(224,231,255,0.8) !important; }
+
 /* Custom scrollbar */
 .dark ::-webkit-scrollbar {
   width: 6px;

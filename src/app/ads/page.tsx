@@ -6,6 +6,7 @@ import Filters from "@/components/filters";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompact } from "@/lib/utils";
+import { useChartTheme } from "@/hooks/use-chart-theme";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   AreaChart, Area, Legend, Cell,
@@ -42,9 +43,9 @@ function getPerformanceColor(value: number, thresholds: { good: number; mid: num
 }
 
 function getPerformanceBg(roas: number): string {
-  if (roas >= 3.5) return "border-green-500/30 bg-green-950/10";
-  if (roas >= 2.0) return "border-yellow-500/30 bg-yellow-950/10";
-  return "border-red-500/30 bg-red-950/10";
+  if (roas >= 3.5) return "border-green-500/30 bg-green-50 dark:bg-green-950/10";
+  if (roas >= 2.0) return "border-yellow-500/30 bg-yellow-50 dark:bg-yellow-950/10";
+  return "border-red-500/30 bg-red-50 dark:bg-red-950/10";
 }
 
 const CH_LABELS: Record<string, string> = {
@@ -60,6 +61,7 @@ function getDefaultDates() {
 
 export default function AdsPage() {
   const dates = getDefaultDates();
+  const chartTheme = useChartTheme();
   const [filters, setFilters] = useState<DashboardFilters>({
     period: "daily", brand: "all", from: dates.from, to: dates.to,
   });
@@ -84,7 +86,7 @@ export default function AdsPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100">
+    <main className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-zinc-100">
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
         <PageHeader title="📢 Ads Performance" subtitle="광고 효율 분석" />
         <Filters filters={filters} onChange={setFilters} />
@@ -95,33 +97,31 @@ export default function AdsPage() {
           </div>
         ) : (
           <>
-            {/* CAC Card with explanation */}
             <Card>
               <CardContent className="pt-4">
                 <div className="flex items-center gap-4">
                   <div>
-                    <p className="text-sm text-zinc-400">CAC (Customer Acquisition Cost)</p>
+                    <p className="text-sm text-gray-500 dark:text-zinc-400">CAC (Customer Acquisition Cost)</p>
                     <p className="text-2xl font-bold">₩{formatCompact(cac)}</p>
                   </div>
-                  <div className="text-xs text-zinc-500 border-l border-zinc-800 pl-4">
-                    <p className="text-zinc-400 font-medium">CAC = 총 광고비 ÷ 총 구매수 (구매 기준)</p>
+                  <div className="text-xs text-gray-400 dark:text-zinc-500 border-l border-gray-200 dark:border-zinc-800 pl-4">
+                    <p className="text-gray-500 dark:text-zinc-400 font-medium">CAC = 총 광고비 ÷ 총 구매수 (구매 기준)</p>
                     <p className="mt-1">전체 광고비를 구매 전환수로 나눈 고객 1인당 획득 비용입니다.</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* ROAS by Channel - with diverse colors */}
             <Card>
               <CardHeader><CardTitle>채널별 ROAS 비교</CardTitle></CardHeader>
               <CardContent>
                 <div className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={channels.map(c => ({ ...c, label: CH_LABELS[c.channel] || c.channel }))}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                      <XAxis dataKey="label" tick={{ fill: "#888", fontSize: 12 }} />
-                      <YAxis tick={{ fill: "#888", fontSize: 12 }} />
-                      <Tooltip contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }}
+                      <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                      <XAxis dataKey="label" tick={{ fill: chartTheme.tickColor, fontSize: 12 }} />
+                      <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 12 }} />
+                      <Tooltip contentStyle={chartTheme.tooltipStyle}
                         formatter={(value: any) => [`${Number(value).toFixed(2)}x`, "ROAS"]} />
                       <Bar dataKey="roas" radius={[6, 6, 0, 0]}>
                         {channels.map((c, i) => (
@@ -134,28 +134,27 @@ export default function AdsPage() {
               </CardContent>
             </Card>
 
-            {/* Channel Detail Table */}
             <Card>
               <CardHeader><CardTitle>채널별 상세 성과</CardTitle></CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-zinc-700">
-                        <th className="text-left py-3 px-2 text-zinc-400">채널</th>
-                        <th className="text-right py-3 px-2 text-zinc-400">Spend</th>
-                        <th className="text-right py-3 px-2 text-zinc-400">Impressions</th>
-                        <th className="text-right py-3 px-2 text-zinc-400">Clicks</th>
-                        <th className="text-right py-3 px-2 text-zinc-400">CTR</th>
-                        <th className="text-right py-3 px-2 text-zinc-400">CPC</th>
-                        <th className="text-right py-3 px-2 text-zinc-400">Conv.</th>
-                        <th className="text-right py-3 px-2 text-zinc-400">ROAS</th>
+                      <tr className="border-b border-gray-200 dark:border-zinc-700">
+                        <th className="text-left py-3 px-2 text-gray-500 dark:text-zinc-400">채널</th>
+                        <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">Spend</th>
+                        <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">Impressions</th>
+                        <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">Clicks</th>
+                        <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">CTR</th>
+                        <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">CPC</th>
+                        <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">Conv.</th>
+                        <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">ROAS</th>
                       </tr>
                     </thead>
                     <tbody>
                       {channels.map((ch) => (
-                        <tr key={ch.channel} className="border-b border-zinc-800 hover:bg-zinc-800/50">
-                          <td className="py-2.5 px-2 text-zinc-200 flex items-center gap-2">
+                        <tr key={ch.channel} className="border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50">
+                          <td className="py-2.5 px-2 text-gray-800 dark:text-zinc-200 flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: CHANNEL_COLORS[ch.channel] || "#888" }} />
                             {CH_LABELS[ch.channel] || ch.channel}
                           </td>
@@ -174,7 +173,6 @@ export default function AdsPage() {
               </CardContent>
             </Card>
 
-            {/* Spend Trend - Improved with gradient fills and channel colors */}
             <Card>
               <CardHeader><CardTitle>광고비 트렌드 (채널별)</CardTitle></CardHeader>
               <CardContent>
@@ -192,11 +190,11 @@ export default function AdsPage() {
                           );
                         })}
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                      <XAxis dataKey="date" tick={{ fill: "#888", fontSize: 12 }} tickFormatter={(v: string) => v.slice(5)} />
-                      <YAxis tick={{ fill: "#888", fontSize: 12 }} tickFormatter={(v: any) => formatCompact(v)} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.subtleGridColor} />
+                      <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 12 }} tickFormatter={(v: string) => v.slice(5)} />
+                      <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 12 }} tickFormatter={(v: any) => formatCompact(v)} />
                       <Tooltip
-                        contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }}
+                        contentStyle={chartTheme.tooltipStyle}
                         formatter={(value: any, name: any) => [`₩${formatCompact(value)}`, name]}
                       />
                       <Legend wrapperStyle={{ paddingTop: 8 }} />
@@ -221,7 +219,6 @@ export default function AdsPage() {
               </CardContent>
             </Card>
 
-            {/* Gross Margin ROAS (kept here too for ads-specific context) */}
             <Card>
               <CardHeader><CardTitle>📊 Gross Margin ROAS</CardTitle></CardHeader>
               <CardContent>
@@ -233,12 +230,12 @@ export default function AdsPage() {
                   return (
                     <div className="flex flex-wrap items-center gap-6">
                       <div>
-                        <p className="text-sm text-zinc-400">GM-ROAS (매출원가 40% 가정)</p>
+                        <p className="text-sm text-gray-500 dark:text-zinc-400">GM-ROAS (매출원가 40% 가정)</p>
                         <p className={`text-3xl font-bold ${grossMarginRoas >= 2.0 ? "text-green-400" : grossMarginRoas >= 1.0 ? "text-yellow-400" : "text-red-400"}`}>
                           {grossMarginRoas.toFixed(2)}x
                         </p>
                       </div>
-                      <div className="text-xs text-zinc-500 space-y-1">
+                      <div className="text-xs text-gray-400 dark:text-zinc-500 space-y-1">
                         <p>매출: ₩{formatCompact(totalRevenue)}</p>
                         <p>COGS: ₩{formatCompact(cogs)} (40%)</p>
                         <p>매출총이익: ₩{formatCompact(totalRevenue - cogs)}</p>
@@ -250,7 +247,6 @@ export default function AdsPage() {
               </CardContent>
             </Card>
 
-            {/* Creative Analytics */}
             <Card>
               <CardHeader><CardTitle>🎨 크리에이티브 분석</CardTitle></CardHeader>
               <CardContent>
@@ -259,18 +255,18 @@ export default function AdsPage() {
                     const gmRoas = cr.spend > 0 ? (cr.revenue - cr.revenue * 0.4) / cr.spend : 0;
                     return (
                       <div key={cr.name} className={`rounded-lg border p-4 space-y-2 ${getPerformanceBg(cr.roas)}`}>
-                        <p className="text-sm font-medium text-zinc-200 truncate">{cr.name}</p>
+                        <p className="text-sm font-medium text-gray-800 dark:text-zinc-200 truncate">{cr.name}</p>
                         <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                          <span className="text-zinc-500">CTR</span>
+                          <span className="text-gray-400 dark:text-zinc-500">CTR</span>
                           <span className={`text-right font-medium ${getPerformanceColor(cr.ctr, { good: 1.5, mid: 1.0 })}`}>{cr.ctr.toFixed(1)}%</span>
-                          <span className="text-zinc-500">CPC</span>
+                          <span className="text-gray-400 dark:text-zinc-500">CPC</span>
                           <span className={`text-right font-medium ${getPerformanceColor(1000 - cr.cpc, { good: 600, mid: 300 })}`}>₩{cr.cpc.toLocaleString()}</span>
-                          <span className="text-zinc-500">ROAS</span>
+                          <span className="text-gray-400 dark:text-zinc-500">ROAS</span>
                           <span className={`text-right font-medium ${getPerformanceColor(cr.roas, { good: 3.0, mid: 2.0 })}`}>{cr.roas.toFixed(1)}x</span>
-                          <span className="text-zinc-500">GM-ROAS</span>
+                          <span className="text-gray-400 dark:text-zinc-500">GM-ROAS</span>
                           <span className={`text-right font-medium ${getPerformanceColor(gmRoas, { good: 2.0, mid: 1.0 })}`}>{gmRoas.toFixed(1)}x</span>
-                          <span className="text-zinc-500">지출</span>
-                          <span className="text-right text-zinc-300">₩{formatCompact(cr.spend)}</span>
+                          <span className="text-gray-400 dark:text-zinc-500">지출</span>
+                          <span className="text-right text-gray-600 dark:text-zinc-300">₩{formatCompact(cr.spend)}</span>
                         </div>
                       </div>
                     );

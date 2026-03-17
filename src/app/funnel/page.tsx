@@ -6,6 +6,7 @@ import Filters from "@/components/filters";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompact } from "@/lib/utils";
+import { useChartTheme } from "@/hooks/use-chart-theme";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
   AreaChart, Area, Legend,
@@ -22,6 +23,7 @@ interface TrendPoint { date: string; sessions: number; cart_adds: number; purcha
 
 export default function FunnelPage() {
   const dates = getDefaultDates();
+  const chartTheme = useChartTheme();
   const [filters, setFilters] = useState<DashboardFilters>({
     period: "daily", brand: "all", from: dates.from, to: dates.to,
   });
@@ -42,7 +44,6 @@ export default function FunnelPage() {
       setTrend(data.trend || []);
       setChannelFunnel(data.channelFunnel || []);
 
-      // Fetch previous period
       const fromDate = new Date(filters.from);
       const toDate = new Date(filters.to);
       const diff = toDate.getTime() - fromDate.getTime();
@@ -59,13 +60,11 @@ export default function FunnelPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Calculate overall conversion rate
   const sessionsStep = funnel.find(s => s.name === "유입");
   const purchaseStep = funnel.find(s => s.name === "구매");
   const overallConvRate = sessionsStep && sessionsStep.value > 0 && purchaseStep
     ? ((purchaseStep.value / sessionsStep.value) * 100) : 0;
 
-  // Cart abandonment
   const cartStep = funnel.find(s => s.name === "장바구니");
   const cartVal = cartStep?.value || 0;
   const purchaseVal = purchaseStep?.value || 0;
@@ -76,7 +75,7 @@ export default function FunnelPage() {
     ? (((prevCartStep?.value || 0) - (prevPurchaseStep?.value || 0)) / (prevCartStep?.value || 1)) * 100 : 0;
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100">
+    <main className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-zinc-100">
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
         <PageHeader title="🔄 Funnel" subtitle="전환 퍼널 분석" />
         <Filters filters={filters} onChange={setFilters} />
@@ -87,17 +86,16 @@ export default function FunnelPage() {
           </div>
         ) : (
           <>
-            {/* Key Metrics Row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Card>
                 <CardContent className="pt-4 text-center">
-                  <p className="text-xs text-zinc-400">총 세션</p>
+                  <p className="text-xs text-gray-500 dark:text-zinc-400">총 세션</p>
                   <p className="text-2xl font-bold text-indigo-400">{formatCompact(sessionsStep?.value || 0)}</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="pt-4 text-center">
-                  <p className="text-xs text-zinc-400">구매 전환율</p>
+                  <p className="text-xs text-gray-500 dark:text-zinc-400">구매 전환율</p>
                   <p className={`text-2xl font-bold ${overallConvRate >= 2 ? "text-green-400" : overallConvRate >= 1 ? "text-yellow-400" : "text-red-400"}`}>
                     {overallConvRate.toFixed(2)}%
                   </p>
@@ -105,7 +103,7 @@ export default function FunnelPage() {
               </Card>
               <Card className={abandonRate > 50 ? "border-red-500/30" : abandonRate > 35 ? "border-yellow-500/30" : "border-green-500/30"}>
                 <CardContent className="pt-4 text-center">
-                  <p className="text-xs text-zinc-400">장바구니 이탈률</p>
+                  <p className="text-xs text-gray-500 dark:text-zinc-400">장바구니 이탈률</p>
                   <p className={`text-2xl font-bold ${abandonRate > 50 ? "text-red-400" : abandonRate > 35 ? "text-yellow-400" : "text-green-400"}`}>
                     {abandonRate.toFixed(1)}%
                   </p>
@@ -113,13 +111,12 @@ export default function FunnelPage() {
               </Card>
               <Card>
                 <CardContent className="pt-4 text-center">
-                  <p className="text-xs text-zinc-400">총 구매</p>
+                  <p className="text-xs text-gray-500 dark:text-zinc-400">총 구매</p>
                   <p className="text-2xl font-bold text-green-400">{formatCompact(purchaseVal)}</p>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Funnel Visualization — Trapezoid style */}
             <Card>
               <CardHeader><CardTitle>퍼널: 노출 → 유입 → 장바구니 → 구매 → 재구매</CardTitle></CardHeader>
               <CardContent>
@@ -127,10 +124,10 @@ export default function FunnelPage() {
                   {funnel.map((step, i) => {
                     const maxVal = funnel[0]?.value || 1;
                     const pct = maxVal > 0 ? (step.value / maxVal) * 100 : 0;
-                    const width = Math.max(pct, 8); // minimum width 8%
+                    const width = Math.max(pct, 8);
                     return (
                       <div key={step.name} className="flex items-center gap-3">
-                        <span className="text-xs text-zinc-400 w-16 text-right">{step.name}</span>
+                        <span className="text-xs text-gray-500 dark:text-zinc-400 w-16 text-right">{step.name}</span>
                         <div className="flex-1 relative" style={{ paddingLeft: `${(100 - width) / 2}%`, paddingRight: `${(100 - width) / 2}%` }}>
                           <div className="h-10 rounded-md flex items-center justify-between px-3 transition-all"
                             style={{ backgroundColor: FUNNEL_COLORS[i], opacity: 0.85 }}>
@@ -141,7 +138,7 @@ export default function FunnelPage() {
                           </div>
                         </div>
                         {i > 0 && step.rate !== undefined && (
-                          <span className="text-xs text-zinc-500 w-16">
+                          <span className="text-xs text-gray-400 dark:text-zinc-500 w-16">
                             Drop {(100 - step.rate).toFixed(0)}%
                           </span>
                         )}
@@ -152,7 +149,6 @@ export default function FunnelPage() {
               </CardContent>
             </Card>
 
-            {/* Funnel Trend */}
             {trend.length > 0 && (
               <Card>
                 <CardHeader><CardTitle>퍼널 일별 트렌드</CardTitle></CardHeader>
@@ -160,10 +156,10 @@ export default function FunnelPage() {
                   <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={trend}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                        <XAxis dataKey="date" tick={{ fill: "#888", fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
-                        <YAxis tick={{ fill: "#888", fontSize: 11 }} />
-                        <Tooltip contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
+                        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                        <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
+                        <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} />
+                        <Tooltip contentStyle={chartTheme.tooltipStyle} />
                         <Legend />
                         <Area type="monotone" dataKey="sessions" name="세션" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} />
                         <Area type="monotone" dataKey="cart_adds" name="장바구니" stroke="#a78bfa" fill="#a78bfa" fillOpacity={0.2} />
@@ -175,7 +171,6 @@ export default function FunnelPage() {
               </Card>
             )}
 
-            {/* Period Comparison */}
             {prevFunnel.length > 0 && (
               <Card>
                 <CardHeader><CardTitle>이전 기간 대비</CardTitle></CardHeader>
@@ -183,11 +178,11 @@ export default function FunnelPage() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-zinc-700">
-                          <th className="text-left py-3 px-2 text-zinc-400">단계</th>
-                          <th className="text-right py-3 px-2 text-zinc-400">현재</th>
-                          <th className="text-right py-3 px-2 text-zinc-400">이전</th>
-                          <th className="text-right py-3 px-2 text-zinc-400">변화</th>
+                        <tr className="border-b border-gray-200 dark:border-zinc-700">
+                          <th className="text-left py-3 px-2 text-gray-500 dark:text-zinc-400">단계</th>
+                          <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">현재</th>
+                          <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">이전</th>
+                          <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">변화</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -195,10 +190,10 @@ export default function FunnelPage() {
                           const prev = prevFunnel[i];
                           const change = prev && prev.value > 0 ? ((step.value - prev.value) / prev.value * 100) : 0;
                           return (
-                            <tr key={step.name} className="border-b border-zinc-800">
-                              <td className="py-2.5 px-2 text-zinc-200">{step.name}</td>
+                            <tr key={step.name} className="border-b border-gray-100 dark:border-zinc-800">
+                              <td className="py-2.5 px-2 text-gray-800 dark:text-zinc-200">{step.name}</td>
                               <td className="py-2.5 px-2 text-right">{formatCompact(step.value)}</td>
-                              <td className="py-2.5 px-2 text-right text-zinc-400">{prev ? formatCompact(prev.value) : "-"}</td>
+                              <td className="py-2.5 px-2 text-right text-gray-400 dark:text-zinc-400">{prev ? formatCompact(prev.value) : "-"}</td>
                               <td className={`py-2.5 px-2 text-right font-medium ${change >= 0 ? "text-green-400" : "text-red-400"}`}>
                                 {change >= 0 ? "+" : ""}{change.toFixed(1)}%
                               </td>
@@ -212,22 +207,20 @@ export default function FunnelPage() {
               </Card>
             )}
 
-            {/* Channel Funnel Comparison */}
             {channelFunnel.length > 0 && (
               <Card>
                 <CardHeader><CardTitle>📊 채널별 퍼널 비교</CardTitle></CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Conversion Rate Bar Chart */}
                     <div>
-                      <p className="text-xs text-zinc-400 mb-3">채널별 구매 전환율</p>
+                      <p className="text-xs text-gray-500 dark:text-zinc-400 mb-3">채널별 구매 전환율</p>
                       <div className="h-48">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={channelFunnel}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                            <XAxis dataKey="channel" tick={{ fill: "#aaa", fontSize: 12 }} />
-                            <YAxis tick={{ fill: "#888", fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}%`} />
-                            <Tooltip contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }}
+                            <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                            <XAxis dataKey="channel" tick={{ fill: chartTheme.labelColor, fontSize: 12 }} />
+                            <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}%`} />
+                            <Tooltip contentStyle={chartTheme.tooltipStyle}
                               formatter={(v: any) => [`${Number(v).toFixed(2)}%`, "전환율"]} />
                             <Bar dataKey="convRate" name="전환율" radius={[4, 4, 0, 0]}>
                               {channelFunnel.map((_, i) => (
@@ -239,25 +232,24 @@ export default function FunnelPage() {
                       </div>
                     </div>
 
-                    {/* Channel Detail Table */}
                     <div>
-                      <p className="text-xs text-zinc-400 mb-3">채널별 퍼널 상세</p>
+                      <p className="text-xs text-gray-500 dark:text-zinc-400 mb-3">채널별 퍼널 상세</p>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                           <thead>
-                            <tr className="border-b border-zinc-700">
-                              <th className="text-left py-2 px-2 text-zinc-400">채널</th>
-                              <th className="text-right py-2 px-2 text-zinc-400">유입</th>
-                              <th className="text-right py-2 px-2 text-zinc-400">장바구니</th>
-                              <th className="text-right py-2 px-2 text-zinc-400">구매</th>
-                              <th className="text-right py-2 px-2 text-zinc-400">재구매</th>
-                              <th className="text-right py-2 px-2 text-zinc-400">전환율</th>
+                            <tr className="border-b border-gray-200 dark:border-zinc-700">
+                              <th className="text-left py-2 px-2 text-gray-500 dark:text-zinc-400">채널</th>
+                              <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">유입</th>
+                              <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">장바구니</th>
+                              <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">구매</th>
+                              <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">재구매</th>
+                              <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">전환율</th>
                             </tr>
                           </thead>
                           <tbody>
                             {channelFunnel.map((ch) => (
-                              <tr key={ch.channel} className="border-b border-zinc-800">
-                                <td className="py-2 px-2 text-zinc-200 font-medium">{ch.channel}</td>
+                              <tr key={ch.channel} className="border-b border-gray-100 dark:border-zinc-800">
+                                <td className="py-2 px-2 text-gray-800 dark:text-zinc-200 font-medium">{ch.channel}</td>
                                 <td className="py-2 px-2 text-right">{formatCompact(ch.sessions)}</td>
                                 <td className="py-2 px-2 text-right">{formatCompact(ch.cart_adds)}</td>
                                 <td className="py-2 px-2 text-right text-green-400">{formatCompact(ch.purchases)}</td>
@@ -276,7 +268,6 @@ export default function FunnelPage() {
               </Card>
             )}
 
-            {/* Cart Abandonment Detail */}
             <Card className={abandonRate > 50 ? "border-red-500/30" : ""}>
               <CardHeader><CardTitle>🛒 장바구니 이탈 분석</CardTitle></CardHeader>
               <CardContent>
@@ -285,7 +276,7 @@ export default function FunnelPage() {
                     <p className={`text-4xl font-bold ${abandonRate > 50 ? "text-red-400" : abandonRate > 35 ? "text-yellow-400" : "text-green-400"}`}>
                       {abandonRate.toFixed(1)}%
                     </p>
-                    <p className="text-xs text-zinc-500 mt-1">
+                    <p className="text-xs text-gray-400 dark:text-zinc-500 mt-1">
                       장바구니 {formatCompact(cartVal)} → 구매 {formatCompact(purchaseVal)}
                     </p>
                   </div>
@@ -293,10 +284,10 @@ export default function FunnelPage() {
                     <div className={`text-sm ${(abandonRate - prevAbandonRate) > 0 ? "text-red-400" : "text-green-400"}`}>
                       <span className="text-xl">{(abandonRate - prevAbandonRate) > 0 ? "↑" : "↓"}</span>
                       <span className="font-medium ml-1">{Math.abs(abandonRate - prevAbandonRate).toFixed(1)}%p</span>
-                      <p className="text-[10px] text-zinc-500">이전: {prevAbandonRate.toFixed(1)}%</p>
+                      <p className="text-[10px] text-gray-400 dark:text-zinc-500">이전: {prevAbandonRate.toFixed(1)}%</p>
                     </div>
                   )}
-                  <div className="text-xs text-zinc-500 space-y-1 ml-auto">
+                  <div className="text-xs text-gray-400 dark:text-zinc-500 space-y-1 ml-auto">
                     <p>💡 이커머스 평균 이탈률: 65~75%</p>
                     <p>🎯 {abandonRate < 65 ? "업계 평균 이하 — 양호" : "업계 평균 수준 — 개선 여지 있음"}</p>
                   </div>

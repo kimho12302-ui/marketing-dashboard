@@ -6,6 +6,7 @@ import Filters from "@/components/filters";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompact } from "@/lib/utils";
+import { useChartTheme } from "@/hooks/use-chart-theme";
 import {
   ResponsiveContainer, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ZAxis,
 } from "recharts";
@@ -21,6 +22,7 @@ function getDefaultDates() {
 
 export default function KeywordsPage() {
   const dates = getDefaultDates();
+  const chartTheme = useChartTheme();
   const [filters, setFilters] = useState<DashboardFilters>({
     period: "daily", brand: "all", from: dates.from, to: dates.to,
   });
@@ -50,21 +52,19 @@ export default function KeywordsPage() {
     clicks: k.clicks,
   }));
 
-  // Highlight: high CTR, low CPC
   const avgCtr = scatterData.length > 0 ? scatterData.reduce((s, d) => s + d.ctr, 0) / scatterData.length : 0;
   const avgCpc = scatterData.length > 0 ? scatterData.reduce((s, d) => s + d.cpc, 0) / scatterData.length : 0;
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100">
+    <main className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-zinc-100">
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
         <PageHeader title="🔍 Keywords" subtitle="검색어 분석" />
         <Filters filters={filters} onChange={setFilters} />
 
-        {/* Platform tabs */}
-        <div className="flex rounded-lg bg-zinc-800 p-0.5 w-fit">
+        <div className="flex rounded-lg bg-gray-100 dark:bg-zinc-800 p-0.5 w-fit">
           {[{ value: "all", label: "전체" }, ...Object.entries(PLATFORM_LABELS).map(([v, l]) => ({ value: v, label: l }))].map(opt => (
             <button key={opt.value} onClick={() => setPlatformTab(opt.value)}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${platformTab === opt.value ? "bg-indigo-600 text-white" : "text-zinc-400 hover:text-zinc-200"}`}>
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${platformTab === opt.value ? "bg-indigo-600 text-white" : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-200"}`}>
               {opt.label}
             </button>
           ))}
@@ -76,20 +76,19 @@ export default function KeywordsPage() {
           </div>
         ) : (
           <>
-            {/* Scatter: CTR vs CPC */}
             <Card>
               <CardHeader><CardTitle>키워드 효율 매트릭스 (CTR vs CPC)</CardTitle></CardHeader>
               <CardContent>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <ScatterChart>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                      <XAxis type="number" dataKey="cpc" name="CPC" tick={{ fill: "#888", fontSize: 12 }}
-                        label={{ value: "CPC (₩)", position: "bottom", fill: "#666", fontSize: 11 }} />
-                      <YAxis type="number" dataKey="ctr" name="CTR" tick={{ fill: "#888", fontSize: 12 }}
-                        label={{ value: "CTR (%)", angle: -90, position: "insideLeft", fill: "#666", fontSize: 11 }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                      <XAxis type="number" dataKey="cpc" name="CPC" tick={{ fill: chartTheme.tickColor, fontSize: 12 }}
+                        label={{ value: "CPC (₩)", position: "bottom", fill: chartTheme.axisColor, fontSize: 11 }} />
+                      <YAxis type="number" dataKey="ctr" name="CTR" tick={{ fill: chartTheme.tickColor, fontSize: 12 }}
+                        label={{ value: "CTR (%)", angle: -90, position: "insideLeft", fill: chartTheme.axisColor, fontSize: 11 }} />
                       <ZAxis type="number" dataKey="clicks" range={[30, 300]} />
-                      <Tooltip contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }}
+                      <Tooltip contentStyle={chartTheme.tooltipStyle}
                         formatter={(value: any, name: any) => {
                           if (name === "CPC") return [`₩${formatCompact(value)}`, name];
                           if (name === "CTR") return [`${value}%`, name];
@@ -100,7 +99,7 @@ export default function KeywordsPage() {
                     </ScatterChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="flex gap-4 mt-2 text-xs text-zinc-500">
+                <div className="flex gap-4 mt-2 text-xs text-gray-400 dark:text-zinc-500">
                   <span>평균 CTR: {avgCtr.toFixed(2)}%</span>
                   <span>평균 CPC: ₩{formatCompact(avgCpc)}</span>
                   <span className="text-green-400">💡 좌상단 = 집중해야 할 키워드 (높은 CTR, 낮은 CPC)</span>
@@ -108,33 +107,32 @@ export default function KeywordsPage() {
               </CardContent>
             </Card>
 
-            {/* Keywords Table */}
             <Card>
               <CardHeader><CardTitle>키워드 상세</CardTitle></CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-zinc-700">
-                        <th className="text-left py-3 px-2 text-zinc-400">키워드</th>
-                        <th className="text-left py-3 px-2 text-zinc-400">플랫폼</th>
-                        <th className="text-right py-3 px-2 text-zinc-400">노출</th>
-                        <th className="text-right py-3 px-2 text-zinc-400">클릭</th>
-                        <th className="text-right py-3 px-2 text-zinc-400">CTR</th>
-                        <th className="text-right py-3 px-2 text-zinc-400">CPC</th>
-                        <th className="text-right py-3 px-2 text-zinc-400">비용</th>
-                        <th className="text-right py-3 px-2 text-zinc-400">전환</th>
+                      <tr className="border-b border-gray-200 dark:border-zinc-700">
+                        <th className="text-left py-3 px-2 text-gray-500 dark:text-zinc-400">키워드</th>
+                        <th className="text-left py-3 px-2 text-gray-500 dark:text-zinc-400">플랫폼</th>
+                        <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">노출</th>
+                        <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">클릭</th>
+                        <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">CTR</th>
+                        <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">CPC</th>
+                        <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">비용</th>
+                        <th className="text-right py-3 px-2 text-gray-500 dark:text-zinc-400">전환</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filtered.sort((a, b) => b.cost - a.cost).slice(0, 30).map((kw, i) => {
                         const isHighlight = (kw.ctr * 100) > avgCtr && kw.cpc < avgCpc;
                         return (
-                          <tr key={`${kw.keyword}-${kw.platform}-${i}`} className={`border-b border-zinc-800 ${isHighlight ? "bg-green-900/10" : "hover:bg-zinc-800/50"}`}>
-                            <td className="py-2.5 px-2 text-zinc-200">
+                          <tr key={`${kw.keyword}-${kw.platform}-${i}`} className={`border-b border-gray-100 dark:border-zinc-800 ${isHighlight ? "bg-green-50 dark:bg-green-900/10" : "hover:bg-gray-50 dark:hover:bg-zinc-800/50"}`}>
+                            <td className="py-2.5 px-2 text-gray-800 dark:text-zinc-200">
                               {isHighlight && <span className="mr-1">🌟</span>}{kw.keyword}
                             </td>
-                            <td className="py-2.5 px-2 text-zinc-400">{PLATFORM_LABELS[kw.platform] || kw.platform}</td>
+                            <td className="py-2.5 px-2 text-gray-500 dark:text-zinc-400">{PLATFORM_LABELS[kw.platform] || kw.platform}</td>
                             <td className="py-2.5 px-2 text-right">{kw.impressions.toLocaleString()}</td>
                             <td className="py-2.5 px-2 text-right">{kw.clicks.toLocaleString()}</td>
                             <td className="py-2.5 px-2 text-right">{(kw.ctr * 100).toFixed(2)}%</td>
