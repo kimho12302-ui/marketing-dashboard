@@ -65,6 +65,9 @@ export default function SalesPage() {
   const [channelPie, setChannelPie] = useState<{ name: string; value: number }[]>([]);
   const [brandPie, setBrandPie] = useState<{ name: string; value: number }[]>([]);
   const [categoryPie, setCategoryPie] = useState<{ name: string; value: number }[]>([]);
+  const [breakdownPie, setBreakdownPie] = useState<{ name: string; value: number }[]>([]);
+  const [breakdownTitle, setBreakdownTitle] = useState("카테고리별 매출");
+  const [ordersTrend, setOrdersTrend] = useState<Record<string, any>[]>([]);
   const [channelTrend, setChannelTrend] = useState<Record<string, any>[]>([]);
   const [brandTrend, setBrandTrend] = useState<Record<string, any>[]>([]);
   const [productTrend, setProductTrend] = useState<Record<string, any>[]>([]);
@@ -84,6 +87,9 @@ export default function SalesPage() {
       setChannelPie(data.channelPie || []);
       setBrandPie(data.brandPie || []);
       setCategoryPie(data.categoryPie || []);
+      setBreakdownPie(data.breakdownPie || data.categoryPie || []);
+      setBreakdownTitle(data.breakdownTitle || "카테고리별 매출");
+      setOrdersTrend(data.ordersTrend || []);
       setChannelTrend(data.channelTrend || []);
       setBrandTrend(data.brandTrend || []);
       setProductTrend(data.productTrend || []);
@@ -103,6 +109,17 @@ export default function SalesPage() {
     }
     return Array.from(keys);
   }, [channelTrend]);
+
+  const ordersBrands = useMemo(() => {
+    if (ordersTrend.length === 0) return [];
+    const keys = new Set<string>();
+    for (const row of ordersTrend) {
+      for (const key of Object.keys(row)) {
+        if (key !== "date") keys.add(key);
+      }
+    }
+    return Array.from(keys);
+  }, [ordersTrend]);
 
   const trendBrands = useMemo(() => {
     if (brandTrend.length === 0) return [];
@@ -192,19 +209,19 @@ export default function SalesPage() {
               )}
 
               <Card>
-                <CardHeader><CardTitle>📋 카테고리별 매출</CardTitle></CardHeader>
+                <CardHeader><CardTitle>📋 {breakdownTitle}</CardTitle></CardHeader>
                 <CardContent>
                   <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={categoryPie} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={85} label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={{ stroke: chartTheme.isDark ? "#555" : "#9ca3af" }}>
-                          {categoryPie.map((_, i) => <Cell key={i} fill={["#f97316", "#8b5cf6", "#22c55e", "#ec4899", "#eab308", "#14b8a6"][i % 6]} />)}
+                        <Pie data={breakdownPie} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={85} label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={{ stroke: chartTheme.isDark ? "#555" : "#9ca3af" }}>
+                          {breakdownPie.map((_, i) => <Cell key={i} fill={FALLBACK_COLORS[i % FALLBACK_COLORS.length]} />)}
                         </Pie>
                         <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={chartTheme.tooltipStyle} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
-                  {categoryPie.length === 0 && <p className="text-xs text-gray-400 dark:text-zinc-500 text-center">카테고리 데이터 없음</p>}
+                  {breakdownPie.length === 0 && <p className="text-xs text-gray-400 dark:text-zinc-500 text-center">데이터 없음</p>}
                 </CardContent>
               </Card>
             </div>
@@ -250,6 +267,28 @@ export default function SalesPage() {
                 </CardContent>
               </Card>
 
+              <Card>
+                <CardHeader><CardTitle>🛒 브랜드별 주문수 트렌드</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={ordersTrend}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                        <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
+                        <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} />
+                        <Tooltip contentStyle={chartTheme.tooltipStyle} formatter={(v: any) => [`${Number(v).toLocaleString()}건`, ""]} />
+                        <Legend />
+                        {ordersBrands.map((b, i) => (
+                          <Line key={b} type="monotone" dataKey={b} name={b} stroke={BRAND_COLORS[b] || TREND_COLORS[i % TREND_COLORS.length]} dot={false} strokeWidth={2} />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader><CardTitle>📦 제품별 매출 트렌드 (TOP 5)</CardTitle></CardHeader>
                 <CardContent>

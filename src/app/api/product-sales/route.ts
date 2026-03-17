@@ -87,7 +87,75 @@ export async function GET(request: NextRequest) {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, d]) => ({ date, ...d }));
 
-    return NextResponse.json({ channelPie, categoryPie, channelTrend, topProducts, brandPie, brandTrend, productTrend });
+    // Brand-specific breakdown pie:
+    // - nutty: lineup (extract first word/line name from product)
+    // - ironpet/balancelab: product-level
+    // - saip/all: category (default)
+    let breakdownPie: { name: string; value: number }[] = [];
+    let breakdownTitle = "카테고리별 매출";
+
+    if (brand === "nutty") {
+      // Lineup: extract from product name patterns
+      const lineupMap = new Map<string, number>();
+      for (const r of rows) {
+        // Extract lineup: first word or known patterns
+        const name = r.product;
+        let lineup = "기타";
+        if (name.includes("스트레스제로")) lineup = "스트레스제로";
+        else if (name.includes("사운드") || name.includes("냠")) lineup = "사운드";
+        else if (name.includes("하루루틴")) lineup = "하루루틴";
+        else if (name.includes("바삭")) lineup = "바삭바삭";
+        else if (name.includes("버디")) lineup = "버디";
+        else if (name.includes("통째로")) lineup = "통째로";
+        else if (name.includes("멀티")) lineup = "멀티플러스";
+        else if (name.includes("그루밍")) lineup = "그루밍";
+        else {
+          // fallback: first 2-3 chars
+          const parts = name.split(" ");
+          lineup = parts[0] || "기타";
+        }
+        lineupMap.set(lineup, (lineupMap.get(lineup) || 0) + Number(r.revenue));
+      }
+      breakdownPie = Array.from(lineupMap.entries())
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+      breakdownTitle = "라인업별 매출";
+    } else if (brand === "ironpet" || brand === "balancelab") {
+      // Product-level
+      const prodBreakdown = new Map<string, number>();
+      for (const r of rows) {
+        const pName = r.product.length > 20 ? r.product.slice(0, 20) + "…" : r.product;
+        prodBreakdown.set(pName, (prodBreakdown.get(pName) || 0) + Number(r.revenue));
+      }
+      breakdownPie = Array.from(prodBreakdown.entries())
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 10);
+      breakdownTitle = "제품별 매출";
+    } else {
+      // all / saip: category
+      breakdownPie = categoryPie;
+      breakdownTitle = "카테고리별 매출";
+    }
+
+    // Orders trend by brand
+    // Fetch daily_sales for order counts
+    let ordersQuery = supabase.from("daily_sales").select("date,brand,orders").gte("date", from).lte("date", to).order("date");
+    if (brand !== "all") ordersQuery = ordersQuery.eq("brand", brand);
+    const { data: salesData } = await ordersQuery;
+    const ordersMap = new Map<string, Record<string, number>>();
+    const brandLabels2: Record<string, string> = { nutty: "너티", ironpet: "아이언펫", saip: "사입", balancelab: "밸런스랩" };
+    for (const r of salesData || []) {
+      const existing = ordersMap.get(r.date) || {};
+      const bl = brandLabels2[r.brand] || r.brand;
+      existing[bl] = (existing[bl] || 0) + Number(r.orders);
+      ordersMap.set(r.date, existing);
+    }
+    const ordersTrend = Array.from(ordersMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, d]) => ({ date, ...d }));
+
+    return NextResponse.json({ channelPie, categoryPie, breakdownPie, breakdownTitle, channelTrend, topProducts, brandPie, brandTrend, productTrend, ordersTrend });
   } catch (error) {
     console.error("Product sales API error:", error);
     return NextResponse.json({ error: "Failed" }, { status: 500 });
