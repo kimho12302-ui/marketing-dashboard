@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompact } from "@/lib/utils";
+import { useChartTheme } from "@/hooks/use-chart-theme";
 
 interface ChannelData {
   channel: string;
@@ -66,6 +67,7 @@ function getChannelColor(channel: string, index: number): string {
 }
 
 export default function ChannelChart({ data, mode = "spend" }: ChannelChartProps) {
+  const chartTheme = useChartTheme();
   const isSpend = mode === "spend";
 
   const chartData = data
@@ -82,29 +84,24 @@ export default function ChannelChart({ data, mode = "spend" }: ChannelChartProps
       </CardHeader>
       <CardContent>
         {isSpend ? (
-          /* 광고비 horizontal bar chart */
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
                 <XAxis
                   type="number"
-                  tick={{ fill: "#888", fontSize: 12 }}
+                  tick={{ fill: chartTheme.tickColor, fontSize: 12 }}
                   tickFormatter={(v) => formatCompact(v)}
                 />
                 <YAxis
                   type="category"
                   dataKey="label"
                   width={90}
-                  tick={{ fill: "#888", fontSize: 12 }}
+                  tick={{ fill: chartTheme.tickColor, fontSize: 12 }}
                 />
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#18181b",
-                    border: "1px solid #333",
-                    borderRadius: 8,
-                  }}
-                  labelStyle={{ color: "#aaa" }}
+                  contentStyle={chartTheme.tooltipStyle}
+                  labelStyle={{ color: chartTheme.labelColor }}
                   formatter={(value: any) => [`₩${formatCompact(value)}`, "광고비"]}
                 />
                 <Bar dataKey="spend" name="광고비" radius={[0, 4, 4, 0]}>
@@ -116,29 +113,24 @@ export default function ChannelChart({ data, mode = "spend" }: ChannelChartProps
             </ResponsiveContainer>
           </div>
         ) : (
-          /* ROAS - large prominent display */
           <div className="space-y-4">
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
                   <XAxis
                     dataKey="label"
-                    tick={{ fill: "#888", fontSize: 11 }}
+                    tick={{ fill: chartTheme.tickColor, fontSize: 11 }}
                     angle={-20}
                     textAnchor="end"
                     height={50}
                   />
                   <YAxis
-                    tick={{ fill: "#888", fontSize: 12 }}
+                    tick={{ fill: chartTheme.tickColor, fontSize: 12 }}
                     tickFormatter={(v) => `${v.toFixed(1)}x`}
                   />
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#18181b",
-                      border: "1px solid #333",
-                      borderRadius: 8,
-                    }}
+                    contentStyle={chartTheme.tooltipStyle}
                     formatter={(value: any) => [`${Number(value).toFixed(2)}x`, "ROAS"]}
                   />
                   <Bar dataKey="roas" name="ROAS" radius={[6, 6, 0, 0]}>
@@ -152,19 +144,18 @@ export default function ChannelChart({ data, mode = "spend" }: ChannelChartProps
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            {/* Large ROAS tags */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {chartData.map((ch, i) => (
                 <div
                   key={ch.channel}
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 bg-zinc-800/50 border border-zinc-700/50"
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-700/50"
                 >
                   <span
                     className="w-3 h-3 rounded-full flex-shrink-0"
                     style={{ backgroundColor: getChannelColor(ch.channel, i) }}
                   />
                   <div className="min-w-0">
-                    <span className="text-xs text-zinc-400 block truncate">{ch.label}</span>
+                    <span className="text-xs text-gray-500 dark:text-zinc-400 block truncate">{ch.label}</span>
                     <span className={`text-lg font-bold ${ch.roas >= 3 ? "text-green-400" : ch.roas >= 1.5 ? "text-yellow-400" : "text-red-400"}`}>
                       {ch.roas.toFixed(2)}x
                     </span>

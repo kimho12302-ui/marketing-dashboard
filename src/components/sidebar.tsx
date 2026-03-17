@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 import {
   BarChart3,
   DollarSign,
@@ -28,17 +30,25 @@ const NAV_ITEMS = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  };
 
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="fixed left-0 top-0 z-40 h-screen w-56 bg-zinc-900 border-r border-zinc-800 flex-col hidden md:flex">
+      <aside className="fixed left-0 top-0 z-40 h-screen w-56 bg-white dark:bg-zinc-900 border-r border-gray-200 dark:border-zinc-800 flex-col hidden md:flex">
         {/* Logo */}
-        <div className="flex items-center gap-2 px-4 py-4 border-b border-zinc-800">
+        <div className="flex items-center gap-2 px-4 py-4 border-b border-gray-200 dark:border-zinc-800">
           <BarChart3 className="h-6 w-6 text-indigo-500" />
           <div>
-            <h1 className="text-sm font-bold">마케팅 대시보드</h1>
-            <span className="text-[10px] text-zinc-500">PPMI</span>
+            <h1 className="text-sm font-bold text-gray-900 dark:text-zinc-100">마케팅 대시보드</h1>
+            <span className="text-[10px] text-gray-400 dark:text-zinc-500">PPMI</span>
           </div>
         </div>
 
@@ -55,8 +65,8 @@ export default function Sidebar() {
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
                   isActive
-                    ? "bg-indigo-600/20 text-indigo-400 font-medium"
-                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+                    ? "bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 font-medium"
+                    : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-800"
                 )}
               >
                 <span className="text-base">{item.emoji}</span>
@@ -66,14 +76,27 @@ export default function Sidebar() {
           })}
         </nav>
 
-        {/* Footer */}
-        <div className="px-4 py-3 border-t border-zinc-800">
-          <span className="text-[10px] text-zinc-600">v2.0 — PPMI</span>
+        {/* Footer with Theme Toggle */}
+        <div className="px-4 py-3 border-t border-gray-200 dark:border-zinc-800 flex items-center justify-between">
+          <span className="text-[10px] text-gray-400 dark:text-zinc-600">v2.0 — PPMI</span>
+          {mounted && (
+            <button
+              onClick={toggleTheme}
+              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors text-gray-500 dark:text-zinc-400"
+              title={theme === "dark" ? "라이트 모드" : "다크 모드"}
+            >
+              {theme === "dark" ? (
+                <span className="text-lg">☀️</span>
+              ) : (
+                <span className="text-lg">🌙</span>
+              )}
+            </button>
+          )}
         </div>
       </aside>
 
       {/* Mobile Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-zinc-900 border-t border-zinc-800 flex md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-800 flex md:hidden">
         {NAV_ITEMS.map((item) => {
           const isActive =
             pathname === item.href ||
@@ -85,8 +108,8 @@ export default function Sidebar() {
               className={cn(
                 "flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] transition-colors",
                 isActive
-                  ? "text-indigo-400"
-                  : "text-zinc-500"
+                  ? "text-indigo-600 dark:text-indigo-400"
+                  : "text-gray-400 dark:text-zinc-500"
               )}
             >
               <span className="text-sm">{item.emoji}</span>
@@ -94,6 +117,16 @@ export default function Sidebar() {
             </Link>
           );
         })}
+        {/* Theme toggle in mobile nav */}
+        {mounted && (
+          <button
+            onClick={toggleTheme}
+            className="flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] text-gray-400 dark:text-zinc-500"
+          >
+            <span className="text-sm">{theme === "dark" ? "☀️" : "🌙"}</span>
+            <span>테마</span>
+          </button>
+        )}
       </nav>
     </>
   );

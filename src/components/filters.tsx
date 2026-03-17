@@ -67,18 +67,15 @@ function getDateRange(period: Period) {
   const fmt = (d: Date) => d.toISOString().slice(0, 10);
 
   if (period === "daily") {
-    // 어제 하루
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
     return { from: fmt(yesterday), to: fmt(yesterday) };
   } else if (period === "weekly") {
-    // 이번 주 (월요일 ~ 오늘)
     const day = today.getDay();
     const monday = new Date(today);
     monday.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
     return { from: fmt(monday), to: fmt(today) };
   } else {
-    // 이번 달
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
     return { from: fmt(firstDay), to: fmt(today) };
   }
@@ -93,7 +90,7 @@ export default function Filters({ filters, onChange }: FiltersProps) {
   return (
     <div className="flex flex-wrap items-center gap-3">
       {/* Period Toggle */}
-      <div className="flex rounded-lg bg-zinc-800 p-0.5">
+      <div className="flex rounded-lg bg-gray-100 dark:bg-zinc-800 p-0.5">
         {PERIOD_OPTIONS.map((opt) => (
           <button
             key={opt.value}
@@ -101,7 +98,7 @@ export default function Filters({ filters, onChange }: FiltersProps) {
             className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
               filters.period === opt.value
                 ? "bg-indigo-600 text-white"
-                : "text-zinc-400 hover:text-zinc-200"
+                : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-200"
             }`}
           >
             {opt.label}
@@ -110,7 +107,7 @@ export default function Filters({ filters, onChange }: FiltersProps) {
       </div>
 
       {/* Brand Toggle */}
-      <div className="flex rounded-lg bg-zinc-800 p-0.5">
+      <div className="flex rounded-lg bg-gray-100 dark:bg-zinc-800 p-0.5">
         {BRAND_OPTIONS.map((opt) => (
           <button
             key={opt.value}
@@ -118,7 +115,7 @@ export default function Filters({ filters, onChange }: FiltersProps) {
             className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
               filters.brand === opt.value
                 ? "bg-indigo-600 text-white"
-                : "text-zinc-400 hover:text-zinc-200"
+                : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-200"
             }`}
           >
             {opt.label}
@@ -127,7 +124,7 @@ export default function Filters({ filters, onChange }: FiltersProps) {
       </div>
 
       {/* Quick Range */}
-      <div className="flex rounded-lg bg-zinc-800 p-0.5">
+      <div className="flex rounded-lg bg-gray-100 dark:bg-zinc-800 p-0.5">
         {QUICK_OPTIONS.map((opt) => (
           <button
             key={opt.value}
@@ -138,7 +135,7 @@ export default function Filters({ filters, onChange }: FiltersProps) {
             className={`px-2.5 py-1.5 text-xs rounded-md transition-colors ${
               filters.from === getQuickRange(opt.value).from && filters.to === getQuickRange(opt.value).to
                 ? "bg-emerald-600 text-white"
-                : "text-zinc-400 hover:text-zinc-200"
+                : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-200"
             }`}
           >
             {opt.label}
@@ -152,14 +149,14 @@ export default function Filters({ filters, onChange }: FiltersProps) {
           type="date"
           value={filters.from}
           onChange={(e) => onChange({ ...filters, from: e.target.value })}
-          className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-gray-700 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
-        <span className="text-zinc-500">~</span>
+        <span className="text-gray-400 dark:text-zinc-500">~</span>
         <input
           type="date"
           value={filters.to}
           onChange={(e) => onChange({ ...filters, to: e.target.value })}
-          className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-gray-700 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
       </div>
     </div>

@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompact } from "@/lib/utils";
+import { useChartTheme } from "@/hooks/use-chart-theme";
 import type { TrendDataPoint } from "@/lib/types";
 
 const BRAND_COLORS: Record<string, string> = {
@@ -32,15 +33,17 @@ function CustomTooltip({
   active,
   payload,
   label,
+  chartTheme,
 }: {
   active?: boolean;
   payload?: Array<{ value: number; name: string; color: string; dataKey: string }>;
   label?: string;
+  chartTheme: ReturnType<typeof useChartTheme>;
 }) {
   if (!active || !payload) return null;
   return (
-    <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-3 shadow-lg">
-      <p className="text-xs text-zinc-400 mb-2">{label}</p>
+    <div className="rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3 shadow-lg">
+      <p className="text-xs text-gray-400 dark:text-zinc-400 mb-2">{label}</p>
       {payload.map((entry) => (
         <p key={entry.name} className="text-sm" style={{ color: entry.color }}>
           {entry.name}: ₩{formatCompact(entry.value)}
@@ -51,7 +54,8 @@ function CustomTooltip({
 }
 
 export default function TrendChart({ data }: TrendChartProps) {
-  // Check which brands have data
+  const chartTheme = useChartTheme();
+
   const activeBrands = BRAND_KEYS.filter(b =>
     data.some(d => (d as any)[b] > 0)
   );
@@ -65,26 +69,26 @@ export default function TrendChart({ data }: TrendChartProps) {
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
               <XAxis
                 dataKey="date"
-                tick={{ fill: "#888", fontSize: 12 }}
+                tick={{ fill: chartTheme.tickColor, fontSize: 12 }}
                 tickFormatter={(v) => v.slice(5)}
               />
               <YAxis
                 yAxisId="left"
-                tick={{ fill: "#888", fontSize: 12 }}
+                tick={{ fill: chartTheme.tickColor, fontSize: 12 }}
                 tickFormatter={(v) => formatCompact(v)}
               />
               <YAxis
                 yAxisId="right"
                 orientation="right"
-                tick={{ fill: "#888", fontSize: 12 }}
+                tick={{ fill: chartTheme.tickColor, fontSize: 12 }}
                 tickFormatter={(v) => formatCompact(v)}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip chartTheme={chartTheme} />} />
               <Legend
-                wrapperStyle={{ color: "#aaa", fontSize: 13, paddingTop: 8 }}
+                wrapperStyle={{ color: chartTheme.legendColor, fontSize: 13, paddingTop: 8 }}
               />
               {activeBrands.map((brand) => (
                 <Bar

@@ -196,21 +196,34 @@ export default function SalesPage() {
                 </Card>
               )}
 
-              {/* 카테고리별 매출 */}
+              {/* 카테고리별 or 제품별 매출 (카테고리 1개면 제품별로) */}
               <Card>
-                <CardHeader><CardTitle>📋 카테고리별 매출</CardTitle></CardHeader>
+                <CardHeader>
+                  <CardTitle>{categoryPie.length <= 1 ? "📦 제품별 매출" : "📋 카테고리별 매출"}</CardTitle>
+                </CardHeader>
                 <CardContent>
                   <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={categoryPie} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={85} label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={{ stroke: "#555" }}>
-                          {categoryPie.map((_, i) => <Cell key={i} fill={["#f97316", "#8b5cf6", "#22c55e", "#ec4899", "#eab308", "#14b8a6"][i % 6]} />)}
-                        </Pie>
-                        <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
+                        {categoryPie.length <= 1 ? (
+                          <>
+                            <Pie data={topProducts.slice(0, 7).map(p => ({ name: p.product.length > 12 ? p.product.slice(0, 12) + "…" : p.product, value: p.revenue, fullName: p.product }))} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={85} label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={{ stroke: "#555" }}>
+                              {topProducts.slice(0, 7).map((_, i) => <Cell key={i} fill={TREND_COLORS[i % TREND_COLORS.length]} />)}
+                            </Pie>
+                            <Tooltip formatter={(value: any, name: any, props: any) => [`₩${formatCompact(value)}`, props?.payload?.fullName || name]} contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
+                          </>
+                        ) : (
+                          <>
+                            <Pie data={categoryPie} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={85} label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={{ stroke: "#555" }}>
+                              {categoryPie.map((_, i) => <Cell key={i} fill={["#f97316", "#8b5cf6", "#22c55e", "#ec4899", "#eab308", "#14b8a6"][i % 6]} />)}
+                            </Pie>
+                            <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
+                          </>
+                        )}
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
-                  {categoryPie.length === 0 && <p className="text-xs text-zinc-500 text-center">카테고리 데이터 없음</p>}
+                  {categoryPie.length === 0 && topProducts.length === 0 && <p className="text-xs text-zinc-500 text-center">데이터 없음</p>}
                 </CardContent>
               </Card>
             </div>
