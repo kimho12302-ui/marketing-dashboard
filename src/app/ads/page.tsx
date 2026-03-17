@@ -25,16 +25,12 @@ const CHANNEL_COLORS: Record<string, string> = {
 };
 const FALLBACK_COLORS = ["#6366f1", "#f97316", "#22c55e", "#eab308", "#ec4899", "#8b5cf6", "#14b8a6", "#f43f5e"];
 
-const CREATIVES = [
-  { name: "[더미] 사운드 냠단호박 릴스", ctr: 2.1, cpc: 280, roas: 4.2, spend: 1_850_000, revenue: 7_770_000 },
-  { name: "[더미] 바삭닭가슴살 ASMR", ctr: 1.8, cpc: 320, roas: 3.8, spend: 1_600_000, revenue: 6_080_000 },
-  { name: "[더미] 하루루틴 캐러셀", ctr: 1.5, cpc: 450, roas: 2.9, spend: 2_100_000, revenue: 6_090_000 },
-  { name: "[더미] 아이언펫 키트 소개", ctr: 0.9, cpc: 890, roas: 1.8, spend: 3_200_000, revenue: 5_760_000 },
-  { name: "[더미] 반려묘 키트 리뷰", ctr: 0.7, cpc: 950, roas: 1.2, spend: 1_800_000, revenue: 2_160_000 },
-  { name: "[더미] 너티 브랜드 스토리", ctr: 1.6, cpc: 380, roas: 3.2, spend: 1_200_000, revenue: 3_840_000 },
-  { name: "[더미] 간식 비교 테스트", ctr: 2.4, cpc: 250, roas: 4.8, spend: 980_000, revenue: 4_704_000 },
-  { name: "[더미] 영양제 번들 프로모", ctr: 1.1, cpc: 620, roas: 2.1, spend: 1_500_000, revenue: 3_150_000 },
-];
+interface MetaCreative {
+  id: string; name: string; status: string; brand: string;
+  thumbnail_url: string; image_url: string; video_id: string;
+  spend: number; impressions: number; clicks: number;
+  ctr: number; cpc: number; purchases: number; roas: number; revenue: number;
+}
 
 function getPerformanceColor(value: number, thresholds: { good: number; mid: number }): string {
   if (value >= thresholds.good) return "text-green-400";
@@ -72,6 +68,7 @@ export default function AdsPage() {
   const [monthlySpend, setMonthlySpend] = useState<Record<string, any>[]>([]);
   const [spendPeriod, setSpendPeriod] = useState<"daily" | "weekly" | "monthly">("weekly");
   const [cac, setCac] = useState<number>(0);
+  const [creatives, setCreatives] = useState<MetaCreative[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -87,6 +84,14 @@ export default function AdsPage() {
       setWeeklySpend(data.weeklySpend || []);
       setMonthlySpend(data.monthlySpend || []);
       setCac(data.cac || 0);
+      // Fetch Meta creatives
+      try {
+        const crRes = await fetch(`/api/creatives?brand=${filters.brand}&date_preset=last_30d`);
+        if (crRes.ok) {
+          const crData = await crRes.json();
+          setCreatives(crData.creatives || []);
+        }
+      } catch { /* ignore */ }
     } catch { /* ignore */ } finally { setLoading(false); }
   }, [filters]);
 
@@ -309,30 +314,68 @@ export default function AdsPage() {
             </Card>
 
             <Card>
-              <CardHeader><CardTitle>🎨 크리에이티브 분석</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle>🎨 Meta 크리에이티브 성과</CardTitle>
+              </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {CREATIVES.map((cr) => {
-                    const gmRoas = cr.spend > 0 ? (cr.revenue - cr.revenue * 0.4) / cr.spend : 0;
-                    return (
-                      <div key={cr.name} className={`rounded-lg border p-4 space-y-2 ${getPerformanceBg(cr.roas)}`}>
-                        <p className="text-sm font-medium text-gray-800 dark:text-zinc-200 truncate">{cr.name}</p>
-                        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                          <span className="text-gray-400 dark:text-zinc-500">CTR</span>
-                          <span className={`text-right font-medium ${getPerformanceColor(cr.ctr, { good: 1.5, mid: 1.0 })}`}>{cr.ctr.toFixed(1)}%</span>
-                          <span className="text-gray-400 dark:text-zinc-500">CPC</span>
-                          <span className={`text-right font-medium ${getPerformanceColor(1000 - cr.cpc, { good: 600, mid: 300 })}`}>₩{cr.cpc.toLocaleString()}</span>
-                          <span className="text-gray-400 dark:text-zinc-500">ROAS</span>
-                          <span className={`text-right font-medium ${getPerformanceColor(cr.roas, { good: 3.0, mid: 2.0 })}`}>{cr.roas.toFixed(1)}x</span>
-                          <span className="text-gray-400 dark:text-zinc-500">GM-ROAS</span>
-                          <span className={`text-right font-medium ${getPerformanceColor(gmRoas, { good: 2.0, mid: 1.0 })}`}>{gmRoas.toFixed(1)}x</span>
-                          <span className="text-gray-400 dark:text-zinc-500">지출</span>
-                          <span className="text-right text-gray-600 dark:text-zinc-300">₩{formatCompact(cr.spend)}</span>
+                {creatives.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-zinc-500">Meta 크리에이티브 데이터를 불러오는 중이거나 데이터가 없습니다.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {creatives.filter(cr => cr.spend > 0).slice(0, 12).map((cr) => {
+                      const gmRoas = cr.spend > 0 ? (cr.revenue - cr.revenue * 0.4) / cr.spend : 0;
+                      return (
+                        <div key={cr.id} className={`rounded-lg border p-3 space-y-2 ${getPerformanceBg(cr.roas)}`}>
+                          <div className="flex gap-3">
+                            {(cr.thumbnail_url || cr.image_url) && (
+                              <div className="flex-shrink-0 w-16 h-16 rounded-md overflow-hidden bg-gray-200 dark:bg-zinc-700">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={cr.thumbnail_url || cr.image_url} alt="" className="w-full h-full object-cover" />
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-gray-800 dark:text-zinc-200 truncate">{cr.name}</p>
+                              <div className="flex gap-2 mt-0.5">
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${cr.status === "ACTIVE" ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400" : "bg-gray-100 dark:bg-zinc-700 text-gray-500 dark:text-zinc-400"}`}>
+                                  {cr.status === "ACTIVE" ? "활성" : "중지"}
+                                </span>
+                                <span className="text-[10px] text-gray-400 dark:text-zinc-500">
+                                  {cr.video_id ? "🎬 영상" : "🖼️ 이미지"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-3 gap-x-2 gap-y-1 text-xs">
+                            <div>
+                              <p className="text-gray-400 dark:text-zinc-500">지출</p>
+                              <p className="font-medium text-gray-700 dark:text-zinc-200">₩{formatCompact(cr.spend)}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-400 dark:text-zinc-500">CTR</p>
+                              <p className={`font-medium ${getPerformanceColor(cr.ctr, { good: 1.5, mid: 1.0 })}`}>{cr.ctr.toFixed(2)}%</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-400 dark:text-zinc-500">CPC</p>
+                              <p className={`font-medium ${getPerformanceColor(1000 - cr.cpc, { good: 600, mid: 300 })}`}>₩{Math.round(cr.cpc).toLocaleString()}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-400 dark:text-zinc-500">ROAS</p>
+                              <p className={`font-medium ${getPerformanceColor(cr.roas, { good: 3.0, mid: 2.0 })}`}>{cr.roas.toFixed(2)}x</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-400 dark:text-zinc-500">구매</p>
+                              <p className="font-medium text-gray-700 dark:text-zinc-200">{cr.purchases}건</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-400 dark:text-zinc-500">매출</p>
+                              <p className="font-medium text-gray-700 dark:text-zinc-200">₩{formatCompact(cr.revenue)}</p>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </>
