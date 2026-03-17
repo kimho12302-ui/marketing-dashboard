@@ -204,27 +204,65 @@ export default function OverviewPage() {
     }
 
     if (selectedKpi === "orders") {
-      return (
-        <Card className="border-indigo-500/30 animate-in slide-in-from-top-2 duration-200">
-          <CardHeader><CardTitle>🛒 브랜드별 주문수</CardTitle></CardHeader>
-          <CardContent>
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={fullBrandRevenue.map(b => ({ name: BRAND_LABELS[b.brand] || b.brand, orders: b.orders, fill: BRAND_COLORS[b.brand] || "#888" }))} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
-                  <XAxis type="number" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} />
-                  <YAxis type="category" dataKey="name" width={70} tick={{ fill: chartTheme.labelColor, fontSize: 12 }} />
-                  <Tooltip contentStyle={chartTheme.tooltipStyle}
-                    formatter={(v: any) => [`${v}건`, "주문수"]} />
-                  <Bar dataKey="orders" radius={[0, 6, 6, 0]}>
-                    {fullBrandRevenue.map((b, i) => <Cell key={i} fill={BRAND_COLORS[b.brand] || "#888"} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      );
+      if (filters.brand === "all") {
+        // 전체: 브랜드별 주문수
+        return (
+          <Card className="border-indigo-500/30 animate-in slide-in-from-top-2 duration-200">
+            <CardHeader><CardTitle>🛒 브랜드별 주문수</CardTitle></CardHeader>
+            <CardContent>
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={fullBrandRevenue.map(b => ({ name: BRAND_LABELS[b.brand] || b.brand, orders: b.orders, fill: BRAND_COLORS[b.brand] || "#888" }))} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                    <XAxis type="number" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} />
+                    <YAxis type="category" dataKey="name" width={70} tick={{ fill: chartTheme.labelColor, fontSize: 12 }} />
+                    <Tooltip contentStyle={chartTheme.tooltipStyle}
+                      formatter={(v: any) => [`${v}건`, "주문수"]} />
+                    <Bar dataKey="orders" radius={[0, 6, 6, 0]}>
+                      {fullBrandRevenue.map((b, i) => <Cell key={i} fill={BRAND_COLORS[b.brand] || "#888"} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      } else {
+        // 개별 브랜드: 채널별 주문수
+        return (
+          <Card className="border-indigo-500/30 animate-in slide-in-from-top-2 duration-200">
+            <CardHeader><CardTitle>🛒 채널별 주문 비중</CardTitle></CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-zinc-400 mb-2">판매 채널 매출 (주문 포함)</p>
+                  <div className="space-y-2">
+                    {salesByChannel.sort((a, b) => b.revenue - a.revenue).map((ch, i) => {
+                      const total = salesByChannel.reduce((s, c) => s + c.revenue, 0);
+                      const pct = total > 0 ? (ch.revenue / total * 100) : 0;
+                      return (
+                        <div key={ch.channel} className="flex items-center gap-2">
+                          <span className="text-xs text-gray-600 dark:text-zinc-300 w-24 truncate">{ch.channel}</span>
+                          <div className="flex-1 bg-gray-100 dark:bg-zinc-800 rounded-full h-5 relative overflow-hidden">
+                            <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${pct}%`, backgroundColor: PRODUCT_COLORS[i % PRODUCT_COLORS.length] }} />
+                            <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium">{pct.toFixed(0)}%</span>
+                          </div>
+                          <span className="text-xs text-gray-500 dark:text-zinc-400 w-16 text-right">₩{formatCompact(ch.revenue)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-zinc-400 mb-2">총 주문수: <span className="font-bold text-indigo-400">{kpi.orders.toLocaleString()}건</span></p>
+                  <p className="text-xs text-gray-500 dark:text-zinc-400">AOV: <span className="font-bold">₩{formatCompact(kpi.aov || 0)}</span></p>
+                  <p className="text-xs text-gray-500 dark:text-zinc-400 mt-2">이전 대비: <span className={kpi.orders >= kpi.ordersPrev ? "text-green-400" : "text-red-400"}>{kpi.ordersPrev > 0 ? `${((kpi.orders / kpi.ordersPrev - 1) * 100).toFixed(1)}%` : "N/A"}</span></p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      }
     }
 
     if (selectedKpi === "profit") {
