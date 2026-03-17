@@ -429,9 +429,10 @@ export default function OverviewPage() {
                     <CardHeader><CardTitle>🏆 매출 TOP 5 제품</CardTitle></CardHeader>
                     <CardContent>
                       <div className="space-y-3">
-                        {topProducts.map((p, i) => {
+                        {topProducts.map((p: any, i: number) => {
                           const maxRev = topProducts[0]?.revenue || 1;
                           const pct = (p.revenue / maxRev) * 100;
+                          const barColor = BRAND_COLORS[p.brand] || PRODUCT_COLORS[i];
                           return (
                             <div key={p.product} className="flex items-center gap-3">
                               <span className="text-xs font-bold text-zinc-500 w-5">{i + 1}</span>
@@ -441,7 +442,7 @@ export default function OverviewPage() {
                                   <span className="text-xs font-medium text-zinc-300 ml-2 whitespace-nowrap">₩{formatCompact(p.revenue)}</span>
                                 </div>
                                 <div className="bg-zinc-800 rounded-full h-2 overflow-hidden">
-                                  <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: PRODUCT_COLORS[i] }} />
+                                  <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
                                 </div>
                               </div>
                             </div>

@@ -161,12 +161,12 @@ export async function GET(request: NextRequest) {
     const cartToOrderRate = funnelSummary.cartAdds > 0 ? (funnelSummary.purchases / funnelSummary.cartAdds) * 100 : 0;
 
     // Top 5 products for overview
-    let prodQuery = supabase.from("product_sales").select("product,revenue,quantity").gte("date", from).lte("date", to);
+    let prodQuery = supabase.from("product_sales").select("product,revenue,quantity,brand").gte("date", from).lte("date", to);
     if (brand !== "all") prodQuery = prodQuery.eq("brand", brand);
     const { data: prodData } = await prodQuery;
-    const prodMap = new Map<string, { revenue: number; quantity: number }>();
+    const prodMap = new Map<string, { revenue: number; quantity: number; brand: string }>();
     for (const r of prodData || []) {
-      const existing = prodMap.get(r.product) || { revenue: 0, quantity: 0 };
+      const existing = prodMap.get(r.product) || { revenue: 0, quantity: 0, brand: r.brand };
       existing.revenue += Number(r.revenue);
       existing.quantity += Number(r.quantity);
       prodMap.set(r.product, existing);
