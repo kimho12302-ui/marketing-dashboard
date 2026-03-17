@@ -28,6 +28,7 @@ export default function FunnelPage() {
   const [funnel, setFunnel] = useState<FunnelStep[]>([]);
   const [prevFunnel, setPrevFunnel] = useState<FunnelStep[]>([]);
   const [trend, setTrend] = useState<TrendPoint[]>([]);
+  const [channelFunnel, setChannelFunnel] = useState<{ channel: string; sessions: number; cart_adds: number; purchases: number; repurchases: number; convRate: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -39,6 +40,7 @@ export default function FunnelPage() {
       const data = await res.json();
       setFunnel(data.funnel || []);
       setTrend(data.trend || []);
+      setChannelFunnel(data.channelFunnel || []);
 
       // Fetch previous period
       const fromDate = new Date(filters.from);
@@ -205,6 +207,70 @@ export default function FunnelPage() {
                         })}
                       </tbody>
                     </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Channel Funnel Comparison */}
+            {channelFunnel.length > 0 && (
+              <Card>
+                <CardHeader><CardTitle>📊 채널별 퍼널 비교</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Conversion Rate Bar Chart */}
+                    <div>
+                      <p className="text-xs text-zinc-400 mb-3">채널별 구매 전환율</p>
+                      <div className="h-48">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={channelFunnel}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                            <XAxis dataKey="channel" tick={{ fill: "#aaa", fontSize: 12 }} />
+                            <YAxis tick={{ fill: "#888", fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}%`} />
+                            <Tooltip contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }}
+                              formatter={(v: any) => [`${Number(v).toFixed(2)}%`, "전환율"]} />
+                            <Bar dataKey="convRate" name="전환율" radius={[4, 4, 0, 0]}>
+                              {channelFunnel.map((_, i) => (
+                                <Cell key={i} fill={["#8b5cf6", "#14b8a6", "#f97316"][i % 3]} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    {/* Channel Detail Table */}
+                    <div>
+                      <p className="text-xs text-zinc-400 mb-3">채널별 퍼널 상세</p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-zinc-700">
+                              <th className="text-left py-2 px-2 text-zinc-400">채널</th>
+                              <th className="text-right py-2 px-2 text-zinc-400">유입</th>
+                              <th className="text-right py-2 px-2 text-zinc-400">장바구니</th>
+                              <th className="text-right py-2 px-2 text-zinc-400">구매</th>
+                              <th className="text-right py-2 px-2 text-zinc-400">재구매</th>
+                              <th className="text-right py-2 px-2 text-zinc-400">전환율</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {channelFunnel.map((ch) => (
+                              <tr key={ch.channel} className="border-b border-zinc-800">
+                                <td className="py-2 px-2 text-zinc-200 font-medium">{ch.channel}</td>
+                                <td className="py-2 px-2 text-right">{formatCompact(ch.sessions)}</td>
+                                <td className="py-2 px-2 text-right">{formatCompact(ch.cart_adds)}</td>
+                                <td className="py-2 px-2 text-right text-green-400">{formatCompact(ch.purchases)}</td>
+                                <td className="py-2 px-2 text-right">{formatCompact(ch.repurchases)}</td>
+                                <td className={`py-2 px-2 text-right font-medium ${ch.convRate >= 5 ? "text-green-400" : ch.convRate >= 2 ? "text-yellow-400" : "text-red-400"}`}>
+                                  {ch.convRate.toFixed(2)}%
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
