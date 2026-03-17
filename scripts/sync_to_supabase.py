@@ -304,48 +304,72 @@ def sync_naver_sa(gc: gspread.Client, sb: Client, min_date: str | None):
 
 
 def sync_ga4_funnel(gc: gspread.Client, sb: Client, min_date: str | None):
-    """GA4 퍼널 데이터 → daily_funnel"""
+    """GA4 퍼널 데이터 → daily_funnel (daily_funnel + ga_daily_data 탭 합산)"""
     print("\n📊 GA4 퍼널 동기화...")
     try:
         sheet = gc.open_by_key(SHEET_GA4)
-        worksheets = sheet.worksheets()
     except Exception as e:
         print(f"  ❌ 시트 열기 실패: {e}")
         return
 
-    rows = []
-    for ws in worksheets:
-        try:
-            records = ws.get_all_records()
-        except Exception:
-            continue
-
-        for rec in records:
-            date = parse_date(str(rec.get("날짜", rec.get("date", rec.get("Date", "")))))
+    # Step 1: Read daily_funnel tab (page_view, view_item, add_to_cart, begin_checkout, purchase)
+    funnel_map: dict[str, dict] = {}
+    try:
+        ws_funnel = sheet.worksheet("daily_funnel")
+        for rec in ws_funnel.get_all_records():
+            date = parse_date(str(rec.get("date", "")))
             if not date:
                 continue
             if min_date and date < min_date:
                 continue
+            funnel_map[date] = {
+                "impressions": safe_int(rec.get("page_view", 0)),
+                "cart_adds": safe_int(rec.get("add_to_cart", 0)),
+                "purchases": safe_int(rec.get("purchase", 0)),
+                "view_item": safe_int(rec.get("view_item", 0)),
+                "begin_checkout": safe_int(rec.get("begin_checkout", 0)),
+            }
+        print(f"  daily_funnel 탭: {len(funnel_map)}건")
+    except Exception as e:
+        print(f"  ⚠️ daily_funnel 탭 읽기 실패: {e}")
 
-            # Determine brand
-            brand = "nutty"
-            tab_lower = ws.title.lower()
-            if "아이언펫" in tab_lower or "ironpet" in tab_lower:
-                brand = "ironpet"
-            elif "밸런스" in tab_lower or "balance" in tab_lower:
-                brand = "balancelab"
+    # Step 2: Read ga_daily_data tab (sessions, ecommercePurchases, purchaseRevenue)
+    daily_map: dict[str, dict] = {}
+    try:
+        ws_daily = sheet.worksheet("ga_daily_data")
+        for rec in ws_daily.get_all_records():
+            date = parse_date(str(rec.get("date", "")))
+            if not date:
+                continue
+            if min_date and date < min_date:
+                continue
+            daily_map[date] = {
+                "sessions": safe_int(rec.get("sessions", 0)),
+                "total_users": safe_int(rec.get("totalUsers", 0)),
+                "new_users": safe_int(rec.get("newUsers", 0)),
+            }
+        print(f"  ga_daily_data 탭: {len(daily_map)}건")
+    except Exception as e:
+        print(f"  ⚠️ ga_daily_data 탭 읽기 실패: {e}")
 
-            rows.append({
-                "date": date,
-                "brand": brand,
-                "impressions": safe_int(rec.get("노출", rec.get("impressions", rec.get("페이지뷰", 0)))),
-                "sessions": safe_int(rec.get("세션", rec.get("sessions", rec.get("세션수", 0)))),
-                "cart_adds": safe_int(rec.get("장바구니", rec.get("cart_adds", rec.get("add_to_cart", 0)))),
-                "signups": safe_int(rec.get("가입", rec.get("signups", rec.get("sign_up", 0)))),
-                "purchases": safe_int(rec.get("구매", rec.get("purchases", rec.get("purchase", 0)))),
-                "repurchases": safe_int(rec.get("재구매", rec.get("repurchases", 0))),
-            })
+    # Step 3: Merge both sources
+    all_dates = set(funnel_map.keys()) | set(daily_map.keys())
+    rows = []
+    for date in sorted(all_dates):
+        f = funnel_map.get(date, {})
+        d = daily_map.get(date, {})
+        rows.append({
+            "date": date,
+            "brand": "all",  # GA4 데이터는 사이트 전체 (브랜드 구분 없음)
+            "impressions": f.get("impressions", 0),
+            "sessions": d.get("sessions", 0),
+            "cart_adds": f.get("cart_adds", 0),
+            "signups": 0,  # GA4에 sign_up 데이터 별도 없음
+            "purchases": f.get("purchases", 0),
+            "repurchases": 0,
+        })
 
+    print(f"  합산 결과: {len(rows)}건")
     upsert_batch(sb, "daily_funnel", rows)
 
 

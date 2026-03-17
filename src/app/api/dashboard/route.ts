@@ -142,8 +142,8 @@ export async function GET(request: NextRequest) {
       .map(([date, d]) => ({ date, ...d }));
 
     // Funnel summary for overview
-    let funnelQuery = supabase.from("daily_funnel").select("*").gte("date", from).lte("date", to);
-    if (brand !== "all") funnelQuery = funnelQuery.eq("brand", brand);
+    // Funnel: use "all" brand for total funnel (채널별은 별도 brand=cafe24/smartstore/coupang)
+    let funnelQuery = supabase.from("daily_funnel").select("*").gte("date", from).lte("date", to).eq("brand", "all");
     const { data: funnelData } = await funnelQuery;
     const funnelRows = funnelData || [];
     const funnelSummary = {
