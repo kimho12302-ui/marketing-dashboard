@@ -117,34 +117,127 @@ export default function FunnelPage() {
               </Card>
             </div>
 
-            <Card>
-              <CardHeader><CardTitle>퍼널: 노출 → 유입 → 장바구니 → 구매 → 재구매</CardTitle></CardHeader>
+            {/* 장바구니 이탈 분석 — 상단 이탈률 카드와 연결 */}
+            <Card className={abandonRate > 50 ? "border-red-500/30" : ""}>
+              <CardHeader><CardTitle>🛒 장바구니 이탈 분석</CardTitle></CardHeader>
               <CardContent>
-                <div className="space-y-1">
-                  {funnel.map((step, i) => {
-                    const maxVal = funnel[0]?.value || 1;
-                    const pct = maxVal > 0 ? (step.value / maxVal) * 100 : 0;
-                    const width = Math.max(pct, 8);
-                    return (
-                      <div key={step.name} className="flex items-center gap-3">
-                        <span className="text-xs text-gray-500 dark:text-zinc-400 w-16 text-right">{step.name}</span>
-                        <div className="flex-1 relative" style={{ paddingLeft: `${(100 - width) / 2}%`, paddingRight: `${(100 - width) / 2}%` }}>
-                          <div className="h-10 rounded-md flex items-center justify-between px-3 transition-all"
-                            style={{ backgroundColor: FUNNEL_COLORS[i], opacity: 0.85 }}>
-                            <span className="text-sm font-medium text-white">{formatCompact(step.value)}</span>
-                            {step.rate !== undefined && i > 0 && (
-                              <span className="text-[10px] text-white/70">{step.rate.toFixed(1)}%</span>
-                            )}
-                          </div>
+                <div className="flex items-center gap-6 flex-wrap">
+                  <div>
+                    <p className={`text-4xl font-bold ${abandonRate > 50 ? "text-red-400" : abandonRate > 35 ? "text-yellow-400" : "text-green-400"}`}>
+                      {abandonRate.toFixed(1)}%
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-zinc-500 mt-1">
+                      장바구니 {formatCompact(cartVal)} → 구매 {formatCompact(purchaseVal)}
+                    </p>
+                  </div>
+                  {prevFunnel.length > 0 && (
+                    <div className={`text-sm ${(abandonRate - prevAbandonRate) > 0 ? "text-red-400" : "text-green-400"}`}>
+                      <span className="text-xl">{(abandonRate - prevAbandonRate) > 0 ? "↑" : "↓"}</span>
+                      <span className="font-medium ml-1">{Math.abs(abandonRate - prevAbandonRate).toFixed(1)}%p</span>
+                      <p className="text-[10px] text-gray-400 dark:text-zinc-500">이전: {prevAbandonRate.toFixed(1)}%</p>
+                    </div>
+                  )}
+                  <div className="text-xs text-gray-400 dark:text-zinc-500 space-y-1 ml-auto">
+                    <p>💡 이커머스 평균 이탈률: 65~75%</p>
+                    <p>🎯 {abandonRate < 65 ? "업계 평균 이하 — 양호" : "업계 평균 수준 — 개선 여지 있음"}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 노출은 별도 + 깔때기는 유입부터 */}
+            <Card>
+              <CardHeader><CardTitle>전환 퍼널</CardTitle></CardHeader>
+              <CardContent>
+                {(() => {
+                  const impressionStep = funnel.find(s => s.name === "노출");
+                  const funnelWithoutImpressions = funnel.filter(s => s.name !== "노출");
+                  const maxVal = funnelWithoutImpressions[0]?.value || 1;
+
+                  return (
+                    <div className="space-y-4">
+                      {/* 노출 = 별도 배너 */}
+                      {impressionStep && (
+                        <div className="flex items-center gap-3 bg-indigo-50 dark:bg-indigo-900/10 rounded-lg px-4 py-3">
+                          <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">👁️ 노출</span>
+                          <span className="text-2xl font-bold text-indigo-500">{formatCompact(impressionStep.value)}</span>
+                          {funnelWithoutImpressions[0] && (
+                            <span className="text-xs text-gray-400 dark:text-zinc-500 ml-auto">
+                              → 유입률 {impressionStep.value > 0 ? ((funnelWithoutImpressions[0].value / impressionStep.value) * 100).toFixed(2) : 0}%
+                            </span>
+                          )}
                         </div>
-                        {i > 0 && step.rate !== undefined && (
-                          <span className="text-xs text-gray-400 dark:text-zinc-500 w-16">
-                            Drop {(100 - step.rate).toFixed(0)}%
-                          </span>
-                        )}
+                      )}
+
+                      {/* 깔때기: 유입 → 장바구니 → 구매 → 재구매 */}
+                      <div className="space-y-0">
+                        {funnelWithoutImpressions.map((step, i) => {
+                          const pct = maxVal > 0 ? (step.value / maxVal) * 100 : 0;
+                          const width = Math.max(pct, 12);
+                          const prevStep = i > 0 ? funnelWithoutImpressions[i - 1] : null;
+                          const stepConvRate = prevStep && prevStep.value > 0 ? (step.value / prevStep.value * 100) : 100;
+                          const dropRate = 100 - stepConvRate;
+
+                          return (
+                            <div key={step.name}>
+                              {/* 이탈률 표시 (단계 사이) */}
+                              {i > 0 && (
+                                <div className="flex items-center justify-center py-1">
+                                  <span className="text-[10px] text-red-400">▼ 이탈 {dropRate.toFixed(1)}% ({formatCompact((prevStep?.value || 0) - step.value)}명)</span>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-3">
+                                <span className="text-xs text-gray-500 dark:text-zinc-400 w-16 text-right shrink-0">{step.name}</span>
+                                <div className="flex-1 flex justify-center">
+                                  <div className="h-12 rounded-lg flex items-center justify-between px-4 transition-all shadow-sm"
+                                    style={{ backgroundColor: FUNNEL_COLORS[i + 1] || FUNNEL_COLORS[i], opacity: 0.9, width: `${width}%` }}>
+                                    <span className="text-sm font-bold text-white">{formatCompact(step.value)}</span>
+                                    <span className="text-[11px] text-white/80 font-medium">{pct.toFixed(1)}%</span>
+                                  </div>
+                                </div>
+                                <span className="text-xs text-gray-400 dark:text-zinc-500 w-20 shrink-0">
+                                  {i > 0 ? `전환 ${stepConvRate.toFixed(1)}%` : "기준"}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+
+            {/* 전환율 상세 카드 */}
+            <Card>
+              <CardHeader><CardTitle>📊 단계별 전환율 상세</CardTitle></CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {(() => {
+                    const impressionStep = funnel.find(s => s.name === "노출");
+                    const steps = funnel.filter(s => s.name !== "노출");
+                    const pairs = [
+                      { from: "노출", to: "유입", fromVal: impressionStep?.value || 0, toVal: steps.find(s => s.name === "유입")?.value || 0 },
+                      { from: "유입", to: "장바구니", fromVal: steps.find(s => s.name === "유입")?.value || 0, toVal: steps.find(s => s.name === "장바구니")?.value || 0 },
+                      { from: "장바구니", to: "구매", fromVal: steps.find(s => s.name === "장바구니")?.value || 0, toVal: steps.find(s => s.name === "구매")?.value || 0 },
+                      { from: "구매", to: "재구매", fromVal: steps.find(s => s.name === "구매")?.value || 0, toVal: steps.find(s => s.name === "재구매")?.value || 0 },
+                    ];
+                    return pairs.map((p) => {
+                      const rate = p.fromVal > 0 ? (p.toVal / p.fromVal * 100) : 0;
+                      return (
+                        <div key={p.to} className="bg-gray-50 dark:bg-zinc-800/50 rounded-lg p-3">
+                          <p className="text-[10px] text-gray-400 dark:text-zinc-500">{p.from} → {p.to}</p>
+                          <p className={`text-xl font-bold mt-1 ${rate >= 5 ? "text-green-400" : rate >= 2 ? "text-yellow-400" : "text-red-400"}`}>
+                            {rate.toFixed(2)}%
+                          </p>
+                          <p className="text-[10px] text-gray-400 dark:text-zinc-500 mt-0.5">
+                            {formatCompact(p.fromVal)} → {formatCompact(p.toVal)}
+                          </p>
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               </CardContent>
             </Card>
@@ -268,32 +361,6 @@ export default function FunnelPage() {
               </Card>
             )}
 
-            <Card className={abandonRate > 50 ? "border-red-500/30" : ""}>
-              <CardHeader><CardTitle>🛒 장바구니 이탈 분석</CardTitle></CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-6">
-                  <div>
-                    <p className={`text-4xl font-bold ${abandonRate > 50 ? "text-red-400" : abandonRate > 35 ? "text-yellow-400" : "text-green-400"}`}>
-                      {abandonRate.toFixed(1)}%
-                    </p>
-                    <p className="text-xs text-gray-400 dark:text-zinc-500 mt-1">
-                      장바구니 {formatCompact(cartVal)} → 구매 {formatCompact(purchaseVal)}
-                    </p>
-                  </div>
-                  {prevFunnel.length > 0 && (
-                    <div className={`text-sm ${(abandonRate - prevAbandonRate) > 0 ? "text-red-400" : "text-green-400"}`}>
-                      <span className="text-xl">{(abandonRate - prevAbandonRate) > 0 ? "↑" : "↓"}</span>
-                      <span className="font-medium ml-1">{Math.abs(abandonRate - prevAbandonRate).toFixed(1)}%p</span>
-                      <p className="text-[10px] text-gray-400 dark:text-zinc-500">이전: {prevAbandonRate.toFixed(1)}%</p>
-                    </div>
-                  )}
-                  <div className="text-xs text-gray-400 dark:text-zinc-500 space-y-1 ml-auto">
-                    <p>💡 이커머스 평균 이탈률: 65~75%</p>
-                    <p>🎯 {abandonRate < 65 ? "업계 평균 이하 — 양호" : "업계 평균 수준 — 개선 여지 있음"}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </>
         )}
       </div>
