@@ -261,6 +261,42 @@ export default function OverviewPage() {
         </Card>
       );
     }
+    if (selectedKpi === "cac") {
+      const totalSpend = kpi.adSpend;
+      const funnelSteps = [
+        { label: "노출", key: "impressions", value: funnelSummary.impressions, icon: "👁️" },
+        { label: "유입 (세션)", key: "sessions", value: funnelSummary.sessions, icon: "🚪" },
+        { label: "장바구니", key: "cartAdds", value: funnelSummary.cartAdds, icon: "🛒" },
+        { label: "구매", key: "purchases", value: funnelSummary.purchases, icon: "💳" },
+        { label: "재구매", key: "repurchases", value: funnelSummary.repurchases, icon: "🔄" },
+      ];
+      return (
+        <Card className="border-indigo-500/30 animate-in slide-in-from-top-2 duration-200">
+          <CardHeader><CardTitle>🎯 퍼널별 CAC (Cost per Action)</CardTitle></CardHeader>
+          <CardContent>
+            <p className="text-xs text-zinc-500 mb-4">CAC = 총 광고비(₩{formatCompact(totalSpend)}) ÷ 각 퍼널 단계 수</p>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {funnelSteps.map((step) => {
+                const cac = step.value > 0 ? totalSpend / step.value : 0;
+                return (
+                  <div key={step.key} className="bg-zinc-800/50 rounded-lg p-4 text-center">
+                    <span className="text-2xl">{step.icon}</span>
+                    <p className="text-xs text-zinc-400 mt-1">{step.label}</p>
+                    <p className="text-lg font-bold text-zinc-100 mt-1">
+                      {step.value > 0 ? `₩${formatCompact(cac)}` : "-"}
+                    </p>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">
+                      {step.value > 0 ? `${step.value.toLocaleString()}건` : "데이터 없음"}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
     return null;
   };
 

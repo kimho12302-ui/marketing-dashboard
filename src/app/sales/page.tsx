@@ -148,8 +148,8 @@ export default function SalesPage() {
           </div>
         ) : (
           <>
-            {/* Row 1: Channel + Brand + Category */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Row 1: Channel + Brand/Category (adaptive) */}
+            <div className={`grid grid-cols-1 ${filters.brand === "all" ? "lg:grid-cols-3" : "lg:grid-cols-2"} gap-6`}>
               {/* 채널별 매출 */}
               <Card>
                 <CardHeader><CardTitle>📦 채널별 매출</CardTitle></CardHeader>
@@ -167,32 +167,34 @@ export default function SalesPage() {
                 </CardContent>
               </Card>
 
-              {/* 브랜드별 매출 */}
-              <Card>
-                <CardHeader><CardTitle>🏷️ 브랜드별 매출</CardTitle></CardHeader>
-                <CardContent>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={fullBrandPie} layout="vertical">
-                        <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                        <XAxis type="number" tick={{ fill: "#888", fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
-                        <YAxis type="category" dataKey="name" width={65} tick={{ fill: "#aaa", fontSize: 11 }} />
-                        <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
-                        <Bar dataKey="value" radius={[0, 6, 6, 0]}>
-                          {fullBrandPie.map((entry, i) => (
-                            <Cell key={i} fill={BRAND_COLORS[entry.name] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                  {fullBrandPie.filter(b => b.value === 0).map(b => (
-                    <p key={b.name} className="text-xs text-zinc-500 mt-1">
-                      {b.name}: ₩0 — <span className="text-zinc-600 italic">데이터 없음</span>
-                    </p>
-                  ))}
-                </CardContent>
-              </Card>
+              {/* 브랜드별 매출 - only show for "all" filter */}
+              {filters.brand === "all" && (
+                <Card>
+                  <CardHeader><CardTitle>🏷️ 브랜드별 매출</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={fullBrandPie} layout="vertical">
+                          <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                          <XAxis type="number" tick={{ fill: "#888", fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
+                          <YAxis type="category" dataKey="name" width={65} tick={{ fill: "#aaa", fontSize: 11 }} />
+                          <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={{ backgroundColor: "#18181b", border: "1px solid #333", borderRadius: 8 }} />
+                          <Bar dataKey="value" radius={[0, 6, 6, 0]}>
+                            {fullBrandPie.map((entry, i) => (
+                              <Cell key={i} fill={BRAND_COLORS[entry.name] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    {fullBrandPie.filter(b => b.value === 0).map(b => (
+                      <p key={b.name} className="text-xs text-zinc-500 mt-1">
+                        {b.name}: ₩0 — <span className="text-zinc-600 italic">데이터 없음</span>
+                      </p>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* 카테고리별 매출 */}
               <Card>
