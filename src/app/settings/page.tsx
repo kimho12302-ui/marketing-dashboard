@@ -51,6 +51,14 @@ export default function SettingsPage() {
     product: "", brand: "nutty", cost_price: 0, manufacturing_cost: 0, shipping_cost: 0, category: "",
   });
 
+  // Product cost search/filter
+  const [costSearch, setCostSearch] = useState("");
+  const [costBrandFilter, setCostBrandFilter] = useState("all");
+
+  // Product cost CSV upload
+  const [costCsvFile, setCostCsvFile] = useState<File | null>(null);
+  const [costCsvUploading, setCostCsvUploading] = useState(false);
+
   // File upload state
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadChannel, setUploadChannel] = useState("coupang_ads");
@@ -153,6 +161,49 @@ export default function SettingsPage() {
       }
     } catch { setMessage("❌ 오류 발생"); }
     setLoading(false);
+  };
+
+  const uploadCostCsv = async () => {
+    if (!costCsvFile) { setMessage("CSV 파일을 선택하세요"); return; }
+    setCostCsvUploading(true);
+    try {
+      const text = await costCsvFile.text();
+      const lines = text.split("\n").map(l => l.trim()).filter(l => l);
+      if (lines.length < 2) { setMessage("❌ CSV에 데이터가 없습니다"); setCostCsvUploading(false); return; }
+      const header = lines[0].split(",").map(h => h.trim().toLowerCase());
+      const productIdx = header.findIndex(h => h.includes("제품") || h.includes("product"));
+      const brandIdx = header.findIndex(h => h.includes("브랜드") || h.includes("brand"));
+      const costIdx = header.findIndex(h => h.includes("판매원가") || h.includes("cost_price") || h.includes("원가"));
+      const mfgIdx = header.findIndex(h => h.includes("제작") || h.includes("manufacturing"));
+      const shipIdx = header.findIndex(h => h.includes("배송") || h.includes("shipping"));
+      const catIdx = header.findIndex(h => h.includes("카테고리") || h.includes("category"));
+      if (productIdx < 0) { setMessage("❌ '제품' 컬럼을 찾을 수 없습니다"); setCostCsvUploading(false); return; }
+      let success = 0, fail = 0;
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(",").map(c => c.trim());
+        const product = cols[productIdx];
+        if (!product) continue;
+        const data = {
+          product,
+          brand: brandIdx >= 0 ? cols[brandIdx] : "nutty",
+          cost_price: costIdx >= 0 ? Number(cols[costIdx]) || 0 : 0,
+          manufacturing_cost: mfgIdx >= 0 ? Number(cols[mfgIdx]) || 0 : 0,
+          shipping_cost: shipIdx >= 0 ? Number(cols[shipIdx]) || 0 : 0,
+          category: catIdx >= 0 ? cols[catIdx] : "",
+        };
+        try {
+          const res = await fetch("/api/settings", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: "product_cost", data, forceOverride: true }),
+          });
+          if (res.ok) success++; else fail++;
+        } catch { fail++; }
+      }
+      setMessage(`✅ CSV 업로드: ${success}건 성공, ${fail}건 실패`);
+      setCostCsvFile(null);
+      fetchCosts();
+    } catch { setMessage("❌ CSV 파싱 오류"); }
+    setCostCsvUploading(false);
   };
 
   const saveShipping = async () => {
@@ -327,9 +378,32 @@ export default function SettingsPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-xs text-gray-500 dark:text-zinc-500 mb-3">매출이 있지만 원가가 등록되지 않은 제품입니다. 원가를 등록하면 정확한 영업이익을 계산할 수 있습니다.</p>
-                  <div className="overflow-x-auto">
+
+                  {/* CSV 일괄 업로드 */}
+                  <div className="flex items-center gap-2 mb-3 p-2 rounded bg-gray-50 dark:bg-zinc-800/50">
+                    <span className="text-xs text-gray-500 dark:text-zinc-400">📄 CSV 일괄:</span>
+                    <input type="file" accept=".csv" className="text-xs flex-1" onChange={(e) => setCostCsvFile(e.target.files?.[0] || null)} />
+                    <button onClick={uploadCostCsv} disabled={!costCsvFile || costCsvUploading}
+                      className="px-2 py-1 text-xs bg-indigo-600 text-white rounded disabled:opacity-50">
+                      {costCsvUploading ? "업로드 중..." : "업로드"}
+                    </button>
+                    <span className="text-[10px] text-gray-400 dark:text-zinc-500">형식: 제품,브랜드,판매원가,제작원가,배송비,카테고리</span>
+                  </div>
+
+                  {/* 검색 + 브랜드 필터 */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <input type="text" placeholder="제품명 검색..." value={costSearch} onChange={(e) => setCostSearch(e.target.value)}
+                      className="flex-1 px-2 py-1 text-sm border rounded bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700" />
+                    <select value={costBrandFilter} onChange={(e) => setCostBrandFilter(e.target.value)}
+                      className="px-2 py-1 text-sm border rounded bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700">
+                      <option value="all">전체 브랜드</option>
+                      {BRANDS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="overflow-x-auto max-h-96 overflow-y-auto">
                     <table className="w-full text-sm">
-                      <thead>
+                      <thead className="sticky top-0 bg-white dark:bg-zinc-900">
                         <tr className="border-b border-gray-200 dark:border-zinc-700">
                           <th className="text-left py-2 px-2 text-zinc-400">제품</th>
                           <th className="text-left py-2 px-2 text-zinc-400">브랜드</th>
@@ -338,7 +412,11 @@ export default function SettingsPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {productList.filter(p => !p.hasCost).map((p) => (
+                        {productList.filter(p => !p.hasCost).filter(p => {
+                          const matchSearch = !costSearch || p.product.toLowerCase().includes(costSearch.toLowerCase());
+                          const matchBrand = costBrandFilter === "all" || p.brand === costBrandFilter;
+                          return matchSearch && matchBrand;
+                        }).map((p) => (
                           <tr key={p.product} className="border-b border-gray-200 dark:border-zinc-800 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800/50"
                             onClick={() => setCostForm({ product: p.product, brand: p.brand, cost_price: 0, manufacturing_cost: 0, shipping_cost: 0, category: p.category })}>
                             <td className="py-2 px-2 text-yellow-400">{p.product}</td>
