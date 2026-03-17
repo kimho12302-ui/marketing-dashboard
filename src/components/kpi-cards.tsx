@@ -21,7 +21,7 @@ export default function KPICards({ data, periodLabel, onCardClick, selectedCard 
   const cards = [
     { key: "revenue", title: "매출", value: data.revenue, prev: data.revenuePrev, prefix: "₩", icon: DollarSign, invertColor: false },
     { key: "adSpend", title: "광고비", value: data.adSpend, prev: data.adSpendPrev, prefix: "₩", icon: Megaphone, invertColor: true },
-    { key: "profit", title: "영업이익", value: data.profit || 0, prev: data.profitPrev || 0, prefix: "₩", icon: CreditCard, invertColor: false },
+    { key: "profit", title: "영업이익", value: data.profit || 0, prev: data.profitPrev || 0, prefix: "₩", icon: CreditCard, invertColor: false, subtitle: data.revenue > 0 ? `${((data.profit || 0) / data.revenue * 100).toFixed(1)}%` : undefined },
     { key: "roas", title: "ROAS", value: data.roas, prev: data.roasPrev, suffix: "x", icon: BarChart3, isRatio: true, invertColor: false },
     { key: "orders", title: "주문수", value: data.orders, prev: data.ordersPrev, suffix: "건", icon: ShoppingCart, invertColor: false },
     { key: "aov", title: "AOV", value: data.aov || 0, prev: data.aovPrev || 0, prefix: "₩", icon: Target, invertColor: false },
@@ -61,6 +61,9 @@ export default function KPICards({ data, periodLabel, onCardClick, selectedCard 
                   {card.prefix || ""}
                   {card.isRatio ? card.value.toFixed(2) : formatCompact(card.value)}
                   {card.suffix || ""}
+                  {(card as any).subtitle && (
+                    <span className="text-xs font-normal text-gray-400 dark:text-zinc-500 ml-1">({(card as any).subtitle})</span>
+                  )}
                 </div>
                 {card.prev !== 0 && (
                   <div className={`flex items-center gap-1 text-xs mt-1 ${colorClass}`}>

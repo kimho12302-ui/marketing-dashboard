@@ -102,7 +102,7 @@ export default function KeywordsPage() {
                         domain={[0, "auto"]} />
                       <YAxis type="number" dataKey="cpc" name="CPC" tick={{ fill: chartTheme.tickColor, fontSize: 11 }}
                         label={{ value: "CPC (₩)", angle: -90, position: "insideLeft", fill: chartTheme.axisColor, fontSize: 11, dx: -5 }}
-                        reversed />
+                        scale="log" domain={[100, "auto"]} allowDataOverflow />
                       <ZAxis type="number" dataKey="clicks" range={[40, 400]} name="클릭수" />
                       <ReferenceLine y={avgCpc} stroke="#ef4444" strokeDasharray="5 5" strokeOpacity={0.6} />
                       <ReferenceLine x={avgCtr} stroke="#ef4444" strokeDasharray="5 5" strokeOpacity={0.6} />

@@ -531,7 +531,7 @@ export default function OverviewPage() {
                               cy="50%"
                               outerRadius={100}
                               innerRadius={40}
-                              label={({ name, percent }: any) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                              label={({ name, percent, x, y }: any) => <text x={x} y={y} fill={chartTheme.tickColor} fontSize={11} textAnchor="middle">{`${name} ${((percent || 0) * 100).toFixed(0)}%`}</text>}
                             >
                               {fullBrandRevenue.filter(b => b.revenue > 0).map((b, i) => (
                                 <Cell key={i} fill={BRAND_COLORS[b.brand] || PRODUCT_COLORS[i % PRODUCT_COLORS.length]} />
