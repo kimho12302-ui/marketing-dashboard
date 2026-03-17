@@ -39,7 +39,7 @@ const MANUAL_CHANNELS = [
 ];
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<"costs" | "manual_ads" | "info">("costs");
+  const [activeTab, setActiveTab] = useState<"costs" | "manual_ads" | "misc_costs" | "info">("costs");
   const [productCosts, setProductCosts] = useState<ProductCost[]>([]);
   const [productList, setProductList] = useState<{ product: string; brand: string; category: string; revenue: number; hasCost: boolean }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -55,6 +55,17 @@ export default function SettingsPage() {
   const [uploadChannel, setUploadChannel] = useState("coupang_ads");
   const [uploadBrand, setUploadBrand] = useState("nutty");
   const [uploadResult, setUploadResult] = useState<any>(null);
+
+  // Misc marketing cost form
+  const [miscForm, setMiscForm] = useState({
+    date: new Date().toISOString().slice(0, 10),
+    brand: "nutty",
+    category: "influencer",
+    description: "",
+    amount: 0,
+    note: "",
+  });
+  const [miscCosts, setMiscCosts] = useState<any[]>([]);
 
   // Manual ad spend form
   const [adForm, setAdForm] = useState<ManualAdEntry>({
@@ -74,7 +85,17 @@ export default function SettingsPage() {
     } catch { /* ignore */ }
   }, []);
 
-  useEffect(() => { fetchCosts(); }, [fetchCosts]);
+  const fetchMiscCosts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/settings?type=misc_costs");
+      if (res.ok) {
+        const data = await res.json();
+        setMiscCosts(data.miscCosts || []);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => { fetchCosts(); fetchMiscCosts(); }, [fetchCosts, fetchMiscCosts]);
 
   const saveCost = async () => {
     if (!costForm.product) { setMessage("제품명을 입력하세요"); return; }
@@ -89,6 +110,26 @@ export default function SettingsPage() {
         setMessage("✅ 저장 완료");
         setCostForm({ product: "", brand: "nutty", cost_price: 0, shipping_cost: 0, category: "" });
         fetchCosts();
+      } else {
+        setMessage("❌ 저장 실패");
+      }
+    } catch { setMessage("❌ 오류 발생"); }
+    setLoading(false);
+  };
+
+  const saveMiscCost = async () => {
+    if (!miscForm.description || miscForm.amount <= 0) { setMessage("항목명과 금액을 입력하세요"); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "misc_cost", data: miscForm }),
+      });
+      if (res.ok) {
+        setMessage("✅ 건별비용 저장 완료");
+        setMiscForm(prev => ({ ...prev, description: "", amount: 0, note: "" }));
+        fetchMiscCosts();
       } else {
         setMessage("❌ 저장 실패");
       }
@@ -150,6 +191,7 @@ export default function SettingsPage() {
           {[
             { key: "costs" as const, label: "💰 제품 원가" },
             { key: "manual_ads" as const, label: "📢 수동 광고비" },
+            { key: "misc_costs" as const, label: "🧾 건별 비용" },
             { key: "info" as const, label: "ℹ️ 데이터 소스" },
           ].map(tab => (
             <button key={tab.key}
@@ -395,6 +437,107 @@ export default function SettingsPage() {
               </button>
             </CardContent>
           </Card>
+          </div>
+        )}
+
+        {/* Misc Marketing Costs Tab */}
+        {activeTab === "misc_costs" && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader><CardTitle>🧾 건별 마케팅 비용 입력</CardTitle></CardHeader>
+              <CardContent>
+                <p className="text-xs text-gray-500 dark:text-zinc-500 mb-4">인플루언서, 체험단, 공구, 촬영비, 디자인비 등 비정기적으로 발생하는 마케팅 비용을 기록합니다.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">날짜</label>
+                    <input type="date" className={inputClass} value={miscForm.date}
+                      onChange={e => setMiscForm(prev => ({ ...prev, date: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">브랜드</label>
+                    <select className={selectClass} value={miscForm.brand}
+                      onChange={e => setMiscForm(prev => ({ ...prev, brand: e.target.value }))}>
+                      {BRANDS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">카테고리</label>
+                    <select className={selectClass} value={miscForm.category}
+                      onChange={e => setMiscForm(prev => ({ ...prev, category: e.target.value }))}>
+                      <option value="influencer">인플루언서</option>
+                      <option value="experience">체험단</option>
+                      <option value="group_buy">공구</option>
+                      <option value="photo_video">촬영/영상</option>
+                      <option value="design">디자인</option>
+                      <option value="sample">샘플/제품 제공</option>
+                      <option value="event">이벤트/프로모션</option>
+                      <option value="platform_fee">플랫폼 수수료</option>
+                      <option value="logistics">물류/배송</option>
+                      <option value="other">기타</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">항목명</label>
+                    <input className={inputClass} value={miscForm.description}
+                      onChange={e => setMiscForm(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="예: 인플루언서 A 협찬" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">금액 (₩)</label>
+                    <input type="number" className={inputClass} value={miscForm.amount || ""}
+                      onChange={e => setMiscForm(prev => ({ ...prev, amount: Number(e.target.value) }))}
+                      placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">메모 (선택)</label>
+                    <input className={inputClass} value={miscForm.note}
+                      onChange={e => setMiscForm(prev => ({ ...prev, note: e.target.value }))}
+                      placeholder="추가 메모" />
+                  </div>
+                </div>
+                <button onClick={saveMiscCost} disabled={loading}
+                  className="mt-4 px-6 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50">
+                  {loading ? "저장 중..." : "저장"}
+                </button>
+              </CardContent>
+            </Card>
+
+            {/* Existing misc costs */}
+            <Card>
+              <CardHeader><CardTitle>등록된 건별 비용 ({miscCosts.length}건)</CardTitle></CardHeader>
+              <CardContent>
+                {miscCosts.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-zinc-500">등록된 건별 비용이 없습니다.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-200 dark:border-zinc-700">
+                          <th className="text-left py-2 px-2 text-gray-500 dark:text-zinc-400">날짜</th>
+                          <th className="text-left py-2 px-2 text-gray-500 dark:text-zinc-400">브랜드</th>
+                          <th className="text-left py-2 px-2 text-gray-500 dark:text-zinc-400">카테고리</th>
+                          <th className="text-left py-2 px-2 text-gray-500 dark:text-zinc-400">항목</th>
+                          <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">금액</th>
+                          <th className="text-left py-2 px-2 text-gray-500 dark:text-zinc-400">메모</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {miscCosts.map((c: any, i: number) => (
+                          <tr key={i} className="border-b border-gray-100 dark:border-zinc-800">
+                            <td className="py-2 px-2">{c.date}</td>
+                            <td className="py-2 px-2">{BRANDS.find(b => b.value === c.brand)?.label || c.brand}</td>
+                            <td className="py-2 px-2">{c.category}</td>
+                            <td className="py-2 px-2">{c.description}</td>
+                            <td className="py-2 px-2 text-right font-medium">₩{formatCompact(c.amount)}</td>
+                            <td className="py-2 px-2 text-gray-400 dark:text-zinc-500">{c.note}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         )}
 

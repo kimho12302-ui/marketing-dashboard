@@ -35,6 +35,23 @@ export async function GET(request: NextRequest) {
       result.manualCosts = data || [];
     }
 
+    if (type === "all" || type === "misc_costs") {
+      // Misc costs stored in manual_monthly with category="misc_cost"
+      const { data } = await supabase.from("manual_monthly")
+        .select("*")
+        .eq("category", "misc_cost")
+        .order("month", { ascending: false });
+      result.miscCosts = (data || []).map((r: any) => {
+        // Parse JSON from `note` field for misc cost details
+        try {
+          const details = JSON.parse(r.note || "{}");
+          return { id: r.id, date: r.month, brand: r.brand, category: details.category || "", description: details.description || r.metric, amount: r.value, note: details.note || "" };
+        } catch {
+          return { id: r.id, date: r.month, brand: r.brand, category: "", description: r.metric, amount: r.value, note: r.note };
+        }
+      });
+    }
+
     return NextResponse.json(result);
   } catch (error) {
     console.error("Settings GET error:", error);
@@ -58,6 +75,22 @@ export async function POST(request: NextRequest) {
     if (type === "manual_cost") {
       // Upsert manual monthly cost
       const { error } = await supabase.from("manual_monthly").upsert(data, { onConflict: "month,category" });
+      if (error) throw error;
+      return NextResponse.json({ ok: true });
+    }
+
+    if (type === "misc_cost") {
+      // Store misc marketing cost in manual_monthly
+      const row = {
+        month: data.date,
+        brand: data.brand,
+        channel: "misc",
+        category: "misc_cost",
+        metric: data.description,
+        value: data.amount,
+        note: JSON.stringify({ category: data.category, description: data.description, note: data.note }),
+      };
+      const { error } = await supabase.from("manual_monthly").insert(row);
       if (error) throw error;
       return NextResponse.json({ ok: true });
     }
