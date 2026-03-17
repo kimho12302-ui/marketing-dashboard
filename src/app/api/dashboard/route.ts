@@ -231,6 +231,15 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
 
+    // Brand ad spend breakdown
+    const brandAdSpendMap = new Map<string, number>();
+    for (const row of adSpend || []) {
+      brandAdSpendMap.set(row.brand, (brandAdSpendMap.get(row.brand) || 0) + Number(row.spend));
+    }
+    const brandAdSpend = Array.from(brandAdSpendMap.entries())
+      .map(([brand, spend]) => ({ brand, spend, share: totalAdSpendOnly > 0 ? spend / totalAdSpendOnly : 0 }))
+      .sort((a, b) => b.spend - a.spend);
+
     // Channel sales breakdown (from daily_sales)
     const salesChannelMap = new Map<string, number>();
     for (const row of sales || []) {
@@ -253,7 +262,7 @@ export async function GET(request: NextRequest) {
         miscCost: totalMiscCost,
         shippingCost: totalShippingCost, shippingOrders: totalShippingOrders,
       },
-      trend, channels, channelRoasTrend, brandRevenue, brandRevenueTrend,
+      trend, channels, channelRoasTrend, brandRevenue, brandRevenueTrend, brandAdSpend,
       funnelSummary: { ...funnelSummary, convRate, cartToOrderRate },
       topProducts, salesByChannel,
     });

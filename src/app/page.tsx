@@ -65,6 +65,7 @@ export default function OverviewPage() {
   const [funnelSummary, setFunnelSummary] = useState<FunnelSummary>({ impressions: 0, sessions: 0, cartAdds: 0, purchases: 0, repurchases: 0, convRate: 0, cartToOrderRate: 0 });
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [salesByChannel, setSalesByChannel] = useState<SalesChannel[]>([]);
+  const [brandAdSpend, setBrandAdSpend] = useState<{ brand: string; spend: number; share: number }[]>([]);
   const [selectedKpi, setSelectedKpi] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -92,6 +93,7 @@ export default function OverviewPage() {
       setFunnelSummary(data.funnelSummary || { impressions: 0, sessions: 0, cartAdds: 0, purchases: 0, repurchases: 0, convRate: 0, cartToOrderRate: 0 });
       setTopProducts(data.topProducts || []);
       setSalesByChannel(data.salesByChannel || []);
+      setBrandAdSpend(data.brandAdSpend || []);
 
       if (adsRes.ok) {
         const adsData = await adsRes.json();
@@ -394,6 +396,34 @@ export default function OverviewPage() {
               <h2 className="text-sm font-medium text-gray-500 dark:text-zinc-400 mb-3">📈 매출 vs 광고비 트렌드</h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <TrendChart data={trend} />
+                <Card>
+                  <CardHeader><CardTitle>🏷️ 브랜드별 광고비</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {brandAdSpend.map((b) => {
+                        const label = BRAND_LABELS[b.brand] || b.brand;
+                        const maxSpend = brandAdSpend[0]?.spend || 1;
+                        return (
+                          <div key={b.brand}>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm text-gray-700 dark:text-zinc-300">{label}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-gray-900 dark:text-zinc-100">₩{formatCompact(b.spend)}</span>
+                                <span className="text-xs text-gray-400 dark:text-zinc-500 bg-gray-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">{(b.share * 100).toFixed(1)}%</span>
+                              </div>
+                            </div>
+                            <div className="h-2 bg-gray-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full transition-all" style={{ width: `${(b.spend / maxSpend) * 100}%`, backgroundColor: BRAND_COLORS[b.brand] || "#888" }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {brandAdSpend.length === 0 && <p className="text-sm text-gray-400 dark:text-zinc-500">데이터 없음</p>}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              <div className="mb-6">
                 <ChannelChart data={channels} mode="spend" />
               </div>
               <Card>
