@@ -65,22 +65,43 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { type, data } = body;
 
+    // Force override flag from client
+    const forceOverride = body.forceOverride === true;
+
     if (type === "product_cost") {
-      // Upsert a single product cost
+      // Check duplicate
+      const { data: existing } = await supabase.from("product_costs")
+        .select("*").eq("product", data.product).eq("brand", data.brand).limit(1);
+      if (existing && existing.length > 0 && !forceOverride) {
+        const old = existing[0];
+        return NextResponse.json({
+          duplicate: true,
+          message: `이미 등록된 제품입니다. 원가 ₩${old.cost_price?.toLocaleString()} → ₩${data.cost_price?.toLocaleString()}로 덮어쓰시겠습니까?`,
+          existing: old,
+        }, { status: 409 });
+      }
       const { error } = await supabase.from("product_costs").upsert(data, { onConflict: "product,brand" });
       if (error) throw error;
       return NextResponse.json({ ok: true });
     }
 
     if (type === "manual_cost") {
-      // Upsert manual monthly cost
       const { error } = await supabase.from("manual_monthly").upsert(data, { onConflict: "month,category" });
       if (error) throw error;
       return NextResponse.json({ ok: true });
     }
 
     if (type === "misc_cost") {
-      // Store misc marketing cost in manual_monthly
+      // Check duplicate: same date + brand + description
+      const { data: existing } = await supabase.from("manual_monthly")
+        .select("*").eq("month", data.date).eq("brand", data.brand).eq("category", "misc_cost").eq("metric", data.description).limit(1);
+      if (existing && existing.length > 0 && !forceOverride) {
+        return NextResponse.json({
+          duplicate: true,
+          message: `동일한 건별비용이 이미 등록되어 있습니다. (${data.date} / ${data.description} / ₩${existing[0].value?.toLocaleString()}) 덮어쓰시겠습니까?`,
+          existing: existing[0],
+        }, { status: 409 });
+      }
       const row = {
         month: data.date,
         brand: data.brand,
@@ -90,13 +111,27 @@ export async function POST(request: NextRequest) {
         value: data.amount,
         note: JSON.stringify({ category: data.category, description: data.description, note: data.note }),
       };
-      const { error } = await supabase.from("manual_monthly").insert(row);
-      if (error) throw error;
+      if (existing && existing.length > 0 && forceOverride) {
+        const { error } = await supabase.from("manual_monthly").update(row).eq("id", existing[0].id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("manual_monthly").insert(row);
+        if (error) throw error;
+      }
       return NextResponse.json({ ok: true });
     }
 
     if (type === "manual_ad_spend") {
-      // Upsert manual daily ad spend (e.g. coupang, influencer)
+      // Check duplicate: same date + brand + channel
+      const { data: existing } = await supabase.from("daily_ad_spend")
+        .select("*").eq("date", data.date).eq("brand", data.brand).eq("channel", data.channel).limit(1);
+      if (existing && existing.length > 0 && !forceOverride) {
+        return NextResponse.json({
+          duplicate: true,
+          message: `동일한 광고비 데이터가 이미 있습니다. (${data.date} / ${data.channel} / ₩${existing[0].spend?.toLocaleString()}) 덮어쓰시겠습니까?`,
+          existing: existing[0],
+        }, { status: 409 });
+      }
       const { error } = await supabase.from("daily_ad_spend").upsert(data, { onConflict: "date,brand,channel" });
       if (error) throw error;
       return NextResponse.json({ ok: true });

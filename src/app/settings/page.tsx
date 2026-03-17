@@ -97,21 +97,38 @@ export default function SettingsPage() {
 
   useEffect(() => { fetchCosts(); fetchMiscCosts(); }, [fetchCosts, fetchMiscCosts]);
 
+  const postWithDupCheck = async (type: string, data: any): Promise<boolean> => {
+    const res = await fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, data }),
+    });
+    if (res.status === 409) {
+      const dupData = await res.json();
+      if (window.confirm(`⚠️ 중복 데이터 발견\n\n${dupData.message}`)) {
+        const res2 = await fetch("/api/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type, data, forceOverride: true }),
+        });
+        return res2.ok;
+      }
+      return false;
+    }
+    return res.ok;
+  };
+
   const saveCost = async () => {
     if (!costForm.product) { setMessage("제품명을 입력하세요"); return; }
     setLoading(true);
     try {
-      const res = await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "product_cost", data: costForm }),
-      });
-      if (res.ok) {
+      const ok = await postWithDupCheck("product_cost", costForm);
+      if (ok) {
         setMessage("✅ 저장 완료");
         setCostForm({ product: "", brand: "nutty", cost_price: 0, shipping_cost: 0, category: "" });
         fetchCosts();
       } else {
-        setMessage("❌ 저장 실패");
+        setMessage("취소됨");
       }
     } catch { setMessage("❌ 오류 발생"); }
     setLoading(false);
@@ -121,17 +138,13 @@ export default function SettingsPage() {
     if (!miscForm.description || miscForm.amount <= 0) { setMessage("항목명과 금액을 입력하세요"); return; }
     setLoading(true);
     try {
-      const res = await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "misc_cost", data: miscForm }),
-      });
-      if (res.ok) {
+      const ok = await postWithDupCheck("misc_cost", miscForm);
+      if (ok) {
         setMessage("✅ 건별비용 저장 완료");
         setMiscForm(prev => ({ ...prev, description: "", amount: 0, note: "" }));
         fetchMiscCosts();
       } else {
-        setMessage("❌ 저장 실패");
+        setMessage("취소됨");
       }
     } catch { setMessage("❌ 오류 발생"); }
     setLoading(false);
@@ -141,16 +154,12 @@ export default function SettingsPage() {
     if (!adForm.date || adForm.spend <= 0) { setMessage("날짜와 광고비를 입력하세요"); return; }
     setLoading(true);
     try {
-      const res = await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "manual_ad_spend", data: adForm }),
-      });
-      if (res.ok) {
+      const ok = await postWithDupCheck("manual_ad_spend", adForm);
+      if (ok) {
         setMessage("✅ 광고비 저장 완료");
         setAdForm(prev => ({ ...prev, spend: 0, impressions: 0, clicks: 0, conversion_value: 0 }));
       } else {
-        setMessage("❌ 저장 실패");
+        setMessage("취소됨");
       }
     } catch { setMessage("❌ 오류 발생"); }
     setLoading(false);
