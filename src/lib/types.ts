@@ -60,6 +60,10 @@ export interface KPIData {
   merPrev?: number;
   aov?: number;
   aovPrev?: number;
+  cogs?: number;
+  manufacturing?: number;
+  shipping?: number;
+  miscCost?: number;
 }
 
 export interface TrendDataPoint {

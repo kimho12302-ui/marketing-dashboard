@@ -42,13 +42,45 @@ export async function GET(request: NextRequest) {
     const { data: miscCosts } = await miscQuery;
     const totalMiscCost = (miscCosts || []).reduce((s, r) => s + Number(r.value || 0), 0);
 
+    // Fetch product costs for COGS calculation
+    const { data: productCostsData } = await supabase.from("product_costs").select("product,brand,cost_price,manufacturing_cost,shipping_cost");
+    const costMap = new Map<string, { cost_price: number; manufacturing_cost: number; shipping_cost: number }>();
+    for (const pc of productCostsData || []) {
+      costMap.set(`${pc.product}__${pc.brand}`, {
+        cost_price: Number(pc.cost_price || 0),
+        manufacturing_cost: Number(pc.manufacturing_cost || 0),
+        shipping_cost: Number(pc.shipping_cost || 0),
+      });
+    }
+
+    // Fetch product_sales for COGS matching
+    let cogsProdQuery = supabase.from("product_sales").select("product,brand,quantity").gte("date", from).lte("date", to);
+    if (brand !== "all") cogsProdQuery = cogsProdQuery.eq("brand", brand);
+    const { data: cogsProdData } = await cogsProdQuery;
+
+    let totalCOGS = 0;
+    let totalManufacturing = 0;
+    let totalShipping = 0;
+    let matchedProducts = 0;
+    for (const ps of cogsProdData || []) {
+      const key = `${ps.product}__${ps.brand}`;
+      const costs = costMap.get(key);
+      if (costs) {
+        const qty = Number(ps.quantity || 0);
+        totalCOGS += (costs.cost_price + costs.manufacturing_cost + costs.shipping_cost) * qty;
+        totalManufacturing += costs.manufacturing_cost * qty;
+        totalShipping += costs.shipping_cost * qty;
+        matchedProducts++;
+      }
+    }
+
     // Aggregate KPIs
     const totalRevenue = (sales || []).reduce((s, r) => s + Number(r.revenue), 0);
     const totalOrders = (sales || []).reduce((s, r) => s + Number(r.orders), 0);
     const totalAdSpendOnly = (adSpend || []).reduce((s, r) => s + Number(r.spend), 0);
     const totalAdSpend = totalAdSpendOnly + totalMiscCost;
     const roas = totalAdSpend > 0 ? totalRevenue / totalAdSpend : 0;
-    const profit = totalRevenue - totalAdSpend;
+    const profit = totalRevenue - totalAdSpend - totalCOGS;
     const mer = totalAdSpend > 0 ? totalRevenue / totalAdSpend : 0;
     const aov = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
@@ -202,6 +234,8 @@ export async function GET(request: NextRequest) {
         profit, profitPrev: prevProfit,
         mer, merPrev: prevMer,
         aov, aovPrev: prevAov,
+        cogs: totalCOGS, manufacturing: totalManufacturing, shipping: totalShipping,
+        miscCost: totalMiscCost,
       },
       trend, channels, channelRoasTrend, brandRevenue, brandRevenueTrend,
       funnelSummary: { ...funnelSummary, convRate, cartToOrderRate },

@@ -9,6 +9,7 @@ interface ProductCost {
   product: string;
   brand: string;
   cost_price: number;
+  manufacturing_cost: number;
   shipping_cost: number;
   category: string;
 }
@@ -47,7 +48,7 @@ export default function SettingsPage() {
 
   // Product cost form
   const [costForm, setCostForm] = useState<ProductCost>({
-    product: "", brand: "nutty", cost_price: 0, shipping_cost: 0, category: "",
+    product: "", brand: "nutty", cost_price: 0, manufacturing_cost: 0, shipping_cost: 0, category: "",
   });
 
   // File upload state
@@ -125,7 +126,7 @@ export default function SettingsPage() {
       const ok = await postWithDupCheck("product_cost", costForm);
       if (ok) {
         setMessage("✅ 저장 완료");
-        setCostForm({ product: "", brand: "nutty", cost_price: 0, shipping_cost: 0, category: "" });
+        setCostForm({ product: "", brand: "nutty", cost_price: 0, manufacturing_cost: 0, shipping_cost: 0, category: "" });
         fetchCosts();
       } else {
         setMessage("취소됨");
@@ -250,9 +251,15 @@ export default function SettingsPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">원가 (₩)</label>
+                    <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">판매원가 (₩)</label>
                     <input type="number" className={inputClass} value={costForm.cost_price || ""}
                       onChange={e => setCostForm(prev => ({ ...prev, cost_price: Number(e.target.value) }))}
+                      placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">제작원가 (₩)</label>
+                    <input type="number" className={inputClass} value={costForm.manufacturing_cost || ""}
+                      onChange={e => setCostForm(prev => ({ ...prev, manufacturing_cost: Number(e.target.value) }))}
                       placeholder="0" />
                   </div>
                   <div>
@@ -296,7 +303,7 @@ export default function SettingsPage() {
                       <tbody>
                         {productList.filter(p => !p.hasCost).map((p) => (
                           <tr key={p.product} className="border-b border-gray-200 dark:border-zinc-800 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800/50"
-                            onClick={() => setCostForm({ product: p.product, brand: p.brand, cost_price: 0, shipping_cost: 0, category: p.category })}>
+                            onClick={() => setCostForm({ product: p.product, brand: p.brand, cost_price: 0, manufacturing_cost: 0, shipping_cost: 0, category: p.category })}>
                             <td className="py-2 px-2 text-yellow-400">{p.product}</td>
                             <td className="py-2 px-2">{BRANDS.find(b => b.value === p.brand)?.label || p.brand}</td>
                             <td className="py-2 px-2">{p.category}</td>
@@ -324,17 +331,19 @@ export default function SettingsPage() {
                         <tr className="border-b border-gray-200 dark:border-zinc-700">
                           <th className="text-left py-2 px-2 text-zinc-400">제품</th>
                           <th className="text-left py-2 px-2 text-zinc-400">브랜드</th>
-                          <th className="text-right py-2 px-2 text-zinc-400">원가</th>
+                          <th className="text-right py-2 px-2 text-zinc-400">판매원가</th>
+                          <th className="text-right py-2 px-2 text-zinc-400">제작원가</th>
                           <th className="text-right py-2 px-2 text-zinc-400">배송비</th>
                           <th className="text-left py-2 px-2 text-zinc-400">카테고리</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {productCosts.map((p, i) => (
+                        {productCosts.map((p: any, i: number) => (
                           <tr key={i} className="border-b border-gray-200 dark:border-zinc-800">
                             <td className="py-2 px-2">{p.product}</td>
                             <td className="py-2 px-2">{BRANDS.find(b => b.value === p.brand)?.label || p.brand}</td>
                             <td className="py-2 px-2 text-right">₩{formatCompact(p.cost_price)}</td>
+                            <td className="py-2 px-2 text-right">₩{formatCompact(p.manufacturing_cost || 0)}</td>
                             <td className="py-2 px-2 text-right">₩{formatCompact(p.shipping_cost)}</td>
                             <td className="py-2 px-2">{p.category}</td>
                           </tr>

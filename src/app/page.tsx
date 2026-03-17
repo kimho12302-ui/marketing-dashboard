@@ -266,26 +266,60 @@ export default function OverviewPage() {
     }
 
     if (selectedKpi === "profit") {
+      const hasCogs = (kpi.cogs || 0) > 0;
+      const costBreakdown = [
+        { label: "매출", value: kpi.revenue, color: "text-green-400", icon: "💰" },
+        { label: "제품원가 (COGS)", value: kpi.cogs || 0, color: "text-orange-400", icon: "📦", sub: [
+          { label: "판매원가", value: (kpi.cogs || 0) - (kpi.manufacturing || 0) - (kpi.shipping || 0) },
+          { label: "제작원가", value: kpi.manufacturing || 0 },
+          { label: "배송비", value: kpi.shipping || 0 },
+        ]},
+        { label: "광고비", value: kpi.adSpend - (kpi.miscCost || 0), color: "text-red-400", icon: "📢" },
+        { label: "건별 마케팅비", value: kpi.miscCost || 0, color: "text-pink-400", icon: "🧾" },
+      ];
+      const totalCost = (kpi.cogs || 0) + kpi.adSpend;
       return (
         <Card className="border-yellow-500/30 animate-in slide-in-from-top-2 duration-200">
           <CardContent className="pt-4">
             <div className="space-y-3">
-              <p className="text-sm text-gray-600 dark:text-zinc-300">현재: 영업이익 = 매출 - 광고비 (원가 미반영)</p>
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="bg-gray-50 dark:bg-zinc-800/50 rounded-lg p-3">
-                  <p className="text-xs text-gray-400 dark:text-zinc-500">매출</p>
-                  <p className="text-lg font-bold text-green-400">₩{formatCompact(kpi.revenue)}</p>
+              <p className="text-sm font-medium text-gray-700 dark:text-zinc-200">
+                영업이익 = 매출 - 제품원가 - 광고비 - 건별비용
+              </p>
+              <div className="space-y-2">
+                {costBreakdown.map((item, i) => (
+                  <div key={i}>
+                    <div className="flex justify-between items-center py-1.5 px-2 bg-gray-50 dark:bg-zinc-800/50 rounded">
+                      <span className="text-sm text-gray-600 dark:text-zinc-300">{item.icon} {item.label}</span>
+                      <span className={`text-sm font-bold ${item.color}`}>
+                        {i === 0 ? "+" : "-"}₩{formatCompact(item.value)}
+                      </span>
+                    </div>
+                    {item.sub && item.value > 0 && (
+                      <div className="ml-6 space-y-0.5 mt-0.5">
+                        {item.sub.map((s, j) => (
+                          <div key={j} className="flex justify-between text-xs text-gray-400 dark:text-zinc-500 px-2">
+                            <span>└ {s.label}</span>
+                            <span>₩{formatCompact(s.value)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <div className="border-t border-gray-200 dark:border-zinc-700 pt-2 flex justify-between items-center px-2">
+                  <span className="text-sm font-bold text-gray-700 dark:text-zinc-200">= 영업이익</span>
+                  <span className={`text-lg font-bold ${(kpi.profit || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                    ₩{formatCompact(kpi.profit || 0)}
+                  </span>
                 </div>
-                <div className="bg-gray-50 dark:bg-zinc-800/50 rounded-lg p-3">
-                  <p className="text-xs text-gray-400 dark:text-zinc-500">광고비</p>
-                  <p className="text-lg font-bold text-red-400">₩{formatCompact(kpi.adSpend)}</p>
-                </div>
-                <div className="bg-gray-50 dark:bg-zinc-800/50 rounded-lg p-3">
-                  <p className="text-xs text-gray-400 dark:text-zinc-500">이익</p>
-                  <p className={`text-lg font-bold ${(kpi.profit || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>₩{formatCompact(kpi.profit || 0)}</p>
+                <div className="flex justify-between text-xs text-gray-400 dark:text-zinc-500 px-2">
+                  <span>영업이익률</span>
+                  <span>{kpi.revenue > 0 ? ((kpi.profit || 0) / kpi.revenue * 100).toFixed(1) : 0}%</span>
                 </div>
               </div>
-              <p className="text-xs text-gray-400 dark:text-zinc-500">⚠️ 설정 탭에서 제품별 원가를 입력하면 제조원가, 배송비, 판관비를 반영한 정확한 영업이익을 계산합니다.</p>
+              {!hasCogs && (
+                <p className="text-xs text-yellow-500 mt-2">⚠️ 제품 원가가 미입력 상태입니다. 설정 → 제품 원가에서 입력하면 정확한 영업이익이 계산됩니다.</p>
+              )}
             </div>
           </CardContent>
         </Card>
