@@ -66,6 +66,7 @@ export default function OverviewPage() {
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [salesByChannel, setSalesByChannel] = useState<SalesChannel[]>([]);
   const [brandAdSpend, setBrandAdSpend] = useState<{ brand: string; spend: number; share: number }[]>([]);
+  const [brandRoasTrend, setBrandRoasTrend] = useState<Record<string, any>[]>([]);
   const [selectedKpi, setSelectedKpi] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,6 +95,7 @@ export default function OverviewPage() {
       setTopProducts(data.topProducts || []);
       setSalesByChannel(data.salesByChannel || []);
       setBrandAdSpend(data.brandAdSpend || []);
+      setBrandRoasTrend(data.brandRoasTrend || []);
 
       if (adsRes.ok) {
         const adsData = await adsRes.json();
@@ -426,6 +428,7 @@ export default function OverviewPage() {
               <div className="mb-6">
                 <ChannelChart data={channels} mode="spend" />
               </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader><CardTitle>📊 채널별 ROAS 추이</CardTitle></CardHeader>
                 <CardContent>
@@ -458,6 +461,40 @@ export default function OverviewPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              <Card>
+                <CardHeader><CardTitle>🏷️ 브랜드별 ROAS 추이</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={brandRoasTrend}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                        <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
+                        <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}x`} />
+                        <Tooltip
+                          contentStyle={chartTheme.tooltipStyle}
+                          formatter={(value: any, name: any) => [`${Number(value).toFixed(2)}x`, BRAND_LABELS[name as string] || name]}
+                          labelFormatter={(label: any) => String(label)}
+                        />
+                        <Legend formatter={(value: string) => BRAND_LABELS[value] || value} />
+                        {brandAdSpend.map((b) => (
+                          <Line
+                            key={b.brand}
+                            type="monotone"
+                            dataKey={b.brand}
+                            name={b.brand}
+                            stroke={BRAND_COLORS[b.brand] || "#888"}
+                            dot={false}
+                            strokeWidth={2}
+                            connectNulls
+                          />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+              </div>
             </section>
 
             <section>

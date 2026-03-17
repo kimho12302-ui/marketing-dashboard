@@ -231,6 +231,28 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
 
+    // Brand ROAS trend by date
+    const brandRoasTrendMap = new Map<string, Map<string, { spend: number; revenue: number }>>();
+    for (const row of adSpend || []) {
+      const dateKey = getGroupKey(row.date);
+      if (!brandRoasTrendMap.has(dateKey)) brandRoasTrendMap.set(dateKey, new Map());
+      const dateBrands = brandRoasTrendMap.get(dateKey)!;
+      const b = row.brand;
+      const existing = dateBrands.get(b) || { spend: 0, revenue: 0 };
+      existing.spend += Number(row.spend);
+      existing.revenue += Number(row.conversion_value);
+      dateBrands.set(b, existing);
+    }
+    const brandRoasTrend = Array.from(brandRoasTrendMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, bMap]) => {
+        const row: Record<string, any> = { date };
+        for (const [b, d] of bMap.entries()) {
+          row[b] = d.spend > 0 ? Math.round((d.revenue / d.spend) * 100) / 100 : 0;
+        }
+        return row;
+      });
+
     // Brand ad spend breakdown
     const brandAdSpendMap = new Map<string, number>();
     for (const row of adSpend || []) {
@@ -262,7 +284,7 @@ export async function GET(request: NextRequest) {
         miscCost: totalMiscCost,
         shippingCost: totalShippingCost, shippingOrders: totalShippingOrders,
       },
-      trend, channels, channelRoasTrend, brandRevenue, brandRevenueTrend, brandAdSpend,
+      trend, channels, channelRoasTrend, brandRevenue, brandRevenueTrend, brandAdSpend, brandRoasTrend,
       funnelSummary: { ...funnelSummary, convRate, cartToOrderRate },
       topProducts, salesByChannel,
     });
