@@ -29,15 +29,19 @@ export default function KeywordsPage() {
   const [keywords, setKeywords] = useState<KeywordSummary[]>([]);
   const [platformTab, setPlatformTab] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [gscData, setGscData] = useState<{ query: string; device: string; clicks: number; impressions: number; ctr: number; position: number }[]>([]);
+  const [gscSummary, setGscSummary] = useState<{ totalClicks: number; totalImpressions: number; avgCtr: number; avgPosition: number }>({ totalClicks: 0, totalImpressions: 0, avgCtr: 0, avgPosition: 0 });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ brand: filters.brand, from: filters.from, to: filters.to });
-      const res = await fetch(`/api/keywords-v2?${params}`);
-      if (!res.ok) throw new Error("fetch failed");
-      const data = await res.json();
-      setKeywords(data.keywords || []);
+      const [kwRes, gscRes] = await Promise.all([
+        fetch(`/api/keywords-v2?${params}`),
+        fetch(`/api/gsc?${params}`),
+      ]);
+      if (kwRes.ok) { const d = await kwRes.json(); setKeywords(d.keywords || []); }
+      if (gscRes.ok) { const d = await gscRes.json(); setGscData(d.queries || []); setGscSummary(d.summary || { totalClicks: 0, totalImpressions: 0, avgCtr: 0, avgPosition: 0 }); }
     } catch { /* ignore */ } finally { setLoading(false); }
   }, [filters]);
 
@@ -76,7 +80,7 @@ export default function KeywordsPage() {
         <Filters filters={filters} onChange={setFilters} />
 
         <div className="flex rounded-lg bg-gray-100 dark:bg-zinc-800 p-0.5 w-fit">
-          {[{ value: "all", label: "전체" }, ...Object.entries(PLATFORM_LABELS).map(([v, l]) => ({ value: v, label: l }))].map(opt => (
+          {[{ value: "all", label: "전체" }, ...Object.entries(PLATFORM_LABELS).map(([v, l]) => ({ value: v, label: l })), { value: "gsc", label: "🔎 서치콘솔" }].map(opt => (
             <button key={opt.value} onClick={() => setPlatformTab(opt.value)}
               className={`px-3 py-1.5 text-sm rounded-md transition-colors ${platformTab === opt.value ? "bg-indigo-600 text-white" : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-200"}`}>
               {opt.label}
@@ -88,6 +92,133 @@ export default function KeywordsPage() {
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500" />
           </div>
+        ) : platformTab === "gsc" ? (
+          <>
+            {/* GSC Summary KPIs */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Card><CardContent className="pt-4 text-center">
+                <p className="text-xs text-gray-500 dark:text-zinc-400">총 클릭</p>
+                <p className="text-2xl font-bold text-indigo-400">{gscSummary.totalClicks.toLocaleString()}</p>
+              </CardContent></Card>
+              <Card><CardContent className="pt-4 text-center">
+                <p className="text-xs text-gray-500 dark:text-zinc-400">총 노출</p>
+                <p className="text-2xl font-bold text-blue-400">{gscSummary.totalImpressions.toLocaleString()}</p>
+              </CardContent></Card>
+              <Card><CardContent className="pt-4 text-center">
+                <p className="text-xs text-gray-500 dark:text-zinc-400">평균 CTR</p>
+                <p className="text-2xl font-bold text-green-400">{(gscSummary.avgCtr * 100).toFixed(2)}%</p>
+              </CardContent></Card>
+              <Card><CardContent className="pt-4 text-center">
+                <p className="text-xs text-gray-500 dark:text-zinc-400">평균 순위</p>
+                <p className="text-2xl font-bold text-orange-400">{gscSummary.avgPosition.toFixed(1)}</p>
+              </CardContent></Card>
+            </div>
+
+            {/* GSC Bubble Chart — Looker Studio style */}
+            <Card>
+              <CardHeader><CardTitle>🔎 검색 실적 최적화 (서치콘솔)</CardTitle></CardHeader>
+              <CardContent>
+                {(() => {
+                  const DEVICE_COLORS: Record<string, string> = { MOBILE: "#3b82f6", DESKTOP: "#22c55e", TABLET: "#ec4899" };
+                  // Aggregate by query for bubble chart
+                  const qMap = new Map<string, { clicks: number; impressions: number; ctrSum: number; posSum: number; count: number; device: string }>();
+                  for (const r of gscData) {
+                    const key = `${r.query}|${r.device}`;
+                    const ex = qMap.get(key) || { clicks: 0, impressions: 0, ctrSum: 0, posSum: 0, count: 0, device: r.device };
+                    ex.clicks += r.clicks; ex.impressions += r.impressions; ex.ctrSum += r.ctr; ex.posSum += r.position; ex.count++; 
+                    qMap.set(key, ex);
+                  }
+                  const bubbles = Array.from(qMap.entries()).map(([key, d]) => ({
+                    query: key.split("|")[0],
+                    device: d.device,
+                    ctr: +(d.impressions > 0 ? (d.clicks / d.impressions) * 100 : 0).toFixed(2),
+                    position: +(d.posSum / d.count).toFixed(1),
+                    clicks: d.clicks,
+                    impressions: d.impressions,
+                  })).filter(b => b.clicks > 0);
+                  
+                  const gscAvgCtr = bubbles.length > 0 ? bubbles.reduce((s, b) => s + b.ctr, 0) / bubbles.length : 0;
+                  const gscAvgPos = bubbles.length > 0 ? bubbles.reduce((s, b) => s + b.position, 0) / bubbles.length : 0;
+                  const devices = [...new Set(bubbles.map(b => b.device))];
+
+                  return (
+                    <div className="h-[500px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ScatterChart margin={{ bottom: 30, left: 10, right: 20, top: 10 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                          <XAxis type="number" dataKey="ctr" name="CTR" tick={{ fill: chartTheme.tickColor, fontSize: 11 }}
+                            label={{ value: "CTR (%)", position: "bottom", fill: chartTheme.axisColor, fontSize: 11, dy: 15 }}
+                            domain={[0, "auto"]} />
+                          <YAxis type="number" dataKey="position" name="순위" tick={{ fill: chartTheme.tickColor, fontSize: 11 }}
+                            label={{ value: "평균 순위", angle: -90, position: "insideLeft", fill: chartTheme.axisColor, fontSize: 11, dx: -5 }}
+                            reversed domain={[0, "auto"]} />
+                          <ZAxis type="number" dataKey="clicks" range={[30, 500]} name="클릭수" />
+                          <ReferenceLine y={gscAvgPos} stroke="#ef4444" strokeDasharray="5 5" strokeOpacity={0.5} label={{ value: `평균 ${gscAvgPos.toFixed(1)}위`, fill: "#ef4444", fontSize: 10 }} />
+                          <ReferenceLine x={gscAvgCtr} stroke="#ef4444" strokeDasharray="5 5" strokeOpacity={0.5} label={{ value: `평균 ${gscAvgCtr.toFixed(1)}%`, fill: "#ef4444", fontSize: 10 }} />
+                          <Tooltip
+                            content={({ active, payload }: any) => {
+                              if (!active || !payload?.[0]) return null;
+                              const d = payload[0].payload;
+                              return (
+                                <div className="bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg p-3 shadow-lg text-sm">
+                                  <p className="font-medium text-gray-900 dark:text-zinc-100 mb-1">{d.query}</p>
+                                  <p className="text-gray-500 dark:text-zinc-400">📱 {d.device}</p>
+                                  <p>CTR: <span className="font-medium text-green-500">{d.ctr}%</span></p>
+                                  <p>순위: <span className="font-medium text-orange-400">{d.position}위</span></p>
+                                  <p>클릭: <span className="font-medium text-blue-400">{d.clicks}</span> / 노출: {d.impressions.toLocaleString()}</p>
+                                </div>
+                              );
+                            }}
+                          />
+                          {devices.map(dev => (
+                            <Scatter key={dev} name={dev === "MOBILE" ? "📱 모바일" : dev === "DESKTOP" ? "🖥️ 데스크탑" : "📟 태블릿"}
+                              data={bubbles.filter(b => b.device === dev)} fill={DEVICE_COLORS[dev] || "#888"} fillOpacity={0.7} />
+                          ))}
+                        </ScatterChart>
+                      </ResponsiveContainer>
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+
+            {/* GSC Top Queries Table */}
+            <Card>
+              <CardHeader><CardTitle>🔍 검색어 상세 ({gscData.length}건)</CardTitle></CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-white dark:bg-zinc-900">
+                      <tr className="border-b border-gray-200 dark:border-zinc-700">
+                        <th className="text-left py-2 px-2 text-gray-500 dark:text-zinc-400">검색어</th>
+                        <th className="text-center py-2 px-2 text-gray-500 dark:text-zinc-400">디바이스</th>
+                        <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">클릭</th>
+                        <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">노출</th>
+                        <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">CTR</th>
+                        <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">순위</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {gscData.sort((a, b) => b.clicks - a.clicks).map((q, i) => (
+                        <tr key={i} className="border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50">
+                          <td className="py-2 px-2 text-gray-800 dark:text-zinc-200">{q.query}</td>
+                          <td className="py-2 px-2 text-center">
+                            <span className={`text-xs px-1.5 py-0.5 rounded ${q.device === "MOBILE" ? "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" : q.device === "DESKTOP" ? "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400" : "bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400"}`}>
+                              {q.device === "MOBILE" ? "📱" : q.device === "DESKTOP" ? "🖥️" : "📟"} {q.device}
+                            </span>
+                          </td>
+                          <td className="py-2 px-2 text-right font-medium text-blue-500">{q.clicks}</td>
+                          <td className="py-2 px-2 text-right">{q.impressions.toLocaleString()}</td>
+                          <td className="py-2 px-2 text-right text-green-500">{(q.ctr * 100).toFixed(2)}%</td>
+                          <td className="py-2 px-2 text-right text-orange-400">{q.position.toFixed(1)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </>
         ) : (
           <>
             <Card>
