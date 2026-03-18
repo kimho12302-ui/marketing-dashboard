@@ -39,6 +39,45 @@ const MANUAL_CHANNELS = [
   { value: "other", label: "기타" },
 ];
 
+const TABLE_LABELS: Record<string, string> = {
+  daily_sales: "일별 매출", daily_ad_spend: "일별 광고비", daily_funnel: "일별 퍼널",
+  product_sales: "제품별 매출", keyword_performance: "키워드 성과",
+};
+
+function DataStatusCard() {
+  const [status, setStatus] = useState<any>(null);
+  useEffect(() => {
+    fetch("/api/data-status").then(r => r.json()).then(setStatus).catch(() => {});
+  }, []);
+  if (!status) return null;
+  return (
+    <Card>
+      <CardHeader><CardTitle>📊 데이터 현황</CardTitle></CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          {(status.tables || []).map((t: any) => (
+            <div key={t.table} className="flex items-center justify-between py-1.5 border-b border-gray-100 dark:border-zinc-800 last:border-0">
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${t.isStale ? "bg-red-400" : "bg-green-400"}`} />
+                <span className="text-sm font-medium text-gray-700 dark:text-zinc-300">{TABLE_LABELS[t.table] || t.table}</span>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-zinc-500">
+                <span>{t.count.toLocaleString()}행</span>
+                <span>{t.earliestDate?.slice(5)} ~ {t.latestDate?.slice(5)}</span>
+                {t.isStale && <span className="text-red-400 font-medium">⚠️ 2일+ 미갱신</span>}
+              </div>
+            </div>
+          ))}
+          <div className="flex items-center justify-between pt-2 text-xs text-gray-500 dark:text-zinc-500">
+            <span>제품 원가 등록: <strong className={status.productCosts > 0 ? "text-green-500" : "text-red-400"}>{status.productCosts}건</strong></span>
+            <span>수동 입력: <strong>{status.manualInputs}건</strong></span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<"costs" | "manual_ads" | "misc_costs" | "shipping" | "info">("costs");
   const [productCosts, setProductCosts] = useState<ProductCost[]>([]);
@@ -810,6 +849,7 @@ export default function SettingsPage() {
         {/* Data Source Info Tab */}
         {activeTab === "info" && (
           <div className="space-y-4">
+            <DataStatusCard />
             <Card>
               <CardHeader><CardTitle>🔄 자동 수집 데이터</CardTitle></CardHeader>
               <CardContent>
