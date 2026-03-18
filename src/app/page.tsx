@@ -438,9 +438,7 @@ export default function OverviewPage() {
                   </CardContent>
                 </Card>
               </div>
-              <div className="mb-6">
-                <ChannelChart data={channels} mode="spend" />
-              </div>
+              {/* ChannelChart removed — 채널별 광고비는 하단 광고 성과 요약에서 표시 */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader><CardTitle>📊 채널별 ROAS 추이</CardTitle></CardHeader>
