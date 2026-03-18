@@ -54,6 +54,9 @@ export default function SettingsPage() {
   // Product cost search/filter
   const [costSearch, setCostSearch] = useState("");
   const [costBrandFilter, setCostBrandFilter] = useState("all");
+  const [inlineCosts, setInlineCosts] = useState<Record<string, { cost_price: number; manufacturing_cost: number }>>({});
+  const [savingProduct, setSavingProduct] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   // Product cost CSV upload
   const [costCsvFile, setCostCsvFile] = useState<File | null>(null);
@@ -147,19 +150,42 @@ export default function SettingsPage() {
     return res.ok;
   };
 
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const saveInlineCost = async (p: { product: string; brand: string; category: string }) => {
+    const costs = inlineCosts[p.product];
+    if (!costs || (costs.cost_price <= 0 && costs.manufacturing_cost <= 0)) { showToast("원가를 입력하세요", "error"); return; }
+    setSavingProduct(p.product);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "product_cost", data: { product: p.product, brand: p.brand, cost_price: costs.cost_price, manufacturing_cost: costs.manufacturing_cost, shipping_cost: 0, category: p.category }, forceOverride: true }),
+      });
+      if (res.ok) {
+        showToast(`✅ ${p.product} 저장 완료`);
+        setInlineCosts(prev => { const next = { ...prev }; delete next[p.product]; return next; });
+        fetchCosts();
+      } else { showToast("❌ 저장 실패", "error"); }
+    } catch { showToast("❌ 오류 발생", "error"); }
+    setSavingProduct(null);
+  };
+
   const saveCost = async () => {
-    if (!costForm.product) { setMessage("제품명을 입력하세요"); return; }
+    if (!costForm.product) { showToast("제품명을 입력하세요", "error"); return; }
     setLoading(true);
     try {
       const ok = await postWithDupCheck("product_cost", costForm);
       if (ok) {
-        setMessage("✅ 저장 완료");
+        showToast(`✅ ${costForm.product} 저장 완료`);
         setCostForm({ product: "", brand: "nutty", cost_price: 0, manufacturing_cost: 0, shipping_cost: 0, category: "" });
         fetchCosts();
       } else {
-        setMessage("취소됨");
+        showToast("취소됨", "error");
       }
-    } catch { setMessage("❌ 오류 발생"); }
+    } catch { showToast("❌ 오류 발생", "error"); }
     setLoading(false);
   };
 
@@ -280,6 +306,12 @@ export default function SettingsPage() {
 
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-zinc-100">
+      {/* Toast notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-in slide-in-from-right ${toast.type === "success" ? "bg-green-500 text-white" : "bg-red-500 text-white"}`}>
+          {toast.message}
+        </div>
+      )}
       <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 space-y-6">
         <PageHeader title="⚙️ 설정" subtitle="원가 관리 & 수동 데이터 입력" />
 
@@ -407,8 +439,10 @@ export default function SettingsPage() {
                         <tr className="border-b border-gray-200 dark:border-zinc-700">
                           <th className="text-left py-2 px-2 text-zinc-400">제품</th>
                           <th className="text-left py-2 px-2 text-zinc-400">브랜드</th>
-                          <th className="text-left py-2 px-2 text-zinc-400">카테고리</th>
-                          <th className="text-right py-2 px-2 text-zinc-400">누적 매출</th>
+                          <th className="text-right py-2 px-2 text-zinc-400">매출</th>
+                          <th className="text-right py-2 px-2 text-zinc-400">판매원가</th>
+                          <th className="text-right py-2 px-2 text-zinc-400">제작원가</th>
+                          <th className="text-center py-2 px-2 text-zinc-400"></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -417,12 +451,26 @@ export default function SettingsPage() {
                           const matchBrand = costBrandFilter === "all" || p.brand === costBrandFilter;
                           return matchSearch && matchBrand;
                         }).map((p) => (
-                          <tr key={p.product} className="border-b border-gray-200 dark:border-zinc-800 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800/50"
-                            onClick={() => setCostForm({ product: p.product, brand: p.brand, cost_price: 0, manufacturing_cost: 0, shipping_cost: 0, category: p.category })}>
-                            <td className="py-2 px-2 text-yellow-400">{p.product}</td>
-                            <td className="py-2 px-2">{BRANDS.find(b => b.value === p.brand)?.label || p.brand}</td>
-                            <td className="py-2 px-2">{p.category}</td>
-                            <td className="py-2 px-2 text-right">₩{formatCompact(p.revenue)}</td>
+                          <tr key={p.product} className="border-b border-gray-200 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50">
+                            <td className="py-1.5 px-2 text-yellow-500 dark:text-yellow-400 text-xs">{p.product}</td>
+                            <td className="py-1.5 px-2 text-xs">{BRANDS.find(b => b.value === p.brand)?.label || p.brand}</td>
+                            <td className="py-1.5 px-2 text-right text-xs">₩{formatCompact(p.revenue)}</td>
+                            <td className="py-1.5 px-1">
+                              <input type="number" placeholder="0" className="w-20 px-1 py-0.5 text-xs text-right border rounded bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700"
+                                value={inlineCosts[p.product]?.cost_price || ""}
+                                onChange={(e) => setInlineCosts(prev => ({ ...prev, [p.product]: { ...prev[p.product] || { cost_price: 0, manufacturing_cost: 0 }, cost_price: Number(e.target.value) } }))} />
+                            </td>
+                            <td className="py-1.5 px-1">
+                              <input type="number" placeholder="0" className="w-20 px-1 py-0.5 text-xs text-right border rounded bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700"
+                                value={inlineCosts[p.product]?.manufacturing_cost || ""}
+                                onChange={(e) => setInlineCosts(prev => ({ ...prev, [p.product]: { ...prev[p.product] || { cost_price: 0, manufacturing_cost: 0 }, manufacturing_cost: Number(e.target.value) } }))} />
+                            </td>
+                            <td className="py-1.5 px-1 text-center">
+                              <button onClick={() => saveInlineCost(p)} disabled={savingProduct === p.product}
+                                className="px-2 py-0.5 text-[10px] bg-indigo-600 text-white rounded disabled:opacity-50 hover:bg-indigo-700">
+                                {savingProduct === p.product ? "..." : "저장"}
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
