@@ -6,6 +6,7 @@ import Filters from "@/components/filters";
 import KPICards from "@/components/kpi-cards";
 import AnomalyBanner from "@/components/anomaly-banner";
 import MissingDataAlert from "@/components/missing-data-alert";
+import ExportReport from "@/components/export-report";
 import TrendChart from "@/components/trend-chart";
 import ChannelChart from "@/components/channel-chart";
 import BrandCompareChart from "@/components/brand-compare-chart";
@@ -378,13 +379,17 @@ export default function OverviewPage() {
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-zinc-100">
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
-        <PageHeader title="📊 Overview" subtitle="Executive Summary" />
+        <div className="flex items-center justify-between">
+          <PageHeader title="📊 Overview" subtitle="Executive Summary" />
+          <ExportReport targetId="overview-content" filename="PPMI-Overview" />
+        </div>
         <Filters filters={filters} onChange={setFilters} />
 
         {error && (
           <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 text-red-600 dark:text-red-400 text-sm">{error}</div>
         )}
 
+        <div id="overview-content">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500" />
@@ -746,6 +751,7 @@ export default function OverviewPage() {
             </section>
           </>
         )}
+        </div>
       </div>
     </main>
   );
