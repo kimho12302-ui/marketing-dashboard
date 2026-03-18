@@ -5,6 +5,7 @@ import type { DashboardFilters, KPIData, TrendDataPoint } from "@/lib/types";
 import Filters from "@/components/filters";
 import KPICards from "@/components/kpi-cards";
 import AnomalyBanner from "@/components/anomaly-banner";
+import MissingDataAlert from "@/components/missing-data-alert";
 import TrendChart from "@/components/trend-chart";
 import ChannelChart from "@/components/channel-chart";
 import BrandCompareChart from "@/components/brand-compare-chart";
@@ -390,6 +391,7 @@ export default function OverviewPage() {
           </div>
         ) : (
           <>
+            <MissingDataAlert />
             <AnomalyBanner data={kpi} />
 
             <section>
