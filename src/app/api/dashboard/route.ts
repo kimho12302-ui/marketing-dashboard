@@ -271,6 +271,20 @@ export async function GET(request: NextRequest) {
       .map(([channel, revenue]) => ({ channel, revenue }))
       .sort((a, b) => b.revenue - a.revenue);
 
+    // Fetch targets for current month
+    const currentMonth = to.slice(0, 7) + "-01";
+    const { data: targetData } = await supabase
+      .from("manual_monthly")
+      .select("note")
+      .eq("category", "target")
+      .eq("month", currentMonth)
+      .eq("brand", brand)
+      .limit(1);
+    let targets = {};
+    if (targetData && targetData.length > 0) {
+      try { targets = JSON.parse(targetData[0].note || "{}"); } catch {}
+    }
+
     return NextResponse.json({
       kpi: {
         revenue: totalRevenue, revenuePrev: prevRevenue,
@@ -286,7 +300,7 @@ export async function GET(request: NextRequest) {
       },
       trend, channels, channelRoasTrend, brandRevenue, brandRevenueTrend, brandAdSpend, brandRoasTrend,
       funnelSummary: { ...funnelSummary, convRate, cartToOrderRate },
-      topProducts, salesByChannel,
+      topProducts, salesByChannel, targets,
     });
   } catch (error) {
     console.error("Dashboard API error:", error);

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { DashboardFilters, KPIData, TrendDataPoint } from "@/lib/types";
 import Filters from "@/components/filters";
 import KPICards from "@/components/kpi-cards";
+import AnomalyBanner from "@/components/anomaly-banner";
 import TrendChart from "@/components/trend-chart";
 import ChannelChart from "@/components/channel-chart";
 import BrandCompareChart from "@/components/brand-compare-chart";
@@ -71,6 +72,7 @@ export default function OverviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [adsChannels, setAdsChannels] = useState<{ channel: string; spend: number; conversionValue: number }[]>([]);
+  const [targets, setTargets] = useState<Record<string, number>>({});
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -96,6 +98,7 @@ export default function OverviewPage() {
       setSalesByChannel(data.salesByChannel || []);
       setBrandAdSpend(data.brandAdSpend || []);
       setBrandRoasTrend(data.brandRoasTrend || []);
+      setTargets(data.targets || {});
 
       if (adsRes.ok) {
         const adsData = await adsRes.json();
@@ -387,10 +390,13 @@ export default function OverviewPage() {
           </div>
         ) : (
           <>
+            <AnomalyBanner data={kpi} />
+
             <section>
               <KPICards data={kpi} periodLabel={`${filters.from} ~ ${filters.to}`}
                 onCardClick={(key) => setSelectedKpi(selectedKpi === key ? null : key)}
-                selectedCard={selectedKpi} />
+                selectedCard={selectedKpi}
+                targets={targets} />
               {renderDrilldown()}
             </section>
 

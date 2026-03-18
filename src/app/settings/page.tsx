@@ -210,8 +210,197 @@ function DailyInputGuide({ onSwitchTab }: { onSwitchTab: (tab: string) => void }
   );
 }
 
+function TargetsTab() {
+  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [brand, setBrand] = useState("all");
+  const [targets, setTargets] = useState({
+    revenue: 0, roas: 0, orders: 0, cac: 0, convRate: 0,
+  });
+  const [saving, setSaving] = useState(false);
+  const [loadMsg, setLoadMsg] = useState("");
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const fetchTargets = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/targets?month=${month}&brand=${brand}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.targets) {
+          setTargets({
+            revenue: data.targets.revenue || 0,
+            roas: data.targets.roas || 0,
+            orders: data.targets.orders || 0,
+            cac: data.targets.cac || 0,
+            convRate: data.targets.convRate || 0,
+          });
+          setLoadMsg("기존 목표 불러옴");
+        } else {
+          setTargets({ revenue: 0, roas: 0, orders: 0, cac: 0, convRate: 0 });
+          setLoadMsg("설정된 목표 없음");
+        }
+      }
+    } catch { setLoadMsg("불러오기 실패"); }
+  }, [month, brand]);
+
+  useEffect(() => { fetchTargets(); }, [fetchTargets]);
+
+  const autoFill = async () => {
+    setLoadMsg("직전 3개월 데이터 계산 중...");
+    try {
+      const months: string[] = [];
+      const d = new Date(month + "-01");
+      for (let i = 1; i <= 3; i++) {
+        const prev = new Date(d);
+        prev.setMonth(prev.getMonth() - i);
+        months.push(prev.toISOString().slice(0, 7));
+      }
+      let totalRevenue = 0, totalOrders = 0, totalAdSpend = 0, totalConvRate = 0, count = 0;
+      for (const m of months) {
+        const from = m + "-01";
+        const toDate = new Date(from);
+        toDate.setMonth(toDate.getMonth() + 1);
+        toDate.setDate(toDate.getDate() - 1);
+        const to = toDate.toISOString().slice(0, 10);
+        const res = await fetch(`/api/dashboard?period=monthly&brand=${brand}&from=${from}&to=${to}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.kpi) {
+            totalRevenue += data.kpi.revenue || 0;
+            totalOrders += data.kpi.orders || 0;
+            totalAdSpend += data.kpi.adSpend || 0;
+            if (data.funnelSummary?.convRate) totalConvRate += data.funnelSummary.convRate;
+            count++;
+          }
+        }
+      }
+      if (count > 0) {
+        const avgRevenue = totalRevenue / count;
+        const avgOrders = totalOrders / count;
+        const avgAdSpend = totalAdSpend / count;
+        const avgConvRate = totalConvRate / count;
+        const avgRoas = avgAdSpend > 0 ? avgRevenue / avgAdSpend : 0;
+        const avgCac = avgOrders > 0 ? avgAdSpend / avgOrders : 0;
+        setTargets({
+          revenue: Math.round(avgRevenue * 1.1),
+          roas: Math.round(avgRoas * 1.1 * 100) / 100,
+          orders: Math.round(avgOrders * 1.1),
+          cac: Math.round(avgCac * 0.9),
+          convRate: Math.round(avgConvRate * 1.1 * 100) / 100,
+        });
+        setLoadMsg(`직전 ${count}개월 평균 × 1.1 적용`);
+      } else {
+        setLoadMsg("직전 3개월 데이터가 없습니다");
+      }
+    } catch { setLoadMsg("추천 목표 계산 실패"); }
+  };
+
+  const saveTargets = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/targets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ month, brand, targets }),
+      });
+      if (res.ok) showToast("✅ 목표 저장 완료");
+      else showToast("❌ 저장 실패", "error");
+    } catch { showToast("❌ 오류 발생", "error"); }
+    setSaving(false);
+  };
+
+  const inputClass = "bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-zinc-100 focus:border-indigo-500 focus:outline-none w-full";
+  const selectClass = inputClass;
+
+  return (
+    <div className="space-y-6">
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium ${toast.type === "success" ? "bg-green-500 text-white" : "bg-red-500 text-white"}`}>
+          {toast.message}
+        </div>
+      )}
+      <Card>
+        <CardHeader>
+          <CardTitle>🎯 월별 목표 설정</CardTitle>
+          <p className="text-xs text-gray-500 dark:text-zinc-500 mt-1">
+            KPI 카드에 목표 대비 진행률이 표시됩니다. 브랜드별 또는 전체로 설정할 수 있습니다.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+            <div>
+              <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">월</label>
+              <input type="month" className={inputClass} value={month}
+                onChange={e => setMonth(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">브랜드</label>
+              <select className={selectClass} value={brand}
+                onChange={e => setBrand(e.target.value)}>
+                <option value="all">전체</option>
+                {BRANDS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button onClick={autoFill}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg text-sm font-medium text-white transition-colors w-full">
+                ✨ 추천 목표 자동채우기
+              </button>
+            </div>
+          </div>
+          {loadMsg && <p className="text-xs text-gray-400 dark:text-zinc-500 mb-3">{loadMsg}</p>}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">목표 매출 (₩)</label>
+              <input type="number" className={inputClass} value={targets.revenue || ""}
+                onChange={e => setTargets(prev => ({ ...prev, revenue: Number(e.target.value) }))}
+                placeholder="3,000,000" />
+              {targets.revenue > 0 && <p className="text-[10px] text-gray-400 dark:text-zinc-600 mt-1">₩{formatCompact(targets.revenue)}</p>}
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">목표 ROAS</label>
+              <input type="number" step="0.1" className={inputClass} value={targets.roas || ""}
+                onChange={e => setTargets(prev => ({ ...prev, roas: Number(e.target.value) }))}
+                placeholder="2.0" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">목표 주문수 (건)</label>
+              <input type="number" className={inputClass} value={targets.orders || ""}
+                onChange={e => setTargets(prev => ({ ...prev, orders: Number(e.target.value) }))}
+                placeholder="100" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">목표 CAC (₩)</label>
+              <input type="number" className={inputClass} value={targets.cac || ""}
+                onChange={e => setTargets(prev => ({ ...prev, cac: Number(e.target.value) }))}
+                placeholder="30,000" />
+              {targets.cac > 0 && <p className="text-[10px] text-gray-400 dark:text-zinc-600 mt-1">₩{formatCompact(targets.cac)}</p>}
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">목표 전환율 (%)</label>
+              <input type="number" step="0.1" className={inputClass} value={targets.convRate || ""}
+                onChange={e => setTargets(prev => ({ ...prev, convRate: Number(e.target.value) }))}
+                placeholder="1.5" />
+            </div>
+          </div>
+
+          <button onClick={saveTargets} disabled={saving}
+            className="mt-4 px-6 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50">
+            {saving ? "저장 중..." : "💾 목표 저장"}
+          </button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<"daily" | "costs" | "manual_ads" | "misc_costs" | "shipping" | "info">("daily");
+  const [activeTab, setActiveTab] = useState<"daily" | "targets" | "costs" | "manual_ads" | "misc_costs" | "shipping" | "info">("daily");
   const [productCosts, setProductCosts] = useState<ProductCost[]>([]);
   const [productList, setProductList] = useState<{ product: string; brand: string; category: string; revenue: number; hasCost: boolean }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -490,6 +679,7 @@ export default function SettingsPage() {
         <div className="flex gap-2">
           {[
             { key: "daily" as const, label: "📋 일일 입력" },
+            { key: "targets" as const, label: "🎯 목표 설정" },
             { key: "costs" as const, label: "💰 제품 원가" },
             { key: "manual_ads" as const, label: "📢 수동 광고비" },
             { key: "misc_costs" as const, label: "🧾 건별 비용" },
@@ -519,6 +709,9 @@ export default function SettingsPage() {
         {activeTab === "daily" && (
           <DailyInputGuide onSwitchTab={(tab: any) => setActiveTab(tab)} />
         )}
+
+        {/* Targets Tab */}
+        {activeTab === "targets" && <TargetsTab />}
 
         {/* Product Costs Tab */}
         {activeTab === "costs" && (
