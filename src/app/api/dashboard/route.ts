@@ -285,6 +285,14 @@ export async function GET(request: NextRequest) {
       try { targets = JSON.parse(targetData[0].note || "{}"); } catch {}
     }
 
+    // Add 7-day moving average to trend
+    const trendWithMA = trend.map((t: any, i: number) => {
+      const window = trend.slice(Math.max(0, i - 6), i + 1);
+      const maRevenue = window.reduce((s: number, w: any) => s + (w.revenue || 0), 0) / window.length;
+      const maAdSpend = window.reduce((s: number, w: any) => s + (w.adSpend || 0), 0) / window.length;
+      return { ...t, maRevenue: Math.round(maRevenue), maAdSpend: Math.round(maAdSpend) };
+    });
+
     return NextResponse.json({
       kpi: {
         revenue: totalRevenue, revenuePrev: prevRevenue,
@@ -298,7 +306,7 @@ export async function GET(request: NextRequest) {
         miscCost: totalMiscCost,
         shippingCost: totalShippingCost, shippingOrders: totalShippingOrders,
       },
-      trend, channels, channelRoasTrend, brandRevenue, brandRevenueTrend, brandAdSpend, brandRoasTrend,
+      trend: trendWithMA, channels, channelRoasTrend, brandRevenue, brandRevenueTrend, brandAdSpend, brandRoasTrend,
       funnelSummary: { ...funnelSummary, convRate, cartToOrderRate },
       topProducts, salesByChannel, targets,
     });

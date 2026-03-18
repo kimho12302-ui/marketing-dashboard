@@ -120,6 +120,91 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // ===== AUTO ROOT CAUSE ANALYSIS (Month 9) =====
+    // Compare with previous period
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    const diff = toDate.getTime() - fromDate.getTime();
+    const prevFrom = new Date(fromDate.getTime() - diff - 86400000).toISOString().slice(0, 10);
+    const prevTo = new Date(fromDate.getTime() - 86400000).toISOString().slice(0, 10);
+
+    const { data: prevSales } = await supabase.from("daily_sales").select("*").gte("date", prevFrom).lte("date", prevTo);
+    const { data: prevAds } = await supabase.from("daily_ad_spend").select("*").gte("date", prevFrom).lte("date", prevTo);
+
+    const prevRevenue = (prevSales || []).reduce((s, r) => s + Number(r.revenue), 0);
+    const prevTotalAdSpend = (prevAds || []).reduce((s, r) => s + Number(r.spend), 0);
+
+    if (prevRevenue > 0 && totalRevenue < prevRevenue * 0.85) {
+      // Revenue dropped 15%+ → find root cause
+      const revenueDropPct = ((1 - totalRevenue / prevRevenue) * 100).toFixed(0);
+
+      // Brand-level drill
+      const prevBrandSales = new Map<string, number>();
+      for (const r of prevSales || []) {
+        prevBrandSales.set(r.brand, (prevBrandSales.get(r.brand) || 0) + Number(r.revenue));
+      }
+
+      const brandChanges: string[] = [];
+      for (const [brand, currData] of brandSales.entries()) {
+        const prevBrandRev = prevBrandSales.get(brand) || 0;
+        if (prevBrandRev > 0) {
+          const changePct = ((currData.revenue / prevBrandRev - 1) * 100);
+          if (changePct < -10) {
+            brandChanges.push(`${brandLabels[brand] || brand} ${changePct.toFixed(0)}%`);
+          }
+        }
+      }
+
+      // Channel-level drill
+      const prevChannelSales = new Map<string, number>();
+      for (const r of prevSales || []) {
+        prevChannelSales.set(r.channel, (prevChannelSales.get(r.channel) || 0) + Number(r.revenue));
+      }
+      const channelChanges: string[] = [];
+      for (const [ch, rev] of salesChannelMap.entries()) {
+        const prevChRev = prevChannelSales.get(ch) || 0;
+        if (prevChRev > 0) {
+          const changePct = ((rev / prevChRev - 1) * 100);
+          if (changePct < -10) {
+            channelChanges.push(`${ch} ${changePct.toFixed(0)}%`);
+          }
+        }
+      }
+
+      // Product-level drill
+      const prevProdMap = new Map<string, number>();
+      const { data: prevProducts } = await supabase.from("product_sales").select("product,revenue").gte("date", prevFrom).lte("date", prevTo);
+      for (const r of prevProducts || []) {
+        prevProdMap.set(r.product, (prevProdMap.get(r.product) || 0) + Number(r.revenue));
+      }
+      const prodChanges: string[] = [];
+      for (const [prod, data] of topProds.slice(0, 10)) {
+        const prevProdRev = prevProdMap.get(prod) || 0;
+        if (prevProdRev > 0) {
+          const changePct = ((data.revenue / prevProdRev - 1) * 100);
+          if (changePct < -15) {
+            prodChanges.push(`${prod} ${changePct.toFixed(0)}%`);
+          }
+        }
+      }
+
+      let detail = `매출 ${revenueDropPct}% 하락 원인 분석:\n`;
+      if (brandChanges.length > 0) detail += `\n📦 브랜드: ${brandChanges.join(", ")}`;
+      if (channelChanges.length > 0) detail += `\n🏪 채널: ${channelChanges.join(", ")}`;
+      if (prodChanges.length > 0) detail += `\n🏷️ 제품: ${prodChanges.join(", ")}`;
+
+      insights.unshift({
+        type: "critical",
+        text: `📉 매출 ${revenueDropPct}% 하락 — 자동 원인 분석`,
+        detail,
+        actions: [
+          brandChanges.length > 0 ? `${brandChanges[0]} 브랜드 집중 점검` : "브랜드별 매출 확인",
+          channelChanges.length > 0 ? `${channelChanges[0]} 채널 광고/프로모션 확인` : "채널별 유입 확인",
+          "경쟁사 프로모션/시즌 영향 확인",
+        ],
+      });
+    }
+
     // Sort by priority
     const priority = { critical: 0, warning: 1, opportunity: 2, info: 3 };
     insights.sort((a, b) => priority[a.type] - priority[b.type]);

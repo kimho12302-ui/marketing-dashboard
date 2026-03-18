@@ -111,6 +111,17 @@ export default function TrendChart({ data }: TrendChartProps) {
                 strokeWidth={2}
                 dot={false}
               />
+              <Line
+                yAxisId="left"
+                type="monotone"
+                dataKey="maRevenue"
+                name="매출 7일 평균"
+                stroke="#8b5cf6"
+                strokeWidth={2}
+                strokeDasharray="5 5"
+                dot={false}
+                connectNulls
+              />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
