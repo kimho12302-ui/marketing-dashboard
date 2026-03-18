@@ -31,17 +31,21 @@ export default function KeywordsPage() {
   const [loading, setLoading] = useState(true);
   const [gscData, setGscData] = useState<{ query: string; device: string; clicks: number; impressions: number; ctr: number; position: number }[]>([]);
   const [gscSummary, setGscSummary] = useState<{ totalClicks: number; totalImpressions: number; avgCtr: number; avgPosition: number }>({ totalClicks: 0, totalImpressions: 0, avgCtr: 0, avgPosition: 0 });
+  const [naverCampaigns, setNaverCampaigns] = useState<any[]>([]);
+  const [naverSummary, setNaverSummary] = useState<any>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ brand: filters.brand, from: filters.from, to: filters.to });
-      const [kwRes, gscRes] = await Promise.all([
+      const [kwRes, gscRes, ncRes] = await Promise.all([
         fetch(`/api/keywords-v2?${params}`),
         fetch(`/api/gsc?${params}`),
+        fetch(`/api/naver-campaigns?${params}`),
       ]);
       if (kwRes.ok) { const d = await kwRes.json(); setKeywords(d.keywords || []); }
       if (gscRes.ok) { const d = await gscRes.json(); setGscData(d.queries || []); setGscSummary(d.summary || { totalClicks: 0, totalImpressions: 0, avgCtr: 0, avgPosition: 0 }); }
+      if (ncRes.ok) { const d = await ncRes.json(); setNaverCampaigns(d.campaigns || []); setNaverSummary(d.summary || null); }
     } catch { /* ignore */ } finally { setLoading(false); }
   }, [filters]);
 
@@ -92,6 +96,102 @@ export default function KeywordsPage() {
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500" />
           </div>
+        ) : platformTab === "naver_shopping" ? (
+          <>
+            {/* Naver Shopping Campaign KPIs */}
+            {naverSummary && (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <Card><CardContent className="pt-4 text-center">
+                  <p className="text-xs text-gray-500 dark:text-zinc-400">총 노출</p>
+                  <p className="text-xl font-bold">{naverSummary.totalImpressions.toLocaleString()}</p>
+                </CardContent></Card>
+                <Card><CardContent className="pt-4 text-center">
+                  <p className="text-xs text-gray-500 dark:text-zinc-400">총 클릭</p>
+                  <p className="text-xl font-bold">{naverSummary.totalClicks.toLocaleString()}</p>
+                </CardContent></Card>
+                <Card><CardContent className="pt-4 text-center">
+                  <p className="text-xs text-gray-500 dark:text-zinc-400">총 비용</p>
+                  <p className="text-xl font-bold">₩{formatCompact(naverSummary.totalCost)}</p>
+                </CardContent></Card>
+                <Card><CardContent className="pt-4 text-center">
+                  <p className="text-xs text-gray-500 dark:text-zinc-400">평균 CTR</p>
+                  <p className="text-xl font-bold">{naverSummary.avgCtr.toFixed(2)}%</p>
+                </CardContent></Card>
+                <Card><CardContent className="pt-4 text-center">
+                  <p className="text-xs text-gray-500 dark:text-zinc-400">평균 CPC</p>
+                  <p className="text-xl font-bold">₩{naverSummary.avgCpc.toLocaleString()}</p>
+                </CardContent></Card>
+              </div>
+            )}
+
+            {/* Campaign Performance Table */}
+            <Card>
+              <CardHeader><CardTitle>📊 네이버 쇼핑 캠페인별 성과</CardTitle></CardHeader>
+              <CardContent>
+                {naverCampaigns.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-zinc-500 text-center py-8">데이터가 없습니다</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-200 dark:border-zinc-700">
+                          <th className="text-left py-2 px-2 text-gray-500 dark:text-zinc-400">캠페인</th>
+                          <th className="text-center py-2 px-2 text-gray-500 dark:text-zinc-400">유형</th>
+                          <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">노출</th>
+                          <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">클릭</th>
+                          <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">CTR</th>
+                          <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">CPC</th>
+                          <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">비용</th>
+                          <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">전환</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {naverCampaigns.map((c: any) => {
+                          const typeColor: Record<string, string> = { "쇼핑검색": "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400", "파워링크": "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400", "벌크": "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400", "기타": "bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-zinc-400" };
+                          return (
+                            <tr key={c.campaignId} className="border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50">
+                              <td className="py-2 px-2 font-medium text-gray-800 dark:text-zinc-200">{c.campaignName}</td>
+                              <td className="py-2 px-2 text-center"><span className={`px-2 py-0.5 text-[10px] rounded-full font-medium ${typeColor[c.type] || typeColor["기타"]}`}>{c.type}</span></td>
+                              <td className="py-2 px-2 text-right">{c.impressions.toLocaleString()}</td>
+                              <td className="py-2 px-2 text-right">{c.clicks.toLocaleString()}</td>
+                              <td className="py-2 px-2 text-right">{c.ctr.toFixed(2)}%</td>
+                              <td className="py-2 px-2 text-right">₩{c.cpc.toLocaleString()}</td>
+                              <td className="py-2 px-2 text-right font-medium">₩{formatCompact(c.cost)}</td>
+                              <td className="py-2 px-2 text-right">{c.conversions}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Cost Distribution Bar */}
+            <Card>
+              <CardHeader><CardTitle>💰 캠페인별 비용 비중</CardTitle></CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {naverCampaigns.map((c: any) => {
+                    const totalCost = naverCampaigns.reduce((s: number, x: any) => s + x.cost, 0);
+                    const pct = totalCost > 0 ? (c.cost / totalCost) * 100 : 0;
+                    return (
+                      <div key={c.campaignId} className="flex items-center gap-3">
+                        <span className="text-xs text-gray-600 dark:text-zinc-400 w-40 truncate">{c.campaignName}</span>
+                        <div className="flex-1 bg-gray-100 dark:bg-zinc-800 rounded-full h-5 relative overflow-hidden">
+                          <div className="h-full bg-indigo-500 rounded-full flex items-center justify-end pr-2" style={{ width: `${Math.max(pct, 3)}%` }}>
+                            <span className="text-[10px] text-white font-medium">{pct.toFixed(1)}%</span>
+                          </div>
+                        </div>
+                        <span className="text-xs text-gray-500 dark:text-zinc-500 w-16 text-right">₩{formatCompact(c.cost)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </>
         ) : platformTab === "gsc" ? (
           <>
             {/* GSC Summary KPIs */}
