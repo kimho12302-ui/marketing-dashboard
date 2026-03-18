@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { DashboardFilters, AdsChannelSummary } from "@/lib/types";
 import Filters from "@/components/filters";
 import PageHeader from "@/components/page-header";
+import ExportReport from "@/components/export-report";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompact } from "@/lib/utils";
 import { useChartTheme } from "@/hooks/use-chart-theme";
@@ -117,7 +118,10 @@ export default function AdsPage() {
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-zinc-100">
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
-        <PageHeader title="📢 Ads Performance" subtitle="광고 효율 분석" />
+        <div className="flex items-center justify-between">
+          <PageHeader title="📢 Ads Performance" subtitle="광고 효율 분석" />
+          <ExportReport targetId="ads-content" filename="PPMI-Ads" />
+        </div>
         <Filters filters={filters} onChange={setFilters} />
 
         {loading ? (
