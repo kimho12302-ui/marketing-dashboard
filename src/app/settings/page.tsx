@@ -78,8 +78,140 @@ function DataStatusCard() {
   );
 }
 
+function DailyInputGuide({ onSwitchTab }: { onSwitchTab: (tab: string) => void }) {
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+  const [dataStatus, setDataStatus] = useState<any>(null);
+
+  useEffect(() => {
+    fetch("/api/data-status").then(r => r.json()).then(setDataStatus).catch(() => {});
+    // Load today's completion state
+    const saved = localStorage.getItem("daily-input-" + new Date().toISOString().slice(0, 10));
+    if (saved) setCompletedSteps(new Set(JSON.parse(saved)));
+  }, []);
+
+  const toggleStep = (step: number) => {
+    setCompletedSteps(prev => {
+      const next = new Set(prev);
+      if (next.has(step)) next.delete(step); else next.add(step);
+      localStorage.setItem("daily-input-" + new Date().toISOString().slice(0, 10), JSON.stringify([...next]));
+      return next;
+    });
+  };
+
+  const today = new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" });
+  const allDone = completedSteps.size >= 5;
+
+  const steps = [
+    {
+      num: 1, title: "쿠팡 광고비 파일 업로드",
+      desc: "쿠팡 광고 관리 → 보고서 다운로드 → 수동 광고비 탭에서 업로드",
+      action: "수동 광고비 탭으로 →", tab: "manual_ads",
+      auto: false,
+    },
+    {
+      num: 2, title: "GFA 광고비 입력",
+      desc: "네이버 GFA 관리 → 어제 비용/노출/클릭 확인 → 수동 광고비 탭에서 입력",
+      action: "수동 광고비 탭으로 →", tab: "manual_ads",
+      auto: false,
+    },
+    {
+      num: 3, title: "인플루언서/체험단 비용",
+      desc: "어제 집행한 인플루언서/체험단/공구 비용이 있으면 입력",
+      action: "수동 광고비 탭으로 →", tab: "manual_ads",
+      auto: false,
+    },
+    {
+      num: 4, title: "건별 비용 입력",
+      desc: "촬영비, 디자인비, 샘플비 등 어제 발생한 기타 비용",
+      action: "건별 비용 탭으로 →", tab: "misc_costs",
+      auto: false,
+    },
+    {
+      num: 5, title: "대시보드 확인",
+      desc: "Overview에서 매출/광고비/ROAS/영업이익 확인",
+      action: "대시보드 보기 →", tab: "_overview",
+      auto: false,
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>📋 일일 데이터 입력 ({today})</CardTitle>
+            {allDone && <span className="text-sm text-green-500 font-medium">✅ 오늘 입력 완료!</span>}
+          </div>
+          <p className="text-xs text-gray-500 dark:text-zinc-500 mt-1">
+            자동 수집 데이터 외에 매일 수동으로 넣어야 하는 항목입니다. 해당 없으면 체크하고 넘어가세요.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {steps.map(step => {
+              const done = completedSteps.has(step.num);
+              return (
+                <div key={step.num} className={`flex items-start gap-3 p-3 rounded-lg border transition-all ${done ? "bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800" : "bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-700"}`}>
+                  <button onClick={() => toggleStep(step.num)}
+                    className={`mt-0.5 w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${done ? "bg-green-500 border-green-500 text-white" : "border-gray-300 dark:border-zinc-600 hover:border-indigo-400"}`}>
+                    {done && <span className="text-xs">✓</span>}
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${done ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400"}`}>STEP {step.num}</span>
+                      <span className={`text-sm font-medium ${done ? "line-through text-gray-400 dark:text-zinc-600" : "text-gray-800 dark:text-zinc-200"}`}>{step.title}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-zinc-500 mt-1">{step.desc}</p>
+                    {!done && (
+                      <button onClick={() => step.tab === "_overview" ? window.location.href = "/" : onSwitchTab(step.tab)}
+                        className="text-xs text-indigo-500 hover:text-indigo-600 dark:text-indigo-400 mt-1 font-medium">
+                        {step.action}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Progress bar */}
+          <div className="mt-4 flex items-center gap-3">
+            <div className="flex-1 bg-gray-100 dark:bg-zinc-800 rounded-full h-2 overflow-hidden">
+              <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${(completedSteps.size / steps.length) * 100}%` }} />
+            </div>
+            <span className="text-xs text-gray-500 dark:text-zinc-500 font-medium">{completedSteps.size}/{steps.length}</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Auto-collected status */}
+      <Card>
+        <CardHeader><CardTitle className="text-sm">🤖 자동 수집 현황</CardTitle></CardHeader>
+        <CardContent>
+          <div className="space-y-2 text-xs">
+            {[
+              { name: "Meta 광고비 (너티+아이언펫)", icon: "✅" },
+              { name: "네이버 검색/쇼핑 광고", icon: "✅" },
+              { name: "쿠팡 광고 (AM/PM 크론)", icon: "✅" },
+              { name: "Google Ads (P-Max)", icon: "✅" },
+              { name: "GA4 퍼널 데이터", icon: "✅" },
+              { name: "Cafe24 매출", icon: dataStatus?.tables?.find((t: any) => t.table === "daily_sales")?.isStale ? "⚠️" : "✅" },
+            ].map(item => (
+              <div key={item.name} className="flex items-center gap-2">
+                <span>{item.icon}</span>
+                <span className="text-gray-600 dark:text-zinc-400">{item.name}</span>
+                {item.icon === "⚠️" && <span className="text-red-400 text-[10px]">데이터 지연</span>}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<"costs" | "manual_ads" | "misc_costs" | "shipping" | "info">("costs");
+  const [activeTab, setActiveTab] = useState<"daily" | "costs" | "manual_ads" | "misc_costs" | "shipping" | "info">("daily");
   const [productCosts, setProductCosts] = useState<ProductCost[]>([]);
   const [productList, setProductList] = useState<{ product: string; brand: string; category: string; revenue: number; hasCost: boolean }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -357,6 +489,7 @@ export default function SettingsPage() {
         {/* Tab Navigation */}
         <div className="flex gap-2">
           {[
+            { key: "daily" as const, label: "📋 일일 입력" },
             { key: "costs" as const, label: "💰 제품 원가" },
             { key: "manual_ads" as const, label: "📢 수동 광고비" },
             { key: "misc_costs" as const, label: "🧾 건별 비용" },
@@ -380,6 +513,11 @@ export default function SettingsPage() {
           <div className={`text-sm px-4 py-2 rounded-lg ${message.startsWith("✅") ? "bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400" : "bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400"}`}>
             {message}
           </div>
+        )}
+
+        {/* Daily Input Guide Tab */}
+        {activeTab === "daily" && (
+          <DailyInputGuide onSwitchTab={(tab: any) => setActiveTab(tab)} />
         )}
 
         {/* Product Costs Tab */}
