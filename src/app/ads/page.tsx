@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { DashboardFilters, AdsChannelSummary } from "@/lib/types";
+import type { AdsChannelSummary } from "@/lib/types";
+import { useFilters } from "@/lib/filter-context";
 import Filters from "@/components/filters";
 import PageHeader from "@/components/page-header";
 import ExportReport from "@/components/export-report";
@@ -60,11 +61,8 @@ function getDefaultDates() {
 }
 
 export default function AdsPage() {
-  const dates = getDefaultDates();
   const chartTheme = useChartTheme();
-  const [filters, setFilters] = useState<DashboardFilters>({
-    period: "daily", brand: "all", from: dates.from, to: dates.to,
-  });
+  const { filters, setFilters } = useFilters();
   const [channels, setChannels] = useState<AdsChannelSummary[]>([]);
   const [spendTrend, setSpendTrend] = useState<Record<string, any>[]>([]);
   const [dailySpend, setDailySpend] = useState<Record<string, any>[]>([]);

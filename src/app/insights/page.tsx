@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useFilters } from "@/lib/filter-context";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertTriangle, AlertCircle, Zap, Info } from "lucide-react";
@@ -25,9 +26,9 @@ const TYPE_CONFIG = {
 };
 
 export default function InsightsPage() {
-  const dates = getDefaultDates();
-  const [from, setFrom] = useState(dates.from);
-  const [to, setTo] = useState(dates.to);
+  const { filters } = useFilters();
+  const [from, setFrom] = useState(filters.from);
+  const [to, setTo] = useState(filters.to);
   const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");

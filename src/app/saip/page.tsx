@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useFilters } from "@/lib/filter-context";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompact } from "@/lib/utils";
@@ -24,10 +25,10 @@ interface ChannelData { name: string; value: number; }
 interface TrendPoint { date: string; revenue: number; }
 
 export default function SaipPage() {
-  const dates = getDefaultDates();
   const chart = useChartTheme();
-  const [from, setFrom] = useState(dates.from);
-  const [to, setTo] = useState(dates.to);
+  const { filters } = useFilters();
+  const [from, setFrom] = useState(filters.from);
+  const [to, setTo] = useState(filters.to);
   const [byLineup, setByLineup] = useState<LineupData[]>([]);
   const [byProduct, setByProduct] = useState<ProductData[]>([]);
   const [byChannel, setByChannel] = useState<ChannelData[]>([]);

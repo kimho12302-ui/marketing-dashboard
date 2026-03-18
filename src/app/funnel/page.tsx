@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { DashboardFilters, FunnelStep } from "@/lib/types";
+import { useFilters } from "@/lib/filter-context";
+import type { FunnelStep } from "@/lib/types";
 import Filters from "@/components/filters";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,11 +23,8 @@ function getDefaultDates() {
 interface TrendPoint { date: string; sessions: number; cart_adds: number; purchases: number; }
 
 export default function FunnelPage() {
-  const dates = getDefaultDates();
   const chartTheme = useChartTheme();
-  const [filters, setFilters] = useState<DashboardFilters>({
-    period: "daily", brand: "all", from: dates.from, to: dates.to,
-  });
+  const { filters, setFilters } = useFilters();
   const [funnel, setFunnel] = useState<FunnelStep[]>([]);
   const [prevFunnel, setPrevFunnel] = useState<FunnelStep[]>([]);
   const [trend, setTrend] = useState<TrendPoint[]>([]);

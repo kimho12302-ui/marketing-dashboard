@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { DashboardFilters, KeywordSummary } from "@/lib/types";
+import { useFilters } from "@/lib/filter-context";
+import type { KeywordSummary } from "@/lib/types";
 import Filters from "@/components/filters";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,11 +22,8 @@ function getDefaultDates() {
 }
 
 export default function KeywordsPage() {
-  const dates = getDefaultDates();
   const chartTheme = useChartTheme();
-  const [filters, setFilters] = useState<DashboardFilters>({
-    period: "daily", brand: "all", from: dates.from, to: dates.to,
-  });
+  const { filters, setFilters } = useFilters();
   const [keywords, setKeywords] = useState<KeywordSummary[]>([]);
   const [platformTab, setPlatformTab] = useState("all");
   const [loading, setLoading] = useState(true);

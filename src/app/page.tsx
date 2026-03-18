@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { DashboardFilters, KPIData, TrendDataPoint } from "@/lib/types";
+import type { KPIData, TrendDataPoint } from "@/lib/types";
+import { useFilters } from "@/lib/filter-context";
 import Filters from "@/components/filters";
 import KPICards from "@/components/kpi-cards";
 import AnomalyBanner from "@/components/anomaly-banner";
@@ -54,11 +55,8 @@ const PRODUCT_COLORS = ["#6366f1", "#f97316", "#22c55e", "#eab308", "#ec4899", "
 const FUNNEL_COLORS = ["#3b82f6", "#6366f1", "#a78bfa", "#22c55e", "#14b8a6"];
 
 export default function OverviewPage() {
-  const dates = getDefaultDates();
   const chartTheme = useChartTheme();
-  const [filters, setFilters] = useState<DashboardFilters>({
-    period: "daily", brand: "all", from: dates.from, to: dates.to,
-  });
+  const { filters, setFilters } = useFilters();
   const [kpi, setKpi] = useState<KPIData>(defaultKPI);
   const [trend, setTrend] = useState<TrendDataPoint[]>([]);
   const [channels, setChannels] = useState<ChannelData[]>([]);

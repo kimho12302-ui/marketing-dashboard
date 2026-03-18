@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { DashboardFilters } from "@/lib/types";
+import { useFilters } from "@/lib/filter-context";
 import Filters from "@/components/filters";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,11 +22,8 @@ interface ContentTypeData { content_type: string; posts: number; impressions: nu
 interface FollowerTrend { date: string; followers: number; }
 
 export default function ContentPage() {
-  const dates = getDefaultDates();
   const chart = useChartTheme();
-  const [filters, setFilters] = useState<DashboardFilters>({
-    period: "daily", brand: "all", from: dates.from, to: dates.to,
-  });
+  const { filters, setFilters } = useFilters();
   const [byType, setByType] = useState<ContentTypeData[]>([]);
   const [postsTrend, setPostsTrend] = useState<Record<string, any>[]>([]);
   const [followerTrend, setFollowerTrend] = useState<FollowerTrend[]>([]);

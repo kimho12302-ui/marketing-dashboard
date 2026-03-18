@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import type { DashboardFilters } from "@/lib/types";
+import { useFilters } from "@/lib/filter-context";
 import Filters from "@/components/filters";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,11 +57,8 @@ function getQuadrantColor(cacIndex: number, roasIndex: number): string {
 }
 
 export default function SalesPage() {
-  const dates = getDefaultDates();
   const chartTheme = useChartTheme();
-  const [filters, setFilters] = useState<DashboardFilters>({
-    period: "daily", brand: "all", from: dates.from, to: dates.to,
-  });
+  const { filters, setFilters } = useFilters();
   const [channelPie, setChannelPie] = useState<{ name: string; value: number }[]>([]);
   const [brandPie, setBrandPie] = useState<{ name: string; value: number }[]>([]);
   const [categoryPie, setCategoryPie] = useState<{ name: string; value: number }[]>([]);
