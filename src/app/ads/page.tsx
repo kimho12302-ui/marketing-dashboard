@@ -9,7 +9,7 @@ import { formatCompact } from "@/lib/utils";
 import { useChartTheme } from "@/hooks/use-chart-theme";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  AreaChart, Area, Legend, Cell,
+  AreaChart, Area, Legend, Cell, LineChart, Line,
 } from "recharts";
 
 const CHANNEL_COLORS: Record<string, string> = {
@@ -72,6 +72,8 @@ export default function AdsPage() {
   const [spendPeriod, setSpendPeriod] = useState<"daily" | "weekly" | "monthly">("weekly");
   const [cac, setCac] = useState<number>(0);
   const [creatives, setCreatives] = useState<MetaCreative[]>([]);
+  const [selectedCreative, setSelectedCreative] = useState<string | null>(null);
+  const [creativeTrend, setCreativeTrend] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -99,6 +101,18 @@ export default function AdsPage() {
   }, [filters]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleCreativeClick = async (adId: string) => {
+    if (selectedCreative === adId) { setSelectedCreative(null); return; }
+    setSelectedCreative(adId);
+    try {
+      const res = await fetch(`/api/creative-trend?ad_id=${adId}&from=${filters.from}&to=${filters.to}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCreativeTrend(data.trend || []);
+      }
+    } catch { setCreativeTrend([]); }
+  };
 
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-zinc-100">
@@ -347,8 +361,8 @@ export default function AdsPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {creatives.filter(cr => cr.spend > 0).map((cr) => (
-                          <tr key={cr.id} className={`border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 ${cr.status !== "ACTIVE" ? "opacity-50" : ""}`}>
+                        {creatives.filter(cr => cr.spend > 0).map((cr) => (<>
+                          <tr key={cr.id} onClick={() => handleCreativeClick(cr.id)} className={`border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 cursor-pointer ${cr.status !== "ACTIVE" ? "opacity-50" : ""} ${selectedCreative === cr.id ? "bg-indigo-50 dark:bg-indigo-900/10" : ""}`}>
                             <td className="py-2 px-2 max-w-[200px]">
                               <div className="flex items-center gap-2">
                                 {(cr.thumbnail_url || cr.image_url) && (
@@ -379,7 +393,32 @@ export default function AdsPage() {
                             <td className={`py-2 px-2 text-right font-bold ${getPerformanceColor(cr.roas, { good: 3.0, mid: 2.0 })}`}>{cr.roas.toFixed(2)}x</td>
                             <td className="py-2 px-2 text-right">{cr.cac > 0 ? `₩${formatCompact(cr.cac)}` : "-"}</td>
                           </tr>
-                        ))}
+                          {selectedCreative === cr.id && creativeTrend.length > 0 && (
+                            <tr key={`${cr.id}-trend`}>
+                              <td colSpan={11} className="p-3 bg-gray-50 dark:bg-zinc-800/30">
+                                <p className="text-xs font-medium text-gray-500 dark:text-zinc-400 mb-2">📈 일별 성과 추이</p>
+                                <div className="h-40">
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={creativeTrend}>
+                                      <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                                      <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 10 }} tickFormatter={(v: string) => v.slice(5)} />
+                                      <YAxis yAxisId="spend" tick={{ fill: chartTheme.tickColor, fontSize: 10 }} tickFormatter={(v: number) => formatCompact(v)} />
+                                      <YAxis yAxisId="roas" orientation="right" tick={{ fill: "#22c55e", fontSize: 10 }} tickFormatter={(v: number) => `${v.toFixed(1)}x`} />
+                                      <Tooltip contentStyle={chartTheme.tooltipStyle} formatter={(v: any, name: any) => [name === "ROAS" ? `${Number(v).toFixed(2)}x` : `₩${formatCompact(v)}`, name]} />
+                                      <Area yAxisId="spend" type="monotone" dataKey="spend" name="지출" fill="#6366f1" fillOpacity={0.2} stroke="#6366f1" strokeWidth={1.5} />
+                                      <Area yAxisId="spend" type="monotone" dataKey="revenue" name="매출" fill="#22c55e" fillOpacity={0.2} stroke="#22c55e" strokeWidth={1.5} />
+                                    </AreaChart>
+                                  </ResponsiveContainer>
+                                </div>
+                                <div className="flex gap-4 mt-2 text-[10px] text-gray-400">
+                                  <span>기간: {creativeTrend[0]?.date} ~ {creativeTrend[creativeTrend.length-1]?.date}</span>
+                                  <span>총 지출: ₩{formatCompact(creativeTrend.reduce((s: number, t: any) => s + t.spend, 0))}</span>
+                                  <span>총 구매: {creativeTrend.reduce((s: number, t: any) => s + t.purchases, 0)}건</span>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>))}
                       </tbody>
                     </table>
                   </div>
