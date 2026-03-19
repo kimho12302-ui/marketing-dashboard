@@ -11,23 +11,27 @@ export default function SyncButton({ onComplete }: { onComplete?: () => void }) 
     setSyncing(true);
     setResult(null);
     try {
-      const res = await fetch("/api/sync", { method: "POST" });
-      const data = await res.json();
-      if (data.error) {
-        setResult(`❌ ${data.error}`);
-      } else {
-        const parts = [];
-        if (data.sales?.sales) parts.push(`매출 ${data.sales.sales}건`);
-        if (data.funnel?.funnel) parts.push(`퍼널 ${data.funnel.funnel}건`);
-        if (data.productSales?.productSales) parts.push(`상품 ${data.productSales.productSales}건`);
-        setResult(`✅ ${parts.join(", ") || "변경 없음"}`);
-        onComplete?.();
-      }
+      // Run sheet sync + ad sync in parallel
+      const [sheetRes, adRes] = await Promise.all([
+        fetch("/api/sync", { method: "POST" }).then(r => r.json()).catch(() => ({})),
+        fetch("/api/sync-ads", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then(r => r.json()).catch(() => ({})),
+      ]);
+
+      const parts = [];
+      if (sheetRes.sales?.sales) parts.push(`매출 ${sheetRes.sales.sales}건`);
+      if (sheetRes.funnel?.funnel) parts.push(`퍼널 ${sheetRes.funnel.funnel}건`);
+      if (sheetRes.productSales?.productSales) parts.push(`상품 ${sheetRes.productSales.productSales}건`);
+      if (adRes.meta?.meta) parts.push(`Meta ${adRes.meta.meta}건`);
+      if (adRes.google?.google) parts.push(`Google ${adRes.google.google}건`);
+
+      const hasError = sheetRes.error || adRes.error;
+      setResult(hasError ? `⚠️ ${parts.join(", ") || "일부 실패"} (${hasError})` : `✅ ${parts.join(", ") || "변경 없음"}`);
+      onComplete?.();
     } catch {
       setResult("❌ 싱크 실패");
     } finally {
       setSyncing(false);
-      setTimeout(() => setResult(null), 5000);
+      setTimeout(() => setResult(null), 8000);
     }
   };
 

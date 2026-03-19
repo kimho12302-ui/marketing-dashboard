@@ -1,0 +1,177 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+export const maxDuration = 60;
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const META_TOKEN = process.env.META_ADS_TOKEN || "";
+
+const META_ACCOUNTS: Record<string, string> = {
+  nutty: process.env.META_NUTTY_AD_ACCOUNT || "act_1510647003433200",
+  ironpet: process.env.META_IRONPET_AD_ACCOUNT || "act_8188388757843816",
+};
+
+async function syncMetaAds(supabase: any, dateStr: string) {
+  if (!META_TOKEN) return { meta: 0, error: "no token" };
+
+  const rows: any[] = [];
+  for (const [brand, accountId] of Object.entries(META_ACCOUNTS)) {
+    try {
+      const url = `https://graph.facebook.com/v19.0/${accountId}/insights?` +
+        new URLSearchParams({
+          access_token: META_TOKEN,
+          fields: "spend,impressions,clicks,actions,action_values",
+          time_range: JSON.stringify({ since: dateStr, until: dateStr }),
+          time_increment: "1",
+          level: "account",
+        });
+      const resp = await globalThis.fetch(url);
+      const body = await resp.json();
+      
+      for (const row of body.data || []) {
+        const spend = Number(row.spend || 0);
+        const impressions = Number(row.impressions || 0);
+        const clicks = Number(row.clicks || 0);
+        
+        let conversions = 0, conversionValue = 0;
+        for (const a of row.actions || []) {
+          if (a.action_type === "purchase") conversions = Number(a.value || 0);
+        }
+        for (const a of row.action_values || []) {
+          if (a.action_type === "purchase") conversionValue = Number(a.value || 0);
+        }
+
+        rows.push({
+          date: row.date_start || dateStr,
+          channel: "meta",
+          brand,
+          spend, impressions, clicks, conversions,
+          conversion_value: conversionValue,
+          roas: spend > 0 ? conversionValue / spend : 0,
+        });
+      }
+    } catch (e) {
+      console.error(`Meta ${brand} error:`, e);
+    }
+  }
+
+  // Also create "all" brand aggregation
+  const allRow = rows.reduce((acc, r) => ({
+    date: dateStr, channel: "meta", brand: "all",
+    spend: acc.spend + r.spend,
+    impressions: acc.impressions + r.impressions,
+    clicks: acc.clicks + r.clicks,
+    conversions: acc.conversions + r.conversions,
+    conversion_value: acc.conversion_value + r.conversion_value,
+    roas: 0,
+  }), { spend: 0, impressions: 0, clicks: 0, conversions: 0, conversion_value: 0 });
+  if (allRow.spend > 0) {
+    allRow.roas = allRow.conversion_value / allRow.spend;
+    rows.push(allRow);
+  }
+
+  if (rows.length > 0) {
+    const { error } = await supabase.from("daily_ad_spend").upsert(rows, { onConflict: "date,channel,brand" });
+    if (error) return { meta: 0, error: error.message };
+  }
+  return { meta: rows.length };
+}
+
+async function syncGoogleAds(supabase: any, dateStr: string) {
+  // Google Ads via Supabase — already synced by cron to sheets
+  // For now, use the Google Ads API reporting
+  try {
+    const refreshToken = process.env.GOOGLE_ADS_REFRESH_TOKEN || "";
+    const clientId = process.env.GOOGLE_ADS_CLIENT_ID || "";
+    const clientSecret = process.env.GOOGLE_ADS_CLIENT_SECRET || "";
+    const customerId = process.env.GOOGLE_ADS_CUSTOMER_ID || "9960719325";
+    const devToken = process.env.GOOGLE_ADS_DEV_TOKEN || "";
+    if (!refreshToken || !clientId) return { google: 0, error: "Google Ads env vars not set" };
+
+    // Get access token
+    const tokenResp = await globalThis.fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: refreshToken,
+        grant_type: "refresh_token",
+      }),
+    });
+    const tokenData = await tokenResp.json();
+    const accessToken = tokenData.access_token;
+    if (!accessToken) return { google: 0, error: "no access token" };
+
+    // Query Google Ads
+    const query = `SELECT campaign.name, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date = '${dateStr}'`;
+    const gaResp = await globalThis.fetch(
+      `https://googleads.googleapis.com/v17/customers/${customerId}/googleAds:searchStream`,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "developer-token": devToken,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query }),
+      }
+    );
+    const gaData = await gaResp.json();
+
+    let totalSpend = 0, totalImp = 0, totalClicks = 0, totalConv = 0, totalConvValue = 0;
+    for (const result of gaData[0]?.results || []) {
+      const m = result.metrics || {};
+      totalSpend += Number(m.costMicros || 0) / 1e6;
+      totalImp += Number(m.impressions || 0);
+      totalClicks += Number(m.clicks || 0);
+      totalConv += Number(m.conversions || 0);
+      totalConvValue += Number(m.conversionsValue || 0);
+    }
+
+    if (totalSpend > 0) {
+      const row = {
+        date: dateStr, channel: "google_ads", brand: "all",
+        spend: Math.round(totalSpend), impressions: totalImp, clicks: totalClicks,
+        conversions: Math.round(totalConv), conversion_value: Math.round(totalConvValue),
+        roas: totalSpend > 0 ? totalConvValue / totalSpend : 0,
+      };
+      const { error } = await supabase.from("daily_ad_spend").upsert([row], { onConflict: "date,channel,brand" });
+      if (error) return { google: 0, error: error.message };
+      return { google: 1, spend: Math.round(totalSpend) };
+    }
+    return { google: 0 };
+  } catch (e) {
+    console.error("Google Ads error:", e);
+    return { google: 0, error: String(e) };
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json().catch(() => ({}));
+    // Default: yesterday
+    const dateStr = body.date || (() => {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      return d.toISOString().slice(0, 10);
+    })();
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const [metaResult, googleResult] = await Promise.allSettled([
+      syncMetaAds(supabase, dateStr),
+      syncGoogleAds(supabase, dateStr),
+    ]);
+
+    return NextResponse.json({
+      date: dateStr,
+      meta: metaResult.status === "fulfilled" ? metaResult.value : { error: String((metaResult as any).reason) },
+      google: googleResult.status === "fulfilled" ? googleResult.value : { error: String((googleResult as any).reason) },
+      syncedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}
