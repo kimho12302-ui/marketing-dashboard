@@ -23,6 +23,7 @@ export default function SyncButton({ onComplete }: { onComplete?: () => void }) 
       if (sheetRes.productSales?.productSales) parts.push(`상품 ${sheetRes.productSales.productSales}건`);
       if (adRes.meta?.meta) parts.push(`Meta ${adRes.meta.meta}건`);
       if (adRes.google?.google) parts.push(`Google ${adRes.google.google}건`);
+      if (adRes.funnel?.funnel) parts.push(`퍼널 ${adRes.funnel.sessions || 0}세션`);
 
       const hasError = sheetRes.error || adRes.error;
       setResult(hasError ? `⚠️ ${parts.join(", ") || "일부 실패"} (${hasError})` : `✅ ${parts.join(", ") || "변경 없음"}`);

@@ -148,6 +148,90 @@ async function syncGoogleAds(supabase: any, dateStr: string) {
   }
 }
 
+async function syncGA4Funnel(supabase: any, dateStr: string) {
+  try {
+    const saKey = process.env.GOOGLE_SA_KEY;
+    if (!saKey) return { funnel: 0, error: "no SA key" };
+    const creds = JSON.parse(saKey);
+
+    // Get access token from service account
+    const now = Math.floor(Date.now() / 1000);
+    const header = btoa(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+    const payload = btoa(JSON.stringify({
+      iss: creds.client_email,
+      scope: "https://www.googleapis.com/auth/analytics.readonly",
+      aud: "https://oauth2.googleapis.com/token",
+      iat: now,
+      exp: now + 3600,
+    }));
+
+    // Use importKey for RSA signing
+    const pemKey = creds.private_key.replace(/-----BEGIN PRIVATE KEY-----/g, "").replace(/-----END PRIVATE KEY-----/g, "").replace(/\n/g, "");
+    const keyData = Uint8Array.from(atob(pemKey), c => c.charCodeAt(0));
+    const key = await crypto.subtle.importKey("pkcs8", keyData, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
+    const signInput = new TextEncoder().encode(`${header}.${payload}`);
+    const sig = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, signInput);
+    const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+    const jwt = `${header}.${payload}.${sigB64}`;
+
+    const tokenResp = await globalThis.fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+    });
+    const tokenData = await tokenResp.json();
+    if (!tokenData.access_token) return { funnel: 0, error: "GA4 token failed" };
+
+    // Query GA4 Data API for funnel events
+    const propertyId = "433673281";
+    const gaResp = await globalThis.fetch(
+      `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${tokenData.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          dateRanges: [{ startDate: dateStr, endDate: dateStr }],
+          dimensions: [{ name: "date" }],
+          metrics: [
+            { name: "sessions" },
+            { name: "screenPageViews" },
+            { name: "addToCarts" },
+            { name: "checkouts" },
+            { name: "purchases" },
+            { name: "totalRevenue" },
+          ],
+        }),
+      }
+    );
+    const gaData = await gaResp.json();
+
+    const rows = gaData.rows || [];
+    if (rows.length === 0) return { funnel: 0 };
+
+    const r = rows[0];
+    const metrics = r.metricValues || [];
+    const funnelRow = {
+      date: dateStr,
+      brand: "all",
+      impressions: Number(metrics[1]?.value || 0), // pageViews as impressions proxy
+      sessions: Number(metrics[0]?.value || 0),
+      cart_adds: Number(metrics[2]?.value || 0),
+      purchases: Number(metrics[4]?.value || 0),
+      repurchases: 0,
+    };
+
+    const { error } = await supabase.from("daily_funnel").upsert([funnelRow], { onConflict: "date,brand" });
+    if (error) return { funnel: 0, error: error.message };
+    return { funnel: 1, sessions: funnelRow.sessions, purchases: funnelRow.purchases };
+  } catch (e) {
+    console.error("GA4 funnel error:", e);
+    return { funnel: 0, error: String(e) };
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
@@ -160,15 +244,17 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const [metaResult, googleResult] = await Promise.allSettled([
+    const [metaResult, googleResult, funnelResult] = await Promise.allSettled([
       syncMetaAds(supabase, dateStr),
       syncGoogleAds(supabase, dateStr),
+      syncGA4Funnel(supabase, dateStr),
     ]);
 
     return NextResponse.json({
       date: dateStr,
       meta: metaResult.status === "fulfilled" ? metaResult.value : { error: String((metaResult as any).reason) },
       google: googleResult.status === "fulfilled" ? googleResult.value : { error: String((googleResult as any).reason) },
+      funnel: funnelResult.status === "fulfilled" ? funnelResult.value : { error: String((funnelResult as any).reason) },
       syncedAt: new Date().toISOString(),
     });
   } catch (error) {
