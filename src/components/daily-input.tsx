@@ -154,24 +154,61 @@ export default function DailyInput() {
   };
 
   // File upload handlers
-  const [coupangResult, setCoupangResult] = useState<any>(null);
-  const [coupangUploading, setCoupangUploading] = useState(false);
+  const [coupangAdsResult, setCoupangAdsResult] = useState<any>(null);
+  const [coupangAdsUploading, setCoupangAdsUploading] = useState(false);
+  const [coupangDailyResult, setCoupangDailyResult] = useState<any>(null);
+  const [coupangDailyUploading, setCoupangDailyUploading] = useState(false);
+  const [coupangItemResult, setCoupangItemResult] = useState<any>(null);
+  const [coupangItemUploading, setCoupangItemUploading] = useState(false);
   const [salesResult, setSalesResult] = useState<any>(null);
   const [salesUploading, setSalesUploading] = useState(false);
 
-  const uploadCoupang = async (file: File) => {
-    setCoupangUploading(true); setCoupangResult(null);
+  const uploadCoupangAds = async (file: File) => {
+    setCoupangAdsUploading(true); setCoupangAdsResult(null);
     try {
       const form = new FormData(); form.append("file", file);
       const res = await fetch("/api/upload-coupang-ads", { method: "POST", body: form });
       const data = await res.json();
-      setCoupangResult(data.ok
-        ? { message: `✅ ${data.dailyRows}일 광고비 ₩${formatCompact(data.totalSpend || 0)} / ROAS ${data.avgRoas} | Drive 아카이빙 ${data.drive?.fileId ? "✓" : "✗"}` }
+      setCoupangAdsResult(data.ok
+        ? { message: `✅ ${data.dailyRows}일 광고비 ₩${formatCompact(data.totalSpend || 0)} / ROAS ${data.avgRoas}` }
         : data
       );
-      if (data.ok) toggle(1);
-    } catch { setCoupangResult({ error: "업로드 실패" }); }
-    setCoupangUploading(false);
+    } catch { setCoupangAdsResult({ error: "업로드 실패" }); }
+    setCoupangAdsUploading(false);
+  };
+
+  const uploadCoupangDaily = async (file: File) => {
+    setCoupangDailyUploading(true); setCoupangDailyResult(null);
+    try {
+      const form = new FormData(); form.append("file", file); form.append("type", "daily");
+      const res = await fetch("/api/upload-coupang-funnel", { method: "POST", body: form });
+      const data = await res.json();
+      setCoupangDailyResult(data.ok
+        ? { message: `✅ ${data.funnel}일 퍼널 + ${data.sales}일 매출 반영` }
+        : data
+      );
+    } catch { setCoupangDailyResult({ error: "업로드 실패" }); }
+    setCoupangDailyUploading(false);
+  };
+
+  const uploadCoupangItem = async (file: File) => {
+    setCoupangItemUploading(true); setCoupangItemResult(null);
+    try {
+      const form = new FormData(); form.append("file", file); form.append("type", "item");
+      const res = await fetch("/api/upload-coupang-funnel", { method: "POST", body: form });
+      const data = await res.json();
+      if (data.ok) {
+        const mappedCount = data.mapped || 0;
+        const unmappedCount = data.unmapped || 0;
+        setCoupangItemResult({
+          message: `✅ ${data.items}개 상품 | 매핑 ${mappedCount}개 / 미매핑 ${unmappedCount}개`,
+          items: data.itemSummary,
+        });
+      } else {
+        setCoupangItemResult(data);
+      }
+    } catch { setCoupangItemResult({ error: "업로드 실패" }); }
+    setCoupangItemUploading(false);
   };
 
   const uploadSales = async (file: File) => {
@@ -255,11 +292,46 @@ export default function DailyInput() {
         </CardContent>
       </Card>
 
-      {/* 1. 쿠팡 광고비 */}
-      <Section num={1} emoji="🟠" title="쿠팡 광고비" desc="쿠팡 광고센터 → 보고서 → 맞춤보고서 다운로드"
+      {/* 1. 쿠팡 데이터 */}
+      <Section num={1} emoji="🟠" title="쿠팡 데이터" desc="광고비 + 일별 퍼널 + 상품별 실적"
         done={completed.has(1)} onToggleDone={() => toggle(1)}>
-        <FileZone label="쿠팡 광고 보고서(.xlsx) 드래그 또는 클릭" uploading={coupangUploading} onFile={uploadCoupang} />
-        <ResultBox result={coupangResult} />
+        <div className="space-y-4">
+          {/* 1-A: 광고비 */}
+          <div>
+            <p className="text-xs font-medium text-gray-700 dark:text-zinc-300 mb-2">📊 광고비 <span className="text-gray-400 font-normal">— 광고센터 → 보고서 → 맞춤보고서</span></p>
+            <FileZone label="쿠팡 광고 보고서(.xlsx)" uploading={coupangAdsUploading} onFile={uploadCoupangAds} />
+            <ResultBox result={coupangAdsResult} />
+          </div>
+
+          <hr className="border-gray-100 dark:border-zinc-800" />
+
+          {/* 1-B: 일별 퍼널 */}
+          <div>
+            <p className="text-xs font-medium text-gray-700 dark:text-zinc-300 mb-2">📈 일별 퍼널 <span className="text-gray-400 font-normal">— 셀러인사이트 → Daily Summary</span></p>
+            <FileZone label="SELLER_INSIGHTS_DAILY_SUMMARY(.xlsx)" uploading={coupangDailyUploading} onFile={uploadCoupangDaily} />
+            <ResultBox result={coupangDailyResult} />
+          </div>
+
+          <hr className="border-gray-100 dark:border-zinc-800" />
+
+          {/* 1-C: 상품별 실적 */}
+          <div>
+            <p className="text-xs font-medium text-gray-700 dark:text-zinc-300 mb-2">🏷️ 상품별 실적 <span className="text-gray-400 font-normal">— 셀러인사이트 → Vendor Item Metrics</span></p>
+            <FileZone label="SELLER_INSIGHTS_VENDOR_ITEM(.xlsx)" uploading={coupangItemUploading} onFile={uploadCoupangItem} />
+            <ResultBox result={coupangItemResult} />
+            {coupangItemResult?.items && (
+              <div className="mt-2 text-[11px] space-y-1">
+                {coupangItemResult.items.map((item: any, i: number) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className={item.mapped ? "text-green-500" : "text-yellow-500"}>{item.mapped ? "✓" : "?"}</span>
+                    <span className="truncate flex-1">{item.name}</span>
+                    <span className="text-gray-400">₩{formatCompact(item.revenue)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </Section>
 
       {/* 2. GFA 광고비 */}
