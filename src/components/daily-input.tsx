@@ -79,13 +79,11 @@ function ResultBox({ result }: { result: any }) {
 }
 
 // ─── Manual ad spend input ───
-function ManualAdInput({ channel, label, fields, onSave }: {
-  channel: string; label: string;
+function ManualAdInput({ channel, label, fields, onSave, date }: {
+  channel: string; label: string; date: string;
   fields: { key: string; label: string; placeholder: string; type?: string }[];
   onSave: (data: any) => Promise<any>;
 }) {
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  const [date, setDate] = useState(yesterday);
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -109,11 +107,6 @@ function ManualAdInput({ channel, label, fields, onSave }: {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <label className="text-xs text-gray-500">날짜</label>
-        <input type="date" value={date} onChange={e => setDate(e.target.value)}
-          className="text-sm border rounded px-2 py-1 bg-white dark:bg-zinc-800 dark:border-zinc-600" />
-      </div>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {fields.map(f => (
           <div key={f.key}>
@@ -367,7 +360,14 @@ export default function DailyInput() {
     return { error: result.error || "저장 실패" };
   };
 
-  const dayLabel = new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" });
+  // Date selector - default yesterday
+  const getYesterday = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10);
+  };
+  const [selectedDate, setSelectedDate] = useState(getYesterday());
+  const selectedLabel = new Date(selectedDate + "T00:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" });
   const progress = completed.size;
   const total = 7;
 
@@ -378,7 +378,12 @@ export default function DailyInput() {
         <CardContent className="py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-gray-800 dark:text-zinc-200">📋 일일 데이터 입력 — {dayLabel}</h3>
+              <div className="flex items-center gap-3">
+                <h3 className="font-semibold text-gray-800 dark:text-zinc-200">📋 일일 데이터 입력</h3>
+                <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
+                  className="text-sm border border-gray-200 dark:border-zinc-600 rounded-lg px-2 py-1 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-200" />
+                <span className="text-xs text-gray-400">{selectedLabel}</span>
+              </div>
               <p className="text-[11px] text-gray-400 mt-1">위에서 아래로 순서대로. 해당 없으면 체크만 하고 넘어가세요.</p>
             </div>
             <div className="flex items-center gap-2">
@@ -439,7 +444,7 @@ export default function DailyInput() {
       {/* 2. GFA 광고비 */}
       <Section num={2} emoji="🟢" title="GFA 광고비" desc="네이버 성과형 디스플레이 광고 → 어제 비용 확인"
         done={completed.has(2)} onToggleDone={() => toggle(2)}>
-        <ManualAdInput channel="gfa" label="GFA" fields={[
+        <ManualAdInput channel="gfa" label="GFA" date={selectedDate} fields={[
           { key: "spend", label: "광고비 (원)", placeholder: "50000" },
           { key: "impressions", label: "노출수", placeholder: "10000" },
           { key: "clicks", label: "클릭수", placeholder: "100" },
@@ -453,7 +458,7 @@ export default function DailyInput() {
       {/* 3. 스마트스토어 광고비 */}
       <Section num={3} emoji="🟩" title="스마트스토어 광고비" desc="스마트스토어 광고 → 어제 비용 + 알림받기 수 확인"
         done={completed.has(3)} onToggleDone={() => toggle(3)}>
-        <ManualAdInput channel="smartstore_ads" label="스마트스토어" fields={[
+        <ManualAdInput channel="smartstore_ads" label="스마트스토어" date={selectedDate} fields={[
           { key: "spend", label: "광고비 (원)", placeholder: "30000" },
           { key: "impressions", label: "노출수", placeholder: "5000" },
           { key: "clicks", label: "클릭수", placeholder: "50" },
@@ -468,7 +473,7 @@ export default function DailyInput() {
       {/* 4. 인플루언서/체험단 비용 */}
       <Section num={4} emoji="👥" title="인플루언서/체험단 비용" desc="어제 집행한 인플루언서/체험단/공구 비용"
         done={completed.has(4)} onToggleDone={() => toggle(4)}>
-        <ManualAdInput channel="influencer" label="인플루언서" fields={[
+        <ManualAdInput channel="influencer" label="인플루언서" date={selectedDate} fields={[
           { key: "spend", label: "비용 (원)", placeholder: "100000" },
           { key: "conversions", label: "건수", placeholder: "1" },
         ]} onSave={async (data) => {
@@ -481,7 +486,7 @@ export default function DailyInput() {
       {/* 5. 건별 비용 */}
       <Section num={5} emoji="🧾" title="건별 비용" desc="촬영비, 디자인비, 샘플비, 기타 비용"
         done={completed.has(5)} onToggleDone={() => toggle(5)}>
-        <MiscCostInput onSave={async (data) => {
+        <MiscCostInput date={selectedDate} onSave={async (data) => {
           const r = await saveMiscCost(data);
           if (!r.error) toggle(5);
           return r;
@@ -531,9 +536,7 @@ export default function DailyInput() {
 }
 
 // ─── Misc cost sub-component ───
-function MiscCostInput({ onSave }: { onSave: (data: any) => Promise<any> }) {
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  const [date, setDate] = useState(yesterday);
+function MiscCostInput({ onSave, date }: { onSave: (data: any) => Promise<any>; date: string }) {
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("기타");
@@ -551,11 +554,6 @@ function MiscCostInput({ onSave }: { onSave: (data: any) => Promise<any> }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <label className="text-xs text-gray-500">날짜</label>
-        <input type="date" value={date} onChange={e => setDate(e.target.value)}
-          className="text-sm border rounded px-2 py-1 bg-white dark:bg-zinc-800 dark:border-zinc-600" />
-      </div>
       <div className="grid grid-cols-3 gap-3">
         <div>
           <label className="text-[11px] text-gray-500">구분</label>
