@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const maxDuration = 30; // Vercel serverless timeout (seconds)
+
 const META_TOKEN = process.env.META_ADS_TOKEN || "";
 const AD_ACCOUNTS: Record<string, string> = {
   nutty: process.env.META_NUTTY_AD_ACCOUNT || "act_1510647003433200",
@@ -76,19 +78,11 @@ export async function GET(request: NextRequest) {
     const allCreatives: Creative[] = [];
 
     for (const [brandName, accountId] of accounts) {
-      // Fetch ALL ads with creative info (paginated)
-      const adsUrl = `https://graph.facebook.com/v19.0/${accountId}/ads?` +
-        new URLSearchParams({
-          access_token: META_TOKEN,
-          fields: "name,status,creative{title,body,thumbnail_url,image_url,video_id,object_story_spec}",
-          limit: "200",
-        });
-      const allAds = await fetchAllPages(adsUrl);
-
-      // Fetch ad-level insights with funnel actions + custom date range
+      try {
+      // Strategy: fetch insights first (only ads with data), then fetch creative details for those
       const insParams: Record<string, string> = {
         access_token: META_TOKEN,
-        fields: "ad_id,ad_name,impressions,clicks,spend,ctr,cpc,actions,action_values,cost_per_action_type",
+        fields: "ad_id,ad_name,impressions,clicks,spend,ctr,cpc,actions,action_values",
         level: "ad",
         limit: "500",
       };
@@ -100,15 +94,30 @@ export async function GET(request: NextRequest) {
       const insightsUrl = `https://graph.facebook.com/v19.0/${accountId}/insights?` +
         new URLSearchParams(insParams);
       const allInsights = await fetchAllPages(insightsUrl);
+      console.log(`[creatives] ${brandName}: ${allInsights.length} insight rows`);
+
+      // Fetch creative details only for ads with spend > 0
+      const adsWithSpend = allInsights.filter(r => Number(r.spend || 0) > 0);
+      const adIds = adsWithSpend.map(r => r.ad_id);
       
-      const insightsMap = new Map<string, any>();
-      for (const row of allInsights) {
-        insightsMap.set(row.ad_id, row);
+      // Batch fetch ad details (up to 50 at a time via IDs filter)
+      const adDetailsMap = new Map<string, any>();
+      for (let i = 0; i < adIds.length; i += 50) {
+        const batch = adIds.slice(i, i + 50);
+        const idsParam = batch.join(",");
+        const adsUrl = `https://graph.facebook.com/v19.0/?ids=${idsParam}&fields=name,status,creative{thumbnail_url,image_url,video_id,object_story_spec}&access_token=${META_TOKEN}`;
+        try {
+          const resp = await globalThis.fetch(adsUrl);
+          const body = await resp.json();
+          for (const [id, data] of Object.entries(body)) {
+            adDetailsMap.set(id, data);
+          }
+        } catch { /* continue without creative details */ }
       }
 
-      for (const ad of allAds) {
-        const cr = ad.creative || {};
-        const ins = insightsMap.get(ad.id) || {};
+      for (const ins of adsWithSpend) {
+        const ad = adDetailsMap.get(ins.ad_id) || {};
+        const cr = (ad as any).creative || {};
         const spend = Number(ins.spend || 0);
 
         // Extract funnel actions
@@ -126,9 +135,9 @@ export async function GET(request: NextRequest) {
         const clicks = Number(ins.clicks || 0);
 
         allCreatives.push({
-          id: ad.id,
-          name: ad.name || "",
-          status: ad.status || "UNKNOWN",
+          id: ins.ad_id,
+          name: (ad as any).name || ins.ad_name || "",
+          status: (ad as any).status || "UNKNOWN",
           brand: brandName,
           thumbnail_url: cr.thumbnail_url || "",
           image_url: cr.image_url || cr.object_story_spec?.link_data?.picture || "",
@@ -148,6 +157,10 @@ export async function GET(request: NextRequest) {
           cart_to_purchase_rate: addToCart > 0 ? (purchases / addToCart) * 100 : 0,
           click_to_cart_rate: clicks > 0 ? (addToCart / clicks) * 100 : 0,
         });
+      }
+      } catch (err) {
+        console.error(`[creatives] ${brandName} error:`, err);
+        // Continue with other accounts
       }
     }
 
