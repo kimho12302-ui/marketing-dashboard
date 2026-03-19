@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompact } from "@/lib/utils";
 import SalesUpload from "@/components/sales-upload";
 import CoupangAdsUpload from "@/components/coupang-ads-upload";
+import DailyInput from "@/components/daily-input";
 
 interface ProductCost {
   product: string;
@@ -403,6 +404,7 @@ function TargetsTab() {
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<"daily" | "targets" | "costs" | "manual_ads" | "misc_costs" | "shipping" | "sales_upload" | "coupang_ads" | "info">("daily");
+  // Note: sales_upload and coupang_ads tabs kept for backward compat but hidden from UI
   const [productCosts, setProductCosts] = useState<ProductCost[]>([]);
   const [productList, setProductList] = useState<{ product: string; brand: string; category: string; revenue: number; hasCost: boolean }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -686,8 +688,7 @@ export default function SettingsPage() {
             { key: "manual_ads" as const, label: "📢 수동 광고비" },
             { key: "misc_costs" as const, label: "🧾 건별 비용" },
             { key: "shipping" as const, label: "📦 배송비" },
-            { key: "sales_upload" as const, label: "📤 판매 업로드" },
-            { key: "coupang_ads" as const, label: "🟠 쿠팡 광고" },
+            // 판매 업로드 + 쿠팡 광고는 일일입력에 통합
             { key: "info" as const, label: "ℹ️ 데이터 소스" },
           ].map(tab => (
             <button key={tab.key}
@@ -709,10 +710,8 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Daily Input Guide Tab */}
-        {activeTab === "daily" && (
-          <DailyInputGuide onSwitchTab={(tab: any) => setActiveTab(tab)} />
-        )}
+        {/* Daily Input Tab — all-in-one */}
+        {activeTab === "daily" && <DailyInput />}
 
         {/* Targets Tab */}
         {activeTab === "targets" && <TargetsTab />}
