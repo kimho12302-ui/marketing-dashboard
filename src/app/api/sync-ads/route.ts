@@ -237,27 +237,41 @@ async function syncGA4Funnel(supabase: any, dateStr: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json().catch(() => ({}));
-    // Default: yesterday
-    const dateStr = body.date || (() => {
-      const d = new Date();
-      d.setDate(d.getDate() - 1);
-      return d.toISOString().slice(0, 10);
-    })();
-
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const [metaResult, googleResult, funnelResult] = await Promise.allSettled([
-      syncMetaAds(supabase, dateStr),
-      syncGoogleAds(supabase, dateStr),
-      syncGA4Funnel(supabase, dateStr),
-    ]);
+    // Sync last 3 days to catch delayed data
+    const dates: string[] = [];
+    for (let i = 1; i <= 3; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      dates.push(d.toISOString().slice(0, 10));
+    }
+
+    let totalMeta = 0, totalGoogle = 0, totalFunnel = 0;
+    let lastMetaErr: string | undefined, lastGoogleErr: string | undefined, lastFunnelErr: string | undefined;
+
+    for (const dateStr of dates) {
+      const [metaResult, googleResult, funnelResult] = await Promise.allSettled([
+        syncMetaAds(supabase, dateStr),
+        syncGoogleAds(supabase, dateStr),
+        syncGA4Funnel(supabase, dateStr),
+      ]);
+      const mr = metaResult.status === "fulfilled" ? metaResult.value : { meta: 0, error: String(metaResult.reason) };
+      const gr = googleResult.status === "fulfilled" ? googleResult.value : { google: 0, error: String(googleResult.reason) };
+      const fr = funnelResult.status === "fulfilled" ? funnelResult.value : { funnel: 0, error: String(funnelResult.reason) };
+      totalMeta += (mr as any).meta || 0;
+      totalGoogle += (gr as any).google || 0;
+      totalFunnel += (fr as any).funnel || 0;
+      if ((mr as any).error) lastMetaErr = (mr as any).error;
+      if ((gr as any).error) lastGoogleErr = (gr as any).error;
+      if ((fr as any).error) lastFunnelErr = (fr as any).error;
+    }
 
     return NextResponse.json({
-      date: dateStr,
-      meta: metaResult.status === "fulfilled" ? metaResult.value : { error: String((metaResult as any).reason) },
-      google: googleResult.status === "fulfilled" ? googleResult.value : { error: String((googleResult as any).reason) },
-      funnel: funnelResult.status === "fulfilled" ? funnelResult.value : { error: String((funnelResult as any).reason) },
+      dates,
+      meta: { total: totalMeta, ...(lastMetaErr ? { error: lastMetaErr } : {}) },
+      google: { total: totalGoogle, ...(lastGoogleErr ? { error: lastGoogleErr } : {}) },
+      funnel: { total: totalFunnel, ...(lastFunnelErr ? { error: lastFunnelErr } : {}) },
       syncedAt: new Date().toISOString(),
     });
   } catch (error) {
