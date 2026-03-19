@@ -102,7 +102,7 @@ async function syncGoogleAds(supabase: any, dateStr: string) {
     });
     const tokenData = await tokenResp.json();
     const accessToken = tokenData.access_token;
-    if (!accessToken) return { google: 0, error: "no access token" };
+    if (!accessToken) return { google: 0, error: `no access token: ${JSON.stringify(tokenData).slice(0, 200)}` };
 
     // Query Google Ads
     const query = `SELECT campaign.name, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date = '${dateStr}'`;
@@ -180,7 +180,7 @@ async function syncGA4Funnel(supabase: any, dateStr: string) {
       body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
     });
     const tokenData = await tokenResp.json();
-    if (!tokenData.access_token) return { funnel: 0, error: "GA4 token failed" };
+    if (!tokenData.access_token) return { funnel: 0, error: `GA4 token failed: ${JSON.stringify(tokenData).slice(0, 200)}` };
 
     // Query GA4 Data API for funnel events
     const propertyId = "433673281";
