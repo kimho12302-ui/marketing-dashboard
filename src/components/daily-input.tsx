@@ -128,13 +128,14 @@ function ManualAdInput({ channel, label, fields, onSave, date }: {
 }
 
 // ─── Data Status Panel ───
-function DataStatusPanel() {
+function DataStatusPanel({ refreshKey }: { refreshKey: number }) {
   const [sources, setSources] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
   const [refDate, setRefDate] = useState("");
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const loadStatus = () => {
+    setLoading(true);
     fetch("/api/data-status")
       .then(r => r.json())
       .then(d => {
@@ -144,7 +145,9 @@ function DataStatusPanel() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { loadStatus(); }, [refreshKey]);
 
   if (loading) return <div className="text-center text-xs text-gray-400 py-4">데이터 상태 로딩...</div>;
 
@@ -230,6 +233,8 @@ function DataStatusPanel() {
 export default function DailyInput() {
   const today = new Date().toISOString().slice(0, 10);
   const [completed, setCompleted] = useState<Set<number>>(new Set());
+  const [statusRefreshKey, setStatusRefreshKey] = useState(0);
+  const refreshStatus = () => setStatusRefreshKey(k => k + 1);
 
   useEffect(() => {
     const saved = localStorage.getItem("daily-input-" + today);
@@ -265,6 +270,7 @@ export default function DailyInput() {
         ? { message: `✅ ${data.dailyRows}일 광고비 ₩${formatCompact(data.totalSpend || 0)} / ROAS ${data.avgRoas}` }
         : data
       );
+      if (data.ok) refreshStatus();
     } catch { setCoupangAdsResult({ error: "업로드 실패" }); }
     setCoupangAdsUploading(false);
   };
@@ -279,6 +285,7 @@ export default function DailyInput() {
         ? { message: `✅ ${data.funnel}일 퍼널 + ${data.sales}일 매출 반영` }
         : data
       );
+      if (data.ok) refreshStatus();
     } catch { setCoupangDailyResult({ error: "업로드 실패" }); }
     setCoupangDailyUploading(false);
   };
@@ -296,6 +303,7 @@ export default function DailyInput() {
           message: `✅ ${data.items}개 상품 | 매핑 ${mappedCount}개 / 미매핑 ${unmappedCount}개`,
           items: data.itemSummary,
         });
+        refreshStatus();
       } else {
         setCoupangItemResult(data);
       }
@@ -315,6 +323,7 @@ export default function DailyInput() {
           .join(", ") : "";
         setSalesResult({ message: `✅ ${data.parsed}건 파싱 | ${brands} | 시트+DB 적재 완료` });
         toggle(6);
+        refreshStatus();
       } else {
         setSalesResult(data);
       }
@@ -344,7 +353,7 @@ export default function DailyInput() {
       }),
     });
     const result = await res.json();
-    if (res.ok) return { message: `✅ ${channel} ${date} 저장 완료` };
+    if (res.ok) { refreshStatus(); return { message: `✅ ${channel} ${date} 저장 완료` }; }
     return { error: result.error || "저장 실패" };
   };
 
@@ -356,7 +365,7 @@ export default function DailyInput() {
       body: JSON.stringify({ type: "misc_cost", data }),
     });
     const result = await res.json();
-    if (res.ok) return { message: `✅ 비용 저장 완료` };
+    if (res.ok) { refreshStatus(); return { message: `✅ 비용 저장 완료` }; }
     return { error: result.error || "저장 실패" };
   };
 
@@ -397,7 +406,7 @@ export default function DailyInput() {
       </Card>
 
       {/* Data Status Panel */}
-      <DataStatusPanel />
+      <DataStatusPanel refreshKey={statusRefreshKey} />
 
       {/* 1. 쿠팡 데이터 */}
       <Section num={1} emoji="🟠" title="쿠팡 데이터" desc="광고비 + 일별 퍼널 + 상품별 실적"
@@ -510,7 +519,7 @@ export default function DailyInput() {
               fetch("/api/sync-ads", { method: "POST", headers: {"Content-Type":"application/json"}, body: "{}" }),
             ]);
             toggle(7);
-            window.location.href = "/";
+            refreshStatus();
           }}
             className="px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700">
             🔄 싱크 후 대시보드 보기
