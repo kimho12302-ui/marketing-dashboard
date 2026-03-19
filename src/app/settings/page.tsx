@@ -5,6 +5,7 @@ import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompact } from "@/lib/utils";
 import SalesUpload from "@/components/sales-upload";
+import CoupangAdsUpload from "@/components/coupang-ads-upload";
 
 interface ProductCost {
   product: string;
@@ -401,7 +402,7 @@ function TargetsTab() {
 }
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<"daily" | "targets" | "costs" | "manual_ads" | "misc_costs" | "shipping" | "sales_upload" | "info">("daily");
+  const [activeTab, setActiveTab] = useState<"daily" | "targets" | "costs" | "manual_ads" | "misc_costs" | "shipping" | "sales_upload" | "coupang_ads" | "info">("daily");
   const [productCosts, setProductCosts] = useState<ProductCost[]>([]);
   const [productList, setProductList] = useState<{ product: string; brand: string; category: string; revenue: number; hasCost: boolean }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -686,6 +687,7 @@ export default function SettingsPage() {
             { key: "misc_costs" as const, label: "🧾 건별 비용" },
             { key: "shipping" as const, label: "📦 배송비" },
             { key: "sales_upload" as const, label: "📤 판매 업로드" },
+            { key: "coupang_ads" as const, label: "🟠 쿠팡 광고" },
             { key: "info" as const, label: "ℹ️ 데이터 소스" },
           ].map(tab => (
             <button key={tab.key}
@@ -1181,6 +1183,9 @@ export default function SettingsPage() {
 
         {/* Sales Upload Tab */}
         {activeTab === "sales_upload" && <SalesUpload />}
+
+        {/* Coupang Ads Upload Tab */}
+        {activeTab === "coupang_ads" && <CoupangAdsUpload />}
 
         {/* Data Source Info Tab */}
         {activeTab === "info" && (
