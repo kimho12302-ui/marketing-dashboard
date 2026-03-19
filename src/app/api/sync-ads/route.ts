@@ -107,7 +107,7 @@ async function syncGoogleAds(supabase: any, dateStr: string) {
     // Query Google Ads
     const query = `SELECT campaign.name, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date = '${dateStr}'`;
     const gaResp = await globalThis.fetch(
-      `https://googleads.googleapis.com/v17/customers/${customerId}/googleAds:searchStream`,
+      `https://googleads.googleapis.com/v19/customers/${customerId}/googleAds:searchStream`,
       {
         method: "POST",
         headers: {
@@ -118,7 +118,10 @@ async function syncGoogleAds(supabase: any, dateStr: string) {
         body: JSON.stringify({ query }),
       }
     );
-    const gaData = await gaResp.json();
+    const gaText = await gaResp.text();
+    let gaData;
+    try { gaData = JSON.parse(gaText); } catch { return { google: 0, error: `Parse error (${gaResp.status}): ${gaText.slice(0, 300)}` }; }
+    if (gaData?.error) return { google: 0, error: `API error: ${JSON.stringify(gaData.error).slice(0, 300)}` };
 
     let totalSpend = 0, totalImp = 0, totalClicks = 0, totalConv = 0, totalConvValue = 0;
     for (const result of gaData[0]?.results || []) {
