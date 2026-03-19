@@ -74,29 +74,36 @@ export default function AdsPage() {
   const [selectedCreative, setSelectedCreative] = useState<string | null>(null);
   const [creativeTrend, setCreativeTrend] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [crLoading, setCrLoading] = useState(true);
+  const [crPage, setCrPage] = useState(1);
+  const [crFilter, setCrFilter] = useState<"all" | "active" | "paused">("all");
+  const CR_PER_PAGE = 20;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    try {
-      const params = new URLSearchParams({ brand: filters.brand, from: filters.from, to: filters.to });
-      const res = await fetch(`/api/ads?${params}`);
-      if (!res.ok) throw new Error("fetch failed");
-      const data = await res.json();
+    setCrLoading(true);
+    const params = new URLSearchParams({ brand: filters.brand, from: filters.from, to: filters.to });
+
+    // Parallel: ads data + creatives
+    const adsPromise = fetch(`/api/ads?${params}`).then(r => r.ok ? r.json() : null).catch(() => null);
+    const crPromise = fetch(`/api/creatives?${params}`).then(r => r.ok ? r.json() : null).catch(() => null);
+
+    // Ads data first (fast)
+    const data = await adsPromise;
+    if (data) {
       setChannels(data.channels || []);
       setSpendTrend(data.spendTrend || []);
       setDailySpend(data.dailySpend || []);
       setWeeklySpend(data.weeklySpend || []);
       setMonthlySpend(data.monthlySpend || []);
       setCac(data.cac || 0);
-      // Fetch Meta creatives
-      try {
-        const crRes = await fetch(`/api/creatives?brand=${filters.brand}&from=${filters.from}&to=${filters.to}`);
-        if (crRes.ok) {
-          const crData = await crRes.json();
-          setCreatives(crData.creatives || []);
-        }
-      } catch { /* ignore */ }
-    } catch { /* ignore */ } finally { setLoading(false); }
+    }
+    setLoading(false);
+
+    // Creatives (slow — Meta API)
+    const crData = await crPromise;
+    if (crData) setCreatives(crData.creatives || []);
+    setCrLoading(false);
   }, [filters]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -338,12 +345,27 @@ export default function AdsPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>🎨 Meta 크리에이티브 성과 (퍼널별)</CardTitle>
-                  <span className="text-xs text-gray-400 dark:text-zinc-500">{creatives.filter(cr => cr.spend > 0).length}개 소재</span>
+                  <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400 dark:text-zinc-500">총 {creatives.length}개 소재 (지출 {creatives.filter(cr => cr.spend > 0).length}개)</span>
+                  <select value={crFilter} onChange={e => { setCrFilter(e.target.value as any); setCrPage(1); }}
+                    className="text-[10px] border border-gray-200 dark:border-zinc-700 rounded px-1 py-0.5 bg-white dark:bg-zinc-800">
+                    <option value="all">전체</option>
+                    <option value="active">활성만</option>
+                    <option value="paused">중지포함</option>
+                  </select>
+                </div>
                 </div>
               </CardHeader>
               <CardContent>
-                {creatives.length === 0 ? (
-                  <p className="text-sm text-gray-500 dark:text-zinc-500">Meta 크리에이티브 데이터를 불러오는 중이거나 데이터가 없습니다.</p>
+                {crLoading ? (
+                  <div className="flex items-center gap-2 py-4">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-500" />
+                    <p className="text-sm text-gray-500 dark:text-zinc-500">Meta 크리에이티브 로딩 중... (최대 10초)</p>
+                  </div>
+              ) : creatives.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-zinc-500">Meta 크리에이티브 데이터가 없습니다.</p>
+              ) : (
+                  <div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
@@ -363,7 +385,16 @@ export default function AdsPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {creatives.filter(cr => cr.spend > 0).map((cr) => (<>
+                        {(() => {
+                          const filtered = creatives.filter(cr => {
+                            if (crFilter === "active") return cr.status === "ACTIVE" && cr.spend > 0;
+                            if (crFilter === "paused") return cr.spend > 0;
+                            return cr.spend > 0;
+                          });
+                          const totalPages = Math.ceil(filtered.length / CR_PER_PAGE);
+                          const paginated = filtered.slice((crPage - 1) * CR_PER_PAGE, crPage * CR_PER_PAGE);
+                          return paginated;
+                        })().map((cr) => (<>
                           <tr key={cr.id} onClick={() => handleCreativeClick(cr.id)} className={`border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 cursor-pointer ${cr.status !== "ACTIVE" ? "opacity-50" : ""} ${selectedCreative === cr.id ? "bg-indigo-50 dark:bg-indigo-900/10" : ""}`}>
                             <td className="py-2 px-2 max-w-[200px]">
                               <div className="flex items-center gap-2">
@@ -424,7 +455,30 @@ export default function AdsPage() {
                       </tbody>
                     </table>
                   </div>
-                )}
+                  {/* Pagination */}
+                  {(() => {
+                    const filtered = creatives.filter(cr => {
+                      if (crFilter === "active") return cr.status === "ACTIVE" && cr.spend > 0;
+                      return cr.spend > 0;
+                    });
+                    const totalPages = Math.ceil(filtered.length / CR_PER_PAGE);
+                    if (totalPages <= 1) return null;
+                    return (
+                      <div className="flex items-center justify-center gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-zinc-800">
+                        <button onClick={() => setCrPage(p => Math.max(1, p - 1))} disabled={crPage === 1}
+                          className="text-xs px-2 py-1 rounded border border-gray-200 dark:border-zinc-700 disabled:opacity-30 hover:bg-gray-50 dark:hover:bg-zinc-800">
+                          ← 이전
+                        </button>
+                        <span className="text-xs text-gray-500 dark:text-zinc-400">{crPage} / {totalPages}</span>
+                        <button onClick={() => setCrPage(p => Math.min(totalPages, p + 1))} disabled={crPage === totalPages}
+                          className="text-xs px-2 py-1 rounded border border-gray-200 dark:border-zinc-700 disabled:opacity-30 hover:bg-gray-50 dark:hover:bg-zinc-800">
+                          다음 →
+                        </button>
+                      </div>
+                    );
+                  })()}
+                  </div>
+              )}
               </CardContent>
             </Card>
           </>

@@ -47,6 +47,10 @@ async function fetchAllPages(initialUrl: string): Promise<any[]> {
   return all;
 }
 
+// Simple in-memory cache (survives across requests within same serverless invocation)
+let cache: { key: string; data: any; ts: number } | null = null;
+const CACHE_TTL = 10 * 60 * 1000; // 10 min
+
 export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams;
   const brand = sp.get("brand") || "all";
@@ -55,6 +59,11 @@ export async function GET(request: NextRequest) {
 
   if (!META_TOKEN) {
     return NextResponse.json({ creatives: [], error: "META_ADS_TOKEN not configured" });
+  }
+
+  const cacheKey = `${brand}|${from}|${to}`;
+  if (cache && cache.key === cacheKey && Date.now() - cache.ts < CACHE_TTL) {
+    return NextResponse.json(cache.data);
   }
 
   try {
@@ -145,7 +154,9 @@ export async function GET(request: NextRequest) {
     // Sort by spend descending
     allCreatives.sort((a, b) => b.spend - a.spend);
 
-    return NextResponse.json({ creatives: allCreatives });
+    const result = { creatives: allCreatives, total: allCreatives.length };
+    cache = { key: cacheKey, data: result, ts: Date.now() };
+    return NextResponse.json(result);
   } catch (error) {
     console.error("Creatives API error:", error);
     return NextResponse.json({ creatives: [], error: "Failed to fetch creatives" });
