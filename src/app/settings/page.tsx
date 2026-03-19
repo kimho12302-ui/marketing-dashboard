@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompact } from "@/lib/utils";
+import SalesUpload from "@/components/sales-upload";
 
 interface ProductCost {
   product: string;
@@ -400,7 +401,7 @@ function TargetsTab() {
 }
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<"daily" | "targets" | "costs" | "manual_ads" | "misc_costs" | "shipping" | "info">("daily");
+  const [activeTab, setActiveTab] = useState<"daily" | "targets" | "costs" | "manual_ads" | "misc_costs" | "shipping" | "sales_upload" | "info">("daily");
   const [productCosts, setProductCosts] = useState<ProductCost[]>([]);
   const [productList, setProductList] = useState<{ product: string; brand: string; category: string; revenue: number; hasCost: boolean }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -684,6 +685,7 @@ export default function SettingsPage() {
             { key: "manual_ads" as const, label: "📢 수동 광고비" },
             { key: "misc_costs" as const, label: "🧾 건별 비용" },
             { key: "shipping" as const, label: "📦 배송비" },
+            { key: "sales_upload" as const, label: "📤 판매 업로드" },
             { key: "info" as const, label: "ℹ️ 데이터 소스" },
           ].map(tab => (
             <button key={tab.key}
@@ -1176,6 +1178,9 @@ export default function SettingsPage() {
             </Card>
           </div>
         )}
+
+        {/* Sales Upload Tab */}
+        {activeTab === "sales_upload" && <SalesUpload />}
 
         {/* Data Source Info Tab */}
         {activeTab === "info" && (
