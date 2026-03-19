@@ -28,11 +28,15 @@ async function syncSales(sheets: any, supabase: any) {
 
   // Row 0 = empty, Row 1 = headers, Row 2+ = data
   const headers = rows[1] || rows[0];
-  const dateIdx = headers.findIndex((h: string) => /날짜|date/i.test(h));
-  const revenueIdx = headers.findIndex((h: string) => /매출|revenue|합계/i.test(h));
-  const ordersIdx = headers.findIndex((h: string) => /주문|orders|건수/i.test(h));
+  const dateIdx = headers.findIndex((h: string) => /날짜|date|주문일시/i.test(h));
+  const revenueIdx = headers.findIndex((h: string) => /^매출$|revenue|합계/i.test(h));
+  const ordersIdx = headers.findIndex((h: string) => /수량|주문|orders|건수/i.test(h));
+  const buyersIdx = headers.findIndex((h: string) => /구매자|buyers/i.test(h));
   const brandIdx = headers.findIndex((h: string) => /브랜드|brand/i.test(h));
-  const channelIdx = headers.findIndex((h: string) => /채널|channel/i.test(h));
+  const channelIdx = headers.findIndex((h: string) => /판매처|채널|channel/i.test(h));
+  const categoryIdx = headers.findIndex((h: string) => /카테고리|category/i.test(h));
+  const productIdx = headers.findIndex((h: string) => /제품|product/i.test(h));
+  const lineupIdx = headers.findIndex((h: string) => /라인업|lineup/i.test(h));
 
   let count = 0;
   const batch: any[] = [];
@@ -42,7 +46,7 @@ async function syncSales(sheets: any, supabase: any) {
     if (!row || !row[dateIdx]) continue;
 
     // Parse Korean date like "3월 15일 (일)" or ISO format
-    let dateStr = row[dateIdx];
+    let dateStr = String(row[dateIdx] || "");
     const korMatch = dateStr.match(/(\d+)월\s*(\d+)일/);
     if (korMatch) {
       const m = parseInt(korMatch[1]);
@@ -50,11 +54,24 @@ async function syncSales(sheets: any, supabase: any) {
       const y = m >= 7 ? 2025 : 2026;
       dateStr = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     }
+    if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) continue;
 
-    const revenue = parseFloat(String(row[revenueIdx] || "0").replace(/[,원]/g, "")) || 0;
-    const orders = parseInt(String(row[ordersIdx] || "0").replace(/[,건]/g, "")) || 0;
-    const brand = row[brandIdx] || "all";
-    const channel = row[channelIdx] || "all";
+    const revenue = parseFloat(String(row[revenueIdx] || "0").replace(/[,원\s]/g, "")) || 0;
+    const orders = parseInt(String(row[ordersIdx] || "0").replace(/[,건\s]/g, "")) || 0;
+
+    const CHANNEL_MAP: Record<string, string> = {
+      "스마트스토어": "smartstore", "카페24": "cafe24", "쿠팡": "coupang",
+      "에이블리": "ably", "피피": "peepee", "펫프렌즈": "petfriends",
+    };
+    const rawChannel = channelIdx >= 0 ? String(row[channelIdx] || "").trim() : "all";
+    const channel = CHANNEL_MAP[rawChannel] || rawChannel || "all";
+
+    const BRAND_MAP: Record<string, string> = {
+      "너티": "nutty", "아이언펫": "ironpet", "파미나": "saip", "닥터레이": "saip",
+      "공동구매": "balancelab",
+    };
+    const rawBrand = brandIdx >= 0 ? String(row[brandIdx] || "").trim() : "all";
+    const brand = BRAND_MAP[rawBrand] || rawBrand || "all";
 
     if (revenue > 0 || orders > 0) {
       batch.push({
@@ -68,16 +85,33 @@ async function syncSales(sheets: any, supabase: any) {
     }
   }
 
-  // Upsert to daily_sales (deduplicate)
-  const seen = new Set<string>();
-  const deduped = [];
+  // Aggregate by date+brand+channel
+  const aggMap = new Map<string, { date: string; brand: string; channel: string; revenue: number; orders: number }>();
   for (const r of batch) {
     const key = `${r.date}|${r.brand}|${r.channel}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      deduped.push(r);
+    const existing = aggMap.get(key);
+    if (existing) {
+      existing.revenue += r.revenue;
+      existing.orders += r.orders;
+    } else {
+      aggMap.set(key, { ...r });
     }
   }
+  const deduped = Array.from(aggMap.values());
+
+  // Also create "all" brand aggregation per date+channel
+  const allBrandMap = new Map<string, { date: string; brand: string; channel: string; revenue: number; orders: number }>();
+  for (const r of deduped) {
+    const key = `${r.date}|all|${r.channel}`;
+    const existing = allBrandMap.get(key);
+    if (existing) {
+      existing.revenue += r.revenue;
+      existing.orders += r.orders;
+    } else {
+      allBrandMap.set(key, { date: r.date, brand: "all", channel: r.channel, revenue: r.revenue, orders: r.orders });
+    }
+  }
+  deduped.push(...Array.from(allBrandMap.values()));
 
   if (deduped.length > 0) {
     // Batch upsert in chunks of 500
@@ -174,80 +208,84 @@ async function syncFunnel(sheets: any, supabase: any) {
 }
 
 async function syncProductSales(sheets: any, supabase: any) {
-  const SALES_SHEET_ID = "1YT3_RMO8XJYVxf3i7kzb50cVGPU5fMChhqGCRaa6NTw";
-  let count = 0;
+  // Use same Stats sheet Sales tab — it has product-level data
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: STATS_SHEET_ID,
+    range: "Sales!A1:K10000",
+  });
+  const rows = res.data.values || [];
+  if (rows.length < 3) return { productSales: 0 };
 
-  try {
-    // Get all sheet tabs
-    const meta = await sheets.spreadsheets.get({ spreadsheetId: SALES_SHEET_ID, fields: "sheets.properties.title" });
-    const tabNames = meta.data.sheets.map((s: any) => s.properties.title);
+  const headers = rows[1] || rows[0];
+  const dateIdx = headers.findIndex((h: string) => /날짜|date|주문일시/i.test(h));
+  const channelIdx = headers.findIndex((h: string) => /판매처|채널|channel/i.test(h));
+  const brandIdx = headers.findIndex((h: string) => /브랜드|brand/i.test(h));
+  const productIdx = headers.findIndex((h: string) => /제품|product/i.test(h));
+  const qtyIdx = headers.findIndex((h: string) => /수량|qty/i.test(h));
+  const revenueIdx = headers.findIndex((h: string) => /^매출$|revenue/i.test(h));
+  const buyersIdx = headers.findIndex((h: string) => /구매자|buyers/i.test(h));
 
-    const CHANNEL_MAP: Record<string, string> = {
-      "카페24": "cafe24", "스마트스토어": "smartstore", "쿠팡": "coupang",
-      "에이블리": "ably", "피피": "peepee", "펫프렌즈": "petfriends",
-    };
+  const CHANNEL_MAP: Record<string, string> = {
+    "스마트스토어": "smartstore", "카페24": "cafe24", "쿠팡": "coupang",
+    "에이블리": "ably", "피피": "peepee", "펫프렌즈": "petfriends",
+  };
+  const BRAND_MAP: Record<string, string> = {
+    "너티": "nutty", "아이언펫": "ironpet", "파미나": "saip", "닥터레이": "saip",
+    "공동구매": "balancelab",
+  };
 
-    const batch: any[] = [];
+  const batch: any[] = [];
+  for (let i = 2; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || !row[dateIdx]) continue;
 
-    for (const tab of tabNames) {
-      const channel = CHANNEL_MAP[tab];
-      if (!channel) continue;
-
-      const res = await sheets.spreadsheets.values.get({
-        spreadsheetId: SALES_SHEET_ID,
-        range: `'${tab}'!A1:Z5000`,
-      });
-      const rows = res.data.values || [];
-      if (rows.length < 2) continue;
-
-      const headers = rows[0];
-      const dateCol = headers.findIndex((h: string) => /날짜|date/i.test(h));
-      const productCol = headers.findIndex((h: string) => /상품|product|품명/i.test(h));
-      const revenueCol = headers.findIndex((h: string) => /매출|금액|revenue/i.test(h));
-      const qtyCol = headers.findIndex((h: string) => /수량|qty|quantity/i.test(h));
-      const brandCol = headers.findIndex((h: string) => /브랜드|brand/i.test(h));
-
-      for (let i = 1; i < rows.length; i++) {
-        const row = rows[i];
-        if (!row || !row[dateCol]) continue;
-        const revenue = parseFloat(String(row[revenueCol] || "0").replace(/[,원]/g, "")) || 0;
-        const qty = parseInt(String(row[qtyCol] || "0").replace(/[,개건]/g, "")) || 0;
-        if (revenue === 0 && qty === 0) continue;
-
-        batch.push({
-          date: row[dateCol],
-          channel,
-          product: row[productCol] || "unknown",
-          brand: row[brandCol] || "unknown",
-          revenue,
-          quantity: qty,
-        });
-        count++;
-      }
+    let dateStr = String(row[dateIdx] || "");
+    const korMatch = dateStr.match(/(\d+)월\s*(\d+)일/);
+    if (korMatch) {
+      const m = parseInt(korMatch[1]);
+      const d = parseInt(korMatch[2]);
+      const y = m >= 7 ? 2025 : 2026;
+      dateStr = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     }
+    if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) continue;
 
-    const seen = new Set<string>();
-    const deduped = [];
-    for (const r of batch) {
-      const key = `${r.date}|${r.channel}|${r.product}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        deduped.push(r);
-      }
+    const rawChannel = channelIdx >= 0 ? String(row[channelIdx] || "").trim() : "all";
+    const channel = CHANNEL_MAP[rawChannel] || rawChannel || "all";
+    const rawBrand = brandIdx >= 0 ? String(row[brandIdx] || "").trim() : "unknown";
+    const brand = BRAND_MAP[rawBrand] || rawBrand || "unknown";
+    const product = productIdx >= 0 ? String(row[productIdx] || "unknown").trim() : "unknown";
+    const revenue = parseFloat(String(row[revenueIdx] || "0").replace(/[,원\s]/g, "")) || 0;
+    const quantity = parseInt(String(row[qtyIdx] || "0").replace(/[,건\s]/g, "")) || 0;
+    const buyers = buyersIdx >= 0 ? parseInt(String(row[buyersIdx] || "0").replace(/[,\s]/g, "")) || 0 : 0;
+
+    if (revenue > 0 || quantity > 0) {
+      batch.push({ date: dateStr, channel, product, brand, revenue, quantity, buyers });
     }
-
-    if (deduped.length > 0) {
-      for (let i = 0; i < deduped.length; i += 500) {
-        const chunk = deduped.slice(i, i + 500);
-        await supabase.from("product_sales").upsert(chunk, { onConflict: "date,channel,product" });
-      }
-    }
-
-    return { productSales: deduped.length };
-  } catch (e) {
-    console.error("Product sales sync error:", e);
-    return { productSales: 0, error: String(e) };
   }
+
+  // Aggregate by date+channel+product
+  const aggMap = new Map<string, any>();
+  for (const r of batch) {
+    const key = `${r.date}|${r.channel}|${r.product}`;
+    const ex = aggMap.get(key);
+    if (ex) {
+      ex.revenue += r.revenue;
+      ex.quantity += r.quantity;
+      ex.buyers += r.buyers;
+    } else {
+      aggMap.set(key, { ...r });
+    }
+  }
+  const deduped = Array.from(aggMap.values());
+
+  if (deduped.length > 0) {
+    for (let i = 0; i < deduped.length; i += 500) {
+      const chunk = deduped.slice(i, i + 500);
+      await supabase.from("product_sales").upsert(chunk, { onConflict: "date,channel,product" });
+    }
+  }
+
+  return { productSales: deduped.length };
 }
 
 export async function POST(request: NextRequest) {
