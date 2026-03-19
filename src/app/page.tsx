@@ -8,6 +8,7 @@ import KPICards from "@/components/kpi-cards";
 import AnomalyBanner from "@/components/anomaly-banner";
 import MissingDataAlert from "@/components/missing-data-alert";
 import ExportReport from "@/components/export-report";
+import SyncButton from "@/components/sync-button";
 import TrendChart from "@/components/trend-chart";
 import ChannelChart from "@/components/channel-chart";
 import BrandCompareChart from "@/components/brand-compare-chart";
@@ -379,7 +380,10 @@ export default function OverviewPage() {
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
         <div className="flex items-center justify-between">
           <PageHeader title="📊 Overview" subtitle="Executive Summary" />
-          <ExportReport targetId="overview-content" filename="PPMI-Overview" />
+          <div className="flex items-center gap-2">
+            <SyncButton onComplete={() => fetchData()} />
+            <ExportReport targetId="overview-content" filename="PPMI-Overview" />
+          </div>
         </div>
         <Filters filters={filters} onChange={setFilters} />
 
