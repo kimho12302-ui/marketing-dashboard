@@ -134,6 +134,105 @@ function ManualAdInput({ channel, label, fields, onSave }: {
   );
 }
 
+// ─── Data Status Panel ───
+function DataStatusPanel() {
+  const [sources, setSources] = useState<any[]>([]);
+  const [summary, setSummary] = useState<any>(null);
+  const [refDate, setRefDate] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/data-status")
+      .then(r => r.json())
+      .then(d => {
+        setSources(d.sources || []);
+        setSummary(d.summary || {});
+        setRefDate(d.referenceDate || "");
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="text-center text-xs text-gray-400 py-4">데이터 상태 로딩...</div>;
+
+  const autoSources = sources.filter(s => s.type === "auto");
+  const manualSources = sources.filter(s => s.type === "manual");
+
+  const formatDate = (d: string | null) => {
+    if (!d) return "없음";
+    const parts = d.split("-");
+    return `${parseInt(parts[1])}/${parseInt(parts[2])}`;
+  };
+
+  return (
+    <div className="mb-6 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 overflow-hidden">
+      {/* Summary bar */}
+      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-zinc-800/50 border-b border-gray-100 dark:border-zinc-700">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-gray-700 dark:text-zinc-200">📡 데이터 수집 현황</span>
+          <span className="text-[11px] text-gray-400">기준: {refDate}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {summary?.ok > 0 && (
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+              ✅ {summary.ok}
+            </span>
+          )}
+          {summary?.stale > 0 && (
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+              ❌ {summary.stale}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="p-4 space-y-3">
+        {/* Auto sources */}
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-2 font-semibold">🔄 자동 수집 (API)</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {autoSources.map(s => (
+              <div key={s.id} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs ${s.ok
+                ? "bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800"
+                : "bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800"
+              }`}>
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s.ok ? "bg-green-500" : "bg-red-500 animate-pulse"}`} />
+                <div className="min-w-0">
+                  <p className={`font-medium truncate ${s.ok ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
+                    {s.label}
+                  </p>
+                  <p className="text-[10px] text-gray-400">{formatDate(s.latestDate)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Manual sources */}
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-2 font-semibold">✍️ 수기 입력</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {manualSources.map(s => (
+              <div key={s.id} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs ${s.ok
+                ? "bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800"
+                : "bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800"
+              }`}>
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s.ok ? "bg-green-500" : "bg-red-500 animate-pulse"}`} />
+                <div className="min-w-0">
+                  <p className={`font-medium truncate ${s.ok ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
+                    {s.label}
+                  </p>
+                  <p className="text-[10px] text-gray-400">{formatDate(s.latestDate)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main DailyInput ───
 export default function DailyInput() {
   const today = new Date().toISOString().slice(0, 10);
@@ -291,6 +390,9 @@ export default function DailyInput() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Data Status Panel */}
+      <DataStatusPanel />
 
       {/* 1. 쿠팡 데이터 */}
       <Section num={1} emoji="🟠" title="쿠팡 데이터" desc="광고비 + 일별 퍼널 + 상품별 실적"
