@@ -29,25 +29,9 @@ function getDefaultDates() {
 
 interface ProductRow { product: string; revenue: number; quantity: number; buyers: number; }
 
-type QuadrantFilter = "all" | "product" | "channel" | "campaign";
+type QuadrantFilter = "all" | "channel";
 
-const SCATTER_DATA = [
-  { name: "사운드 냠단호박", cacIndex: 25, roasIndex: 85, spend: 4200000, type: "product", channel: "meta", campaign: "Spring_Sale" },
-  { name: "사운드 바삭닭가슴살", cacIndex: 30, roasIndex: 78, spend: 3800000, type: "product", channel: "meta", campaign: "Spring_Sale" },
-  { name: "하루루틴", cacIndex: 45, roasIndex: 62, spend: 2500000, type: "product", channel: "naver_search", campaign: "Brand_KW" },
-  { name: "영양분석 키트(반려견)", cacIndex: 72, roasIndex: 55, spend: 5200000, type: "product", channel: "naver_shopping", campaign: "Shopping_Main" },
-  { name: "영양분석 키트(반려묘)", cacIndex: 80, roasIndex: 35, spend: 3100000, type: "product", channel: "naver_shopping", campaign: "Shopping_Cat" },
-  { name: "메타 광고", cacIndex: 35, roasIndex: 72, spend: 8500000, type: "channel", channel: "meta", campaign: "All_Meta" },
-  { name: "네이버 검색", cacIndex: 42, roasIndex: 68, spend: 6200000, type: "channel", channel: "naver_search", campaign: "All_Naver" },
-  { name: "네이버 쇼핑", cacIndex: 65, roasIndex: 45, spend: 4800000, type: "channel", channel: "naver_shopping", campaign: "All_Shopping" },
-  { name: "구글 검색", cacIndex: 38, roasIndex: 58, spend: 2800000, type: "channel", channel: "google_search", campaign: "All_Google" },
-  { name: "GDN", cacIndex: 85, roasIndex: 22, spend: 1500000, type: "channel", channel: "gdn", campaign: "All_GDN" },
-  { name: "Spring_Sale", cacIndex: 28, roasIndex: 82, spend: 7000000, type: "campaign", channel: "meta", campaign: "Spring_Sale" },
-  { name: "Brand_KW", cacIndex: 40, roasIndex: 65, spend: 4500000, type: "campaign", channel: "naver_search", campaign: "Brand_KW" },
-  { name: "Shopping_Main", cacIndex: 58, roasIndex: 48, spend: 3200000, type: "campaign", channel: "naver_shopping", campaign: "Shopping_Main" },
-  { name: "Retarget_Meta", cacIndex: 20, roasIndex: 90, spend: 2200000, type: "campaign", channel: "meta", campaign: "Retarget_Meta" },
-  { name: "GDN_Display", cacIndex: 88, roasIndex: 18, spend: 1200000, type: "campaign", channel: "gdn", campaign: "GDN_Display" },
-];
+// Scatter data will be built from channel ad data (dynamic)
 
 function getQuadrantColor(cacIndex: number, roasIndex: number): string {
   if (cacIndex <= 50 && roasIndex > 50) return "#22c55e";
@@ -76,18 +60,18 @@ export default function SalesPage() {
   const [gongguSales, setGongguSales] = useState<GongguSeller[]>([]);
   const [gongguSalesTotal, setGongguSalesTotal] = useState(0);
   const [selfSalesTotal, setSelfSalesTotal] = useState(0);
-
-  const filteredScatter = SCATTER_DATA.filter(d => quadrantFilter === "all" || d.type === quadrantFilter);
+  const [channelAds, setChannelAds] = useState<{ channel: string; spend: number; conversions: number; roas: number }[]>([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ brand: filters.brand, from: filters.from, to: filters.to });
-      const [res, dashRes] = await Promise.all([
+      const [res, dashRes, adsRes] = await Promise.all([
         fetch(`/api/product-sales?${params}`),
         (filters.brand === "balancelab" || filters.brand === "all")
           ? fetch(`/api/dashboard?brand=${filters.brand}&from=${filters.from}&to=${filters.to}`)
           : Promise.resolve(null),
+        fetch(`/api/ads?${params}`),
       ]);
       if (!res.ok) throw new Error("fetch failed");
       const data = await res.json();
@@ -112,10 +96,48 @@ export default function SalesPage() {
         setGongguSalesTotal(0);
         setSelfSalesTotal(0);
       }
+      if (adsRes && adsRes.ok) {
+        const adsData = await adsRes.json();
+        setChannelAds((adsData.channels || []).map((c: any) => ({
+          channel: c.channel,
+          spend: c.spend,
+          conversions: c.conversions,
+          roas: c.roas,
+        })));
+      }
     } catch { /* ignore */ } finally { setLoading(false); }
   }, [filters]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Build scatter data from actual channel ads data
+  const scatterData = useMemo(() => {
+    if (channelAds.length === 0) return [];
+    const CH_LABELS: Record<string, string> = {
+      meta: "Meta", naver_search: "네이버검색", naver_shopping: "네이버쇼핑",
+      google_search: "구글검색", "ga4_Performance Max": "P-Max", "ga4_Search": "Google검색(GA4)",
+      coupang: "쿠팡광고", gfa: "GFA",
+    };
+    // Normalize: CAC index (0-100) and ROAS index (0-100)
+    const withCac = channelAds.filter(c => c.spend > 0).map(c => ({
+      channel: c.channel,
+      name: CH_LABELS[c.channel] || c.channel,
+      spend: c.spend,
+      cac: c.conversions > 0 ? c.spend / c.conversions : c.spend,
+      roas: c.roas,
+      type: "channel" as const,
+    }));
+    if (withCac.length === 0) return [];
+    const maxCac = Math.max(...withCac.map(c => c.cac));
+    const maxRoas = Math.max(...withCac.map(c => c.roas));
+    return withCac.map(c => ({
+      ...c,
+      cacIndex: maxCac > 0 ? Math.round((c.cac / maxCac) * 100) : 50,
+      roasIndex: maxRoas > 0 ? Math.round((c.roas / maxRoas) * 100) : 50,
+    }));
+  }, [channelAds]);
+
+  const filteredScatter = quadrantFilter === "all" ? scatterData : scatterData.filter(d => d.type === quadrantFilter);
 
   const trendChannels = useMemo(() => {
     if (channelTrend.length === 0) return [];
@@ -428,21 +450,9 @@ export default function SalesPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>📊 CAC vs ROAS 4분면 분석</CardTitle>
-                  <div className="flex gap-1">
-                    {(["all", "product", "channel", "campaign"] as QuadrantFilter[]).map(f => (
-                      <button
-                        key={f}
-                        onClick={() => setQuadrantFilter(f)}
-                        className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
-                          quadrantFilter === f
-                            ? "bg-indigo-600 text-white"
-                            : "bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:bg-gray-200 dark:hover:bg-zinc-700"
-                        }`}
-                      >
-                        {f === "all" ? "전체" : f === "product" ? "상품" : f === "channel" ? "채널" : "캠페인"}
-                      </button>
-                    ))}
-                  </div>
+                  {scatterData.length === 0 && (
+                    <span className="text-xs text-gray-400 dark:text-zinc-500">광고 데이터가 있으면 채널별 CAC/ROAS가 표시됩니다</span>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
