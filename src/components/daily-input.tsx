@@ -278,11 +278,11 @@ export default function DailyInput() {
   const uploadCoupangDaily = async (file: File) => {
     setCoupangDailyUploading(true); setCoupangDailyResult(null);
     try {
-      const form = new FormData(); form.append("file", file); form.append("type", "daily");
+      const form = new FormData(); form.append("file", file); form.append("type", "daily"); form.append("date", selectedDate);
       const res = await fetch("/api/upload-coupang-funnel", { method: "POST", body: form });
       const data = await res.json();
       setCoupangDailyResult(data.ok
-        ? { message: `✅ ${data.funnel}일 퍼널 + ${data.sales}일 매출 반영` }
+        ? { message: `✅ ${data.funnel}일 퍼널 + ${data.sales}일 매출 반영 (${selectedDate})` }
         : data
       );
       if (data.ok) refreshStatus();
@@ -293,7 +293,7 @@ export default function DailyInput() {
   const uploadCoupangItem = async (file: File) => {
     setCoupangItemUploading(true); setCoupangItemResult(null);
     try {
-      const form = new FormData(); form.append("file", file); form.append("type", "item");
+      const form = new FormData(); form.append("file", file); form.append("type", "item"); form.append("date", selectedDate);
       const res = await fetch("/api/upload-coupang-funnel", { method: "POST", body: form });
       const data = await res.json();
       if (data.ok) {

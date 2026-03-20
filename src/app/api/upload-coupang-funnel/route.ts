@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("file") as File;
     const fileType = formData.get("type") as string; // "daily" or "item"
+    const selectedDate = formData.get("date") as string; // YYYY-MM-DD (UI 날짜 선택)
     if (!file) return NextResponse.json({ error: "No file" }, { status: 400 });
 
     const buffer = await file.arrayBuffer();
@@ -50,51 +51,76 @@ export async function POST(request: NextRequest) {
     if (fileType === "daily" || colMap["방문자"] !== undefined) {
       const dateCol = colMap["날짜"] ?? -1;
       const visitorsCol = colMap["방문자"] ?? -1;
-      const viewsCol = colMap["조회"] ?? -1;
+      const viewsCol = colMap["조회"] ?? colMap["노출"] ?? -1;
       const cartCol = colMap["장바구니"] ?? -1;
       const ordersCol = colMap["주문"] ?? -1;
       const convRateCol = colMap["구매전환율"] ?? -1;
       const salesQtyCol = colMap["판매량"] ?? -1;
-      const revenueCol = colMap["매출(원)"] ?? -1;
+      const revenueCol = colMap["매출(원)"] ?? colMap["매출"] ?? -1;
 
-      if (dateCol < 0) return NextResponse.json({ error: "날짜 컬럼 없음" }, { status: 400 });
+      // 날짜 컬럼이 없으면 UI에서 선택한 날짜 사용
+      if (dateCol < 0 && !selectedDate) {
+        return NextResponse.json({ error: "날짜 컬럼이 없습니다. 상단에서 날짜를 선택해주세요." }, { status: 400 });
+      }
 
       const funnelRows: any[] = [];
       const salesRows: any[] = [];
 
-      for (let i = 1; i < allData.length; i++) {
-        const row = allData[i];
-        if (!row || !row[dateCol]) continue;
+      // 날짜 컬럼이 있으면 각 행에서 읽고, 없으면 전체를 합산해서 selectedDate로 저장
+      if (dateCol >= 0) {
+        // 기존: 행마다 날짜
+        for (let i = 1; i < allData.length; i++) {
+          const row = allData[i];
+          if (!row || !row[dateCol]) continue;
 
-        const dateStr = String(row[dateCol]).slice(0, 10);
-        if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) continue;
+          const dateStr = String(row[dateCol]).slice(0, 10);
+          if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) continue;
 
-        const visitors = Number(row[visitorsCol] || 0);
-        const views = Number(row[viewsCol] || 0);
-        const cart = Number(row[cartCol] || 0);
-        const orders = Number(row[ordersCol] || 0);
-        const revenue = Number(String(row[revenueCol] || "0").replace(/,/g, ""));
+          const visitors = Number(row[visitorsCol] || 0);
+          const views = Number(row[viewsCol] || 0);
+          const cart = Number(row[cartCol] || 0);
+          const orders = Number(row[ordersCol] || 0);
+          const revenue = Number(String(row[revenueCol] || "0").replace(/,/g, ""));
 
-        // Funnel data
+          funnelRows.push({
+            date: dateStr,
+            brand: "coupang",
+            sessions: visitors,
+            impressions: views,
+            cart_adds: cart,
+            purchases: orders,
+            repurchases: 0,
+          });
+
+          if (revenue > 0) {
+            salesRows.push({ date: dateStr, brand: "nutty", channel: "coupang", revenue, orders });
+          }
+        }
+      } else {
+        // 날짜 컬럼 없음: 전체 행 합산 → selectedDate로 저장
+        let totalVisitors = 0, totalViews = 0, totalCart = 0, totalOrders = 0, totalRevenue = 0;
+        for (let i = 1; i < allData.length; i++) {
+          const row = allData[i];
+          if (!row) continue;
+          totalVisitors += Number(row[visitorsCol] || 0);
+          totalViews += Number(row[viewsCol] || 0);
+          totalCart += Number(row[cartCol] || 0);
+          totalOrders += Number(row[ordersCol] || 0);
+          totalRevenue += Number(String(row[revenueCol] || "0").replace(/,/g, ""));
+        }
+
         funnelRows.push({
-          date: dateStr,
+          date: selectedDate,
           brand: "coupang",
-          sessions: visitors,
-          impressions: views,
-          cart_adds: cart,
-          purchases: orders,
+          sessions: totalVisitors,
+          impressions: totalViews,
+          cart_adds: totalCart,
+          purchases: totalOrders,
           repurchases: 0,
         });
 
-        // Sales data (for daily_sales)
-        if (revenue > 0) {
-          salesRows.push({
-            date: dateStr,
-            brand: "nutty", // 쿠팡은 현재 너티만
-            channel: "coupang",
-            revenue,
-            orders,
-          });
+        if (totalRevenue > 0) {
+          salesRows.push({ date: selectedDate, brand: "nutty", channel: "coupang", revenue: totalRevenue, orders: totalOrders });
         }
       }
 
