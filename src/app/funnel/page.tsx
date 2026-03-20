@@ -15,11 +15,6 @@ import {
 
 const FUNNEL_COLORS = ["#6366f1", "#818cf8", "#a78bfa", "#22c55e", "#14b8a6"];
 
-function getDefaultDates() {
-  const to = new Date(); const from = new Date(); from.setDate(from.getDate() - 30);
-  return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
-}
-
 interface TrendPoint { date: string; sessions: number; cart_adds: number; purchases: number; }
 
 export default function FunnelPage() {

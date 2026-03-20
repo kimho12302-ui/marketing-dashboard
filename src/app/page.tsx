@@ -21,11 +21,16 @@ import {
   PieChart, Pie, LineChart, Line,
 } from "recharts";
 
+function fmtKST(d: Date): string {
+  const kst = new Date(d.getTime() + (9 * 60 - d.getTimezoneOffset()) * 60000);
+  return kst.toISOString().slice(0, 10);
+}
+
 function getDefaultDates() {
   const to = new Date();
   const from = new Date();
   from.setDate(from.getDate() - 30);
-  return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
+  return { from: fmtKST(from), to: fmtKST(to) };
 }
 
 const defaultKPI: KPIData = {
@@ -78,6 +83,7 @@ export default function OverviewPage() {
   const [gongguSalesTotal, setGongguSalesTotal] = useState(0);
   const [selfSalesTotal, setSelfSalesTotal] = useState(0);
   const [gongguTargets, setGongguTargets] = useState<{ seller: string; target: number; note: string }[]>([]);
+  const [lastFetched, setLastFetched] = useState<string>("");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -113,6 +119,7 @@ export default function OverviewPage() {
         const adsData = await adsRes.json();
         setAdsChannels((adsData.channels || []).map((c: any) => ({ channel: c.channel, spend: c.spend, conversionValue: c.conversionValue })));
       }
+      setLastFetched(new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "알 수 없는 오류");
     } finally { setLoading(false); }
@@ -394,7 +401,14 @@ export default function OverviewPage() {
             <ExportReport targetId="overview-content" filename="PPMI-Overview" />
           </div>
         </div>
-        <Filters filters={filters} onChange={setFilters} />
+        <div className="flex items-center justify-between gap-4">
+          <Filters filters={filters} onChange={setFilters} />
+          {lastFetched && (
+            <span className="text-[10px] text-gray-400 dark:text-zinc-500 whitespace-nowrap flex-shrink-0">
+              마지막 조회: {lastFetched}
+            </span>
+          )}
+        </div>
 
         {error && (
           <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 text-red-600 dark:text-red-400 text-sm">{error}</div>

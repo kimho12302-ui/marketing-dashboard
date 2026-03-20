@@ -16,11 +16,6 @@ const PLATFORM_LABELS: Record<string, string> = {
   naver_search: "네이버검색", naver_shopping: "네이버쇼핑", google_search: "구글검색",
 };
 
-function getDefaultDates() {
-  const to = new Date(); const from = new Date(); from.setDate(from.getDate() - 30);
-  return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
-}
-
 export default function KeywordsPage() {
   const chartTheme = useChartTheme();
   const { filters, setFilters } = useFilters();
