@@ -10,6 +10,7 @@ const META_TOKEN = process.env.META_ADS_TOKEN || "";
 const META_ACCOUNTS: Record<string, string> = {
   nutty: process.env.META_NUTTY_AD_ACCOUNT || "act_1510647003433200",
   ironpet: process.env.META_IRONPET_AD_ACCOUNT || "act_8188388757843816",
+  balancelab: process.env.META_BALANCELAB_AD_ACCOUNT || "act_276181463299827",
 };
 
 async function syncMetaAds(supabase: any, dateStr: string) {
