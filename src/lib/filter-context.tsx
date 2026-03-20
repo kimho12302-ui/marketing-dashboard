@@ -3,11 +3,16 @@
 import { createContext, useContext, useState, ReactNode } from "react";
 import type { DashboardFilters } from "@/lib/types";
 
+function fmtKST(d: Date): string {
+  const kst = new Date(d.getTime() + (9 * 60 - d.getTimezoneOffset()) * 60000);
+  return kst.toISOString().slice(0, 10);
+}
+
 function getDefaultDates() {
   const to = new Date();
   const from = new Date();
   from.setDate(from.getDate() - 30);
-  return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
+  return { from: fmtKST(from), to: fmtKST(to) };
 }
 
 const defaults = getDefaultDates();

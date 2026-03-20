@@ -48,21 +48,26 @@ export async function POST(request: NextRequest) {
     const file = formData.get("file") as File;
     if (!file) return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
 
+    // User-provided date (from batch upload or form)
+    const userDate = formData.get("date") as string | null;
+
     // Read Excel
     const buffer = await file.arrayBuffer();
     const wb = XLSX.read(buffer, { type: "array", cellDates: true });
 
     // Find 판매정리 sheet
     // Extract date from filename: 판매입력_260319 → 2026-03-19
-    let fileDate = "";
-    const fnMatch = file.name.match(/(\d{6})/);
-    if (fnMatch) {
-      const digits = fnMatch[1]; // e.g. "260319"
-      const yy = parseInt(digits.slice(0, 2), 10);
-      const mm = digits.slice(2, 4);
-      const dd = digits.slice(4, 6);
-      const year = yy >= 70 ? 1900 + yy : 2000 + yy;
-      fileDate = `${year}-${mm}-${dd}`;
+    let fileDate = userDate || "";
+    if (!fileDate) {
+      const fnMatch = file.name.match(/(\d{6})/);
+      if (fnMatch) {
+        const digits = fnMatch[1]; // e.g. "260319"
+        const yy = parseInt(digits.slice(0, 2), 10);
+        const mm = digits.slice(2, 4);
+        const dd = digits.slice(4, 6);
+        const year = yy >= 70 ? 1900 + yy : 2000 + yy;
+        fileDate = `${year}-${mm}-${dd}`;
+      }
     }
 
     const sheetName = wb.SheetNames.find(n => n.includes("판매정리"));

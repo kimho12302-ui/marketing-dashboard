@@ -23,9 +23,15 @@ const QUICK_OPTIONS: { value: QuickRange; label: string }[] = [
   { value: "lastMonth", label: "지난달" },
 ];
 
+function fmtKST(d: Date): string {
+  // Format date in KST (UTC+9) to avoid timezone issues
+  const kst = new Date(d.getTime() + (9 * 60 - d.getTimezoneOffset()) * 60000);
+  return kst.toISOString().slice(0, 10);
+}
+
 function getQuickRange(range: QuickRange) {
   const today = new Date();
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  const fmt = fmtKST;
 
   switch (range) {
     case "today":
@@ -64,7 +70,7 @@ const BRAND_OPTIONS: { value: Brand; label: string }[] = [
 
 function getDateRange(period: Period) {
   const today = new Date();
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  const fmt = fmtKST;
 
   if (period === "daily") {
     const yesterday = new Date(today);
