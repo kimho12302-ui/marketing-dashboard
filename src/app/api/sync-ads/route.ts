@@ -56,20 +56,7 @@ async function syncMetaAds(supabase: any, dateStr: string) {
     }
   }
 
-  // Also create "all" brand aggregation
-  const allRow = rows.reduce((acc, r) => ({
-    date: dateStr, channel: "meta", brand: "all",
-    spend: acc.spend + r.spend,
-    impressions: acc.impressions + r.impressions,
-    clicks: acc.clicks + r.clicks,
-    conversions: acc.conversions + r.conversions,
-    conversion_value: acc.conversion_value + r.conversion_value,
-    roas: 0,
-  }), { spend: 0, impressions: 0, clicks: 0, conversions: 0, conversion_value: 0 });
-  if (allRow.spend > 0) {
-    allRow.roas = allRow.conversion_value / allRow.spend;
-    rows.push(allRow);
-  }
+  // No "all" aggregation — brand-level rows only
 
   if (rows.length > 0) {
     const { error } = await supabase.from("daily_ad_spend").upsert(rows, { onConflict: "date,channel,brand" });
@@ -219,7 +206,7 @@ async function syncGA4Funnel(supabase: any, dateStr: string) {
     const metrics = r.metricValues || [];
     const funnelRow = {
       date: dateStr,
-      brand: "all",
+      brand: "cafe24",  // GA4 funnel = cafe24 자사몰 기준
       impressions: Number(metrics[1]?.value || 0), // pageViews as impressions proxy
       sessions: Number(metrics[0]?.value || 0),
       cart_adds: Number(metrics[2]?.value || 0),
