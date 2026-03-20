@@ -463,44 +463,11 @@ export default function DailyInput() {
 
           <hr className="border-gray-100 dark:border-zinc-800" />
 
-          {/* 1-B: 일별 퍼널 (배치) */}
+          {/* 1-B: 일별 퍼널 */}
           <div>
-            <p className="text-xs font-medium text-gray-700 dark:text-zinc-300 mb-2">📈 일별 퍼널 <span className="text-gray-400 font-normal">— 셀러인사이트 → Daily Summary (날짜별 파일)</span></p>
-            <div className="space-y-2">
-              {dailyBatch.map(row => (
-                <div key={row.id} className="flex items-center gap-2">
-                  <input type="date" value={row.date} onChange={e => updateBatchRow(setDailyBatch, row.id, { date: e.target.value })}
-                    className="text-xs border rounded px-2 py-1 bg-white dark:bg-zinc-800 dark:border-zinc-600 w-36" disabled={row.status !== "pending"} />
-                  <label className="flex-1 text-xs border rounded px-2 py-1.5 bg-gray-50 dark:bg-zinc-800 dark:border-zinc-600 cursor-pointer truncate hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors">
-                    <input type="file" accept=".xlsx,.xls,.csv" className="hidden"
-                      onChange={e => { if (e.target.files?.[0]) updateBatchRow(setDailyBatch, row.id, { file: e.target.files[0] }); }}
-                      disabled={row.status !== "pending"} />
-                    {row.file ? row.file.name : "파일 선택..."}
-                  </label>
-                  {row.status === "pending" && (
-                    <button onClick={() => removeBatchRow(setDailyBatch, row.id)} className="text-gray-400 hover:text-red-500 text-sm px-1">✕</button>
-                  )}
-                  {row.status === "uploading" && <span className="text-xs text-blue-500 animate-pulse">⏳</span>}
-                  {row.status === "done" && <span className="text-xs text-green-500" title={row.result}>✅</span>}
-                  {row.status === "error" && <span className="text-xs text-red-500" title={row.result}>❌</span>}
-                </div>
-              ))}
-              <div className="flex gap-2">
-                <button onClick={() => addBatchRow(setDailyBatch, selectedDate)}
-                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">+ 날짜 추가</button>
-                {dailyBatch.some(r => r.file && r.status === "pending") && (
-                  <button onClick={() => uploadBatch(dailyBatch, setDailyBatch, "daily")}
-                    className="text-xs px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700">
-                    한번에 업로드 ({dailyBatch.filter(r => r.file && r.status === "pending").length}개)
-                  </button>
-                )}
-              </div>
-              {dailyBatch.some(r => r.result) && (
-                <div className="text-[11px] text-gray-500 space-y-0.5">
-                  {dailyBatch.filter(r => r.result).map(r => <div key={r.id}>{r.result}</div>)}
-                </div>
-              )}
-            </div>
+            <p className="text-xs font-medium text-gray-700 dark:text-zinc-300 mb-2">📈 일별 퍼널 <span className="text-gray-400 font-normal">— 셀러인사이트 → Daily Summary</span></p>
+            <FileZone label="SELLER_INSIGHTS_DAILY_SUMMARY(.xlsx)" uploading={coupangDailyUploading} onFile={uploadCoupangDaily} />
+            <ResultBox result={coupangDailyResult} />
           </div>
 
           <hr className="border-gray-100 dark:border-zinc-800" />
