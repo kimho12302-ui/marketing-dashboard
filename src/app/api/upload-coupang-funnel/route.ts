@@ -92,9 +92,7 @@ export async function POST(request: NextRequest) {
             repurchases: 0,
           });
 
-          if (revenue > 0) {
-            salesRows.push({ date: dateStr, brand: "nutty", channel: "coupang", revenue, orders });
-          }
+          // Sales now comes from 이카운트 판매입력 only (no duplicate)
         }
       } else {
         // 날짜 컬럼 없음: 전체 행 합산 → selectedDate로 저장
@@ -119,9 +117,7 @@ export async function POST(request: NextRequest) {
           repurchases: 0,
         });
 
-        if (totalRevenue > 0) {
-          salesRows.push({ date: selectedDate, brand: "nutty", channel: "coupang", revenue: totalRevenue, orders: totalOrders });
-        }
+        // Sales now comes from 이카운트 판매입력 only (no duplicate)
       }
 
       // Upsert funnel
@@ -130,11 +126,7 @@ export async function POST(request: NextRequest) {
         if (error) result.funnelError = error.message;
       }
 
-      // Upsert sales
-      if (salesRows.length > 0) {
-        const { error } = await supabase.from("daily_sales").upsert(salesRows, { onConflict: "date,brand,channel" });
-        if (error) result.salesError = error.message;
-      }
+      // Sales removed — 이카운트 판매입력 is the single source
 
       result.type = "daily";
       result.funnel = funnelRows.length;
