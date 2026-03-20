@@ -78,72 +78,108 @@ function ResultBox({ result }: { result: any }) {
   );
 }
 
-// ─── Manual ad spend input ───
+// ─── Manual ad spend input (batch style) ───
+let _manualRowId = 0;
+type ManualRow = { id: number; date: string; values: Record<string, string>; status: "pending" | "saving" | "done" | "error"; result?: string };
+
 function ManualAdInput({ channel, label, fields, onSave, date }: {
   channel: string; label: string; date: string;
   fields: { key: string; label: string; placeholder: string; type?: string; options?: string[] }[];
   onSave: (data: any) => Promise<any>;
 }) {
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [localDate, setLocalDate] = useState(date);
-  const [saving, setSaving] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const makeRow = (d: string): ManualRow => ({ id: ++_manualRowId, date: d, values: {}, status: "pending" });
+  const [rows, setRows] = useState<ManualRow[]>([makeRow(date)]);
 
-  // Sync with parent date when it changes
-  useEffect(() => { setLocalDate(date); }, [date]);
+  const updateRow = (id: number, patch: Partial<ManualRow>) => {
+    setRows(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
+  };
+  const updateRowValue = (id: number, key: string, val: string) => {
+    setRows(prev => prev.map(r => r.id === id ? { ...r, values: { ...r.values, [key]: val } } : r));
+  };
+  const removeRow = (id: number) => setRows(prev => prev.filter(r => r.id !== id));
 
-  const handleSave = async () => {
-    setSaving(true);
-    setResult(null);
-    try {
-      const parsed: Record<string, any> = {};
-      for (const f of fields) {
-        if (f.type === "select" || f.type === "text") {
-          parsed[f.key] = values[f.key] || "";
-        } else {
-          parsed[f.key] = Number(values[f.key] || 0);
+  const handleSaveAll = async () => {
+    for (const row of rows) {
+      if (row.status === "done") continue;
+      updateRow(row.id, { status: "saving" });
+      try {
+        const parsed: Record<string, any> = {};
+        for (const f of fields) {
+          if (f.type === "select" || f.type === "text") {
+            parsed[f.key] = row.values[f.key] || "";
+          } else {
+            parsed[f.key] = Number(row.values[f.key] || 0);
+          }
         }
+        const res = await onSave({ date: row.date, channel, ...parsed });
+        if (res.error) {
+          updateRow(row.id, { status: "error", result: res.error });
+        } else {
+          updateRow(row.id, { status: "done", result: res.message || "완료" });
+        }
+      } catch {
+        updateRow(row.id, { status: "error", result: "저장 실패" });
       }
-      const res = await onSave({ date: localDate, channel, ...parsed });
-      setResult(res);
-      if (!res.error) setValues({});
-    } catch {
-      setResult({ error: "저장 실패" });
     }
-    setSaving(false);
   };
 
+  // Header labels
+  const fieldLabels = (
+    <div className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-zinc-500 mb-1 px-0.5">
+      <span className="w-28 shrink-0">날짜</span>
+      {fields.map(f => <span key={f.key} className="flex-1 min-w-0 truncate">{f.label}</span>)}
+      <span className="w-6 shrink-0"></span>
+    </div>
+  );
+
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2 mb-1">
-        <label className="text-[11px] text-gray-500 dark:text-zinc-400">📅 날짜</label>
-        <input type="date" value={localDate} onChange={e => setLocalDate(e.target.value)}
-          className="text-xs border rounded px-2 py-1 bg-white dark:bg-zinc-800 dark:border-zinc-600" />
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        {fields.map(f => (
-          <div key={f.key}>
-            <label className="text-[11px] text-gray-500 dark:text-zinc-400">{f.label}</label>
-            {f.type === "select" && f.options ? (
-              <select value={values[f.key] || ""} onChange={e => setValues(prev => ({ ...prev, [f.key]: e.target.value }))}
-                className="w-full text-sm border rounded px-2 py-1.5 bg-white dark:bg-zinc-800 dark:border-zinc-600">
-                <option value="">선택</option>
+    <div className="space-y-2">
+      {fieldLabels}
+      {rows.map(row => (
+        <div key={row.id} className="flex items-center gap-1">
+          <input type="date" value={row.date} onChange={e => updateRow(row.id, { date: e.target.value })}
+            className="text-xs border rounded px-1.5 py-1 bg-white dark:bg-zinc-800 dark:border-zinc-600 w-28 shrink-0"
+            disabled={row.status !== "pending"} />
+          {fields.map(f => (
+            f.type === "select" && f.options ? (
+              <select key={f.key} value={row.values[f.key] || ""} onChange={e => updateRowValue(row.id, f.key, e.target.value)}
+                className="flex-1 min-w-0 text-xs border rounded px-1 py-1 bg-white dark:bg-zinc-800 dark:border-zinc-600"
+                disabled={row.status !== "pending"}>
+                <option value="">{f.placeholder || "선택"}</option>
                 {f.options.map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             ) : (
-            <input type={f.type || "number"} placeholder={f.placeholder}
-              value={values[f.key] || ""}
-              onChange={e => setValues(prev => ({ ...prev, [f.key]: e.target.value }))}
-              className="w-full text-sm border rounded px-2 py-1.5 bg-white dark:bg-zinc-800 dark:border-zinc-600" />
+              <input key={f.key} type={f.type || "number"} placeholder={f.placeholder}
+                value={row.values[f.key] || ""} onChange={e => updateRowValue(row.id, f.key, e.target.value)}
+                className="flex-1 min-w-0 text-xs border rounded px-1.5 py-1 bg-white dark:bg-zinc-800 dark:border-zinc-600"
+                disabled={row.status !== "pending"} />
+            )
+          ))}
+          <div className="w-6 shrink-0 flex items-center justify-center">
+            {row.status === "pending" && (
+              <button onClick={() => removeRow(row.id)} className="text-gray-400 hover:text-red-500 text-sm">✕</button>
             )}
+            {row.status === "saving" && <span className="text-xs text-blue-500 animate-pulse">⏳</span>}
+            {row.status === "done" && <span className="text-xs text-green-500" title={row.result}>✅</span>}
+            {row.status === "error" && <span className="text-xs text-red-500" title={row.result}>❌</span>}
           </div>
-        ))}
+        </div>
+      ))}
+      <div className="flex gap-2">
+        <button onClick={() => setRows(prev => [...prev, makeRow(date)])}
+          className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">+ 날짜 추가</button>
+        {rows.some(r => r.status === "pending") && (
+          <button onClick={handleSaveAll}
+            className="text-xs px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+            한번에 저장 ({rows.filter(r => r.status === "pending").length}건)
+          </button>
+        )}
       </div>
-      <button onClick={handleSave} disabled={saving}
-        className="px-4 py-1.5 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 disabled:opacity-50">
-        {saving ? "저장 중..." : "저장"}
-      </button>
-      <ResultBox result={result} />
+      {rows.some(r => r.result) && (
+        <div className="text-[11px] text-gray-500 space-y-0.5">
+          {rows.filter(r => r.result).map(r => <div key={r.id}>{r.result}</div>)}
+        </div>
+      )}
     </div>
   );
 }
