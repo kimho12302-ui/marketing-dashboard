@@ -44,7 +44,7 @@ export async function GET() {
     const { data: googleLatest } = await supabase
       .from("daily_ad_spend")
       .select("date")
-      .like("channel", "ga4_%")
+      .eq("channel", "google_ads")
       .order("date", { ascending: false })
       .limit(1);
     const googleDate = googleLatest?.[0]?.date || null;
