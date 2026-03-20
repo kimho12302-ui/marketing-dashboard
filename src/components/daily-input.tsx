@@ -266,6 +266,19 @@ export default function DailyInput() {
   const [influencerBatch, setInfluencerBatch] = useState<BatchRow[]>([]);
   const batchIdRef = useRef(0);
 
+  // Auto-populate batch rows with missing dates
+  useEffect(() => {
+    fetch("/api/missing-dates?days=7")
+      .then(r => r.json())
+      .then((missing: Record<string, string[]>) => {
+        const makeBatch = (dates: string[]) => dates.map(d => ({ id: ++batchIdRef.current, date: d, file: null, status: "pending" as const }));
+        if (missing.coupang_item?.length) setItemBatch(makeBatch(missing.coupang_item));
+        if (missing.gfa?.length) setGfaBatch(makeBatch(missing.gfa));
+        if (missing.influencer?.length) setInfluencerBatch(makeBatch(missing.influencer));
+      })
+      .catch(() => {});
+  }, []);
+
   const addBatchRow = (setter: React.Dispatch<React.SetStateAction<BatchRow[]>>, defaultDate: string) => {
     setter(prev => [...prev, { id: ++batchIdRef.current, date: defaultDate, file: null, status: "pending" }]);
   };
