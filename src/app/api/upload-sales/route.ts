@@ -232,22 +232,20 @@ export async function POST(request: NextRequest) {
 
     // Write to Stats sheet Sales tab
     const salesSheetRows = rows.map(r => {
-      const monthStr = (() => {
-        const d = new Date(r.date);
-        const y = String(d.getFullYear()).slice(2);
-        return `${y}년${d.getMonth() + 1}월`;
-      })();
-      const dayStr = (() => {
-        const d = new Date(r.date);
-        const days = ["일", "월", "화", "수", "목", "금", "토"];
-        return `${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
-      })();
+      // A열, B열: 날짜를 시트 날짜 값으로 (Google Sheets는 =DATE() 또는 날짜 문자열)
+      const d = new Date(r.date);
+      const dateSerial = r.date; // USER_ENTERED로 yyyy-mm-dd 넣으면 날짜로 인식됨
+
       const plInfo = productListMap.get(r.productCode) || {};
       const brandKor: Record<string, string> = {
         "nutty": "너티", "ironpet": "아이언펫", "saip": plInfo.brand || "사입", "balancelab": "밸런스랩",
       };
+      const channelKor: Record<string, string> = {
+        "cafe24": "카페24", "smartstore": "스마트스토어", "coupang": "쿠팡", "pp": "피피", "ably": "에이블리", "petfriends": "펫프렌즈",
+      };
       return [
-        monthStr, dayStr, r.channel === "cafe24" ? "카페24" : r.channel === "smartstore" ? "스마트스토어" : r.channel === "coupang" ? "쿠팡" : r.channel,
+        dateSerial, dateSerial,
+        channelKor[r.channel] || r.channel,
         r.category, brandKor[r.brand] || plInfo.brand || r.brand,
         r.lineup, r.product, r.quantity, 1, r.revenue, r.revenue,
       ];
@@ -255,14 +253,133 @@ export async function POST(request: NextRequest) {
 
     if (salesSheetRows.length > 0) {
       try {
-        // Append to Sales tab
-        await sheets.spreadsheets.values.append({
+        const SALES_SHEET_ID = 405001148;
+        const rowCount = salesSheetRows.length;
+
+        // 1) Row 3부터 빈 행 삽입
+        await sheets.spreadsheets.batchUpdate({
           spreadsheetId: STATS_SHEET_ID,
-          range: "Sales!A3",
+          requestBody: {
+            requests: [{
+              insertDimension: {
+                range: {
+                  sheetId: SALES_SHEET_ID,
+                  dimension: "ROWS",
+                  startIndex: 2, // 0-indexed: row 3
+                  endIndex: 2 + rowCount,
+                },
+                inheritFromBefore: false,
+              },
+            }],
+          },
+        });
+
+        // 2) 데이터 쓰기
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: STATS_SHEET_ID,
+          range: `Sales!A3:K${2 + rowCount}`,
           valueInputOption: "USER_ENTERED",
-          insertDataOption: "INSERT_ROWS",
           requestBody: { values: salesSheetRows },
         });
+
+        // 3) 서식 + 드롭다운 적용
+        const formatRequests: any[] = [];
+
+        // 드롭다운: C열(판매처) = ONE_OF_LIST
+        formatRequests.push({
+          setDataValidation: {
+            range: { sheetId: SALES_SHEET_ID, startRowIndex: 2, endRowIndex: 2 + rowCount, startColumnIndex: 2, endColumnIndex: 3 },
+            rule: {
+              condition: { type: "ONE_OF_LIST", values: [
+                { userEnteredValue: "스마트스토어" }, { userEnteredValue: "카페24" },
+                { userEnteredValue: "쿠팡" }, { userEnteredValue: "피피" },
+                { userEnteredValue: "에이블리" }, { userEnteredValue: "펫프렌즈" },
+              ]},
+              strict: true, showCustomUi: true,
+            },
+          },
+        });
+
+        // 드롭다운: D열(카테고리) = 상품 목록 B열
+        formatRequests.push({
+          setDataValidation: {
+            range: { sheetId: SALES_SHEET_ID, startRowIndex: 2, endRowIndex: 2 + rowCount, startColumnIndex: 3, endColumnIndex: 4 },
+            rule: {
+              condition: { type: "ONE_OF_RANGE", values: [{ userEnteredValue: "='상품 목록'!$B$4:$B" }] },
+              strict: true, showCustomUi: true,
+            },
+          },
+        });
+
+        // 드롭다운: E열(브랜드명) = 상품 목록 C열
+        formatRequests.push({
+          setDataValidation: {
+            range: { sheetId: SALES_SHEET_ID, startRowIndex: 2, endRowIndex: 2 + rowCount, startColumnIndex: 4, endColumnIndex: 5 },
+            rule: {
+              condition: { type: "ONE_OF_RANGE", values: [{ userEnteredValue: "='상품 목록'!$C$4:$C" }] },
+              strict: true, showCustomUi: true,
+            },
+          },
+        });
+
+        // 드롭다운: F열(라인업) = 상품 목록 D열
+        formatRequests.push({
+          setDataValidation: {
+            range: { sheetId: SALES_SHEET_ID, startRowIndex: 2, endRowIndex: 2 + rowCount, startColumnIndex: 5, endColumnIndex: 6 },
+            rule: {
+              condition: { type: "ONE_OF_RANGE", values: [{ userEnteredValue: "='상품 목록'!$D$4:$D" }] },
+              strict: true, showCustomUi: true,
+            },
+          },
+        });
+
+        // 서식: 전체 행 — Arial, 가운데 정렬
+        formatRequests.push({
+          repeatCell: {
+            range: { sheetId: SALES_SHEET_ID, startRowIndex: 2, endRowIndex: 2 + rowCount, startColumnIndex: 0, endColumnIndex: 11 },
+            cell: {
+              userEnteredFormat: {
+                horizontalAlignment: "CENTER",
+                verticalAlignment: "BOTTOM",
+                textFormat: { fontFamily: "Arial" },
+              },
+            },
+            fields: "userEnteredFormat(horizontalAlignment,verticalAlignment,textFormat.fontFamily)",
+          },
+        });
+
+        // A열 날짜 포맷: yy"년"m"월"
+        formatRequests.push({
+          repeatCell: {
+            range: { sheetId: SALES_SHEET_ID, startRowIndex: 2, endRowIndex: 2 + rowCount, startColumnIndex: 0, endColumnIndex: 1 },
+            cell: { userEnteredFormat: { numberFormat: { type: "DATE", pattern: "yy\"년\"m\"월\"" } } },
+            fields: "userEnteredFormat.numberFormat",
+          },
+        });
+
+        // B열 날짜 포맷: mmmm" "d"일 ("ddd")"
+        formatRequests.push({
+          repeatCell: {
+            range: { sheetId: SALES_SHEET_ID, startRowIndex: 2, endRowIndex: 2 + rowCount, startColumnIndex: 1, endColumnIndex: 2 },
+            cell: { userEnteredFormat: { numberFormat: { type: "DATE", pattern: "m\"월 \"d\"일 (\"ddd\")\"" } } },
+            fields: "userEnteredFormat.numberFormat",
+          },
+        });
+
+        // J,K열 숫자 포맷: #,##0
+        formatRequests.push({
+          repeatCell: {
+            range: { sheetId: SALES_SHEET_ID, startRowIndex: 2, endRowIndex: 2 + rowCount, startColumnIndex: 9, endColumnIndex: 11 },
+            cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "#,##0" } } },
+            fields: "userEnteredFormat.numberFormat",
+          },
+        });
+
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId: STATS_SHEET_ID,
+          requestBody: { requests: formatRequests },
+        });
+
         dbResults.sheetAppended = salesSheetRows.length;
       } catch (e) {
         dbResults.sheetError = String(e);
