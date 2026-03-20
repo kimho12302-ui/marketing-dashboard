@@ -257,6 +257,48 @@ export default function DailyInput() {
   const [coupangDailyUploading, setCoupangDailyUploading] = useState(false);
   const [coupangItemResult, setCoupangItemResult] = useState<any>(null);
   const [coupangItemUploading, setCoupangItemUploading] = useState(false);
+
+  // Batch upload state for coupang daily & item
+  type BatchRow = { id: number; date: string; file: File | null; status: "pending" | "uploading" | "done" | "error"; result?: string };
+  const [dailyBatch, setDailyBatch] = useState<BatchRow[]>([]);
+  const [itemBatch, setItemBatch] = useState<BatchRow[]>([]);
+  const batchIdRef = useRef(0);
+
+  const addBatchRow = (setter: React.Dispatch<React.SetStateAction<BatchRow[]>>, defaultDate: string) => {
+    setter(prev => [...prev, { id: ++batchIdRef.current, date: defaultDate, file: null, status: "pending" }]);
+  };
+  const removeBatchRow = (setter: React.Dispatch<React.SetStateAction<BatchRow[]>>, id: number) => {
+    setter(prev => prev.filter(r => r.id !== id));
+  };
+  const updateBatchRow = (setter: React.Dispatch<React.SetStateAction<BatchRow[]>>, id: number, patch: Partial<BatchRow>) => {
+    setter(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
+  };
+
+  const uploadBatch = async (batch: BatchRow[], setter: React.Dispatch<React.SetStateAction<BatchRow[]>>, type: "daily" | "item") => {
+    for (const row of batch) {
+      if (!row.file || row.status === "done") continue;
+      updateBatchRow(setter, row.id, { status: "uploading" });
+      try {
+        const form = new FormData();
+        form.append("file", row.file);
+        form.append("type", type);
+        form.append("date", row.date);
+        const res = await fetch("/api/upload-coupang-funnel", { method: "POST", body: form });
+        const data = await res.json();
+        if (data.ok) {
+          const msg = type === "daily"
+            ? `✅ ${row.date} 퍼널 ${data.funnel}건`
+            : `✅ ${row.date} 상품 ${data.items}개`;
+          updateBatchRow(setter, row.id, { status: "done", result: msg });
+        } else {
+          updateBatchRow(setter, row.id, { status: "error", result: data.error || "실패" });
+        }
+      } catch {
+        updateBatchRow(setter, row.id, { status: "error", result: "업로드 실패" });
+      }
+    }
+    refreshStatus();
+  };
   const [salesResult, setSalesResult] = useState<any>(null);
   const [salesUploading, setSalesUploading] = useState(false);
 
@@ -421,31 +463,86 @@ export default function DailyInput() {
 
           <hr className="border-gray-100 dark:border-zinc-800" />
 
-          {/* 1-B: 일별 퍼널 */}
+          {/* 1-B: 일별 퍼널 (배치) */}
           <div>
-            <p className="text-xs font-medium text-gray-700 dark:text-zinc-300 mb-2">📈 일별 퍼널 <span className="text-gray-400 font-normal">— 셀러인사이트 → Daily Summary</span></p>
-            <FileZone label="SELLER_INSIGHTS_DAILY_SUMMARY(.xlsx)" uploading={coupangDailyUploading} onFile={uploadCoupangDaily} />
-            <ResultBox result={coupangDailyResult} />
+            <p className="text-xs font-medium text-gray-700 dark:text-zinc-300 mb-2">📈 일별 퍼널 <span className="text-gray-400 font-normal">— 셀러인사이트 → Daily Summary (날짜별 파일)</span></p>
+            <div className="space-y-2">
+              {dailyBatch.map(row => (
+                <div key={row.id} className="flex items-center gap-2">
+                  <input type="date" value={row.date} onChange={e => updateBatchRow(setDailyBatch, row.id, { date: e.target.value })}
+                    className="text-xs border rounded px-2 py-1 bg-white dark:bg-zinc-800 dark:border-zinc-600 w-36" disabled={row.status !== "pending"} />
+                  <label className="flex-1 text-xs border rounded px-2 py-1.5 bg-gray-50 dark:bg-zinc-800 dark:border-zinc-600 cursor-pointer truncate hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors">
+                    <input type="file" accept=".xlsx,.xls,.csv" className="hidden"
+                      onChange={e => { if (e.target.files?.[0]) updateBatchRow(setDailyBatch, row.id, { file: e.target.files[0] }); }}
+                      disabled={row.status !== "pending"} />
+                    {row.file ? row.file.name : "파일 선택..."}
+                  </label>
+                  {row.status === "pending" && (
+                    <button onClick={() => removeBatchRow(setDailyBatch, row.id)} className="text-gray-400 hover:text-red-500 text-sm px-1">✕</button>
+                  )}
+                  {row.status === "uploading" && <span className="text-xs text-blue-500 animate-pulse">⏳</span>}
+                  {row.status === "done" && <span className="text-xs text-green-500" title={row.result}>✅</span>}
+                  {row.status === "error" && <span className="text-xs text-red-500" title={row.result}>❌</span>}
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <button onClick={() => addBatchRow(setDailyBatch, selectedDate)}
+                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">+ 날짜 추가</button>
+                {dailyBatch.some(r => r.file && r.status === "pending") && (
+                  <button onClick={() => uploadBatch(dailyBatch, setDailyBatch, "daily")}
+                    className="text-xs px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+                    한번에 업로드 ({dailyBatch.filter(r => r.file && r.status === "pending").length}개)
+                  </button>
+                )}
+              </div>
+              {dailyBatch.some(r => r.result) && (
+                <div className="text-[11px] text-gray-500 space-y-0.5">
+                  {dailyBatch.filter(r => r.result).map(r => <div key={r.id}>{r.result}</div>)}
+                </div>
+              )}
+            </div>
           </div>
 
           <hr className="border-gray-100 dark:border-zinc-800" />
 
-          {/* 1-C: 상품별 실적 */}
+          {/* 1-C: 상품별 실적 (배치) */}
           <div>
-            <p className="text-xs font-medium text-gray-700 dark:text-zinc-300 mb-2">🏷️ 상품별 실적 <span className="text-gray-400 font-normal">— 셀러인사이트 → Vendor Item Metrics</span></p>
-            <FileZone label="SELLER_INSIGHTS_VENDOR_ITEM(.xlsx)" uploading={coupangItemUploading} onFile={uploadCoupangItem} />
-            <ResultBox result={coupangItemResult} />
-            {coupangItemResult?.items && (
-              <div className="mt-2 text-[11px] space-y-1">
-                {coupangItemResult.items.map((item: any, i: number) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <span className={item.mapped ? "text-green-500" : "text-yellow-500"}>{item.mapped ? "✓" : "?"}</span>
-                    <span className="truncate flex-1">{item.name}</span>
-                    <span className="text-gray-400">₩{formatCompact(item.revenue)}</span>
-                  </div>
-                ))}
+            <p className="text-xs font-medium text-gray-700 dark:text-zinc-300 mb-2">🏷️ 상품별 실적 <span className="text-gray-400 font-normal">— 셀러인사이트 → Vendor Item Metrics (날짜별 파일)</span></p>
+            <div className="space-y-2">
+              {itemBatch.map(row => (
+                <div key={row.id} className="flex items-center gap-2">
+                  <input type="date" value={row.date} onChange={e => updateBatchRow(setItemBatch, row.id, { date: e.target.value })}
+                    className="text-xs border rounded px-2 py-1 bg-white dark:bg-zinc-800 dark:border-zinc-600 w-36" disabled={row.status !== "pending"} />
+                  <label className="flex-1 text-xs border rounded px-2 py-1.5 bg-gray-50 dark:bg-zinc-800 dark:border-zinc-600 cursor-pointer truncate hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors">
+                    <input type="file" accept=".xlsx,.xls,.csv" className="hidden"
+                      onChange={e => { if (e.target.files?.[0]) updateBatchRow(setItemBatch, row.id, { file: e.target.files[0] }); }}
+                      disabled={row.status !== "pending"} />
+                    {row.file ? row.file.name : "파일 선택..."}
+                  </label>
+                  {row.status === "pending" && (
+                    <button onClick={() => removeBatchRow(setItemBatch, row.id)} className="text-gray-400 hover:text-red-500 text-sm px-1">✕</button>
+                  )}
+                  {row.status === "uploading" && <span className="text-xs text-blue-500 animate-pulse">⏳</span>}
+                  {row.status === "done" && <span className="text-xs text-green-500" title={row.result}>✅</span>}
+                  {row.status === "error" && <span className="text-xs text-red-500" title={row.result}>❌</span>}
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <button onClick={() => addBatchRow(setItemBatch, selectedDate)}
+                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">+ 날짜 추가</button>
+                {itemBatch.some(r => r.file && r.status === "pending") && (
+                  <button onClick={() => uploadBatch(itemBatch, setItemBatch, "item")}
+                    className="text-xs px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+                    한번에 업로드 ({itemBatch.filter(r => r.file && r.status === "pending").length}개)
+                  </button>
+                )}
               </div>
-            )}
+              {itemBatch.some(r => r.result) && (
+                <div className="text-[11px] text-gray-500 space-y-0.5">
+                  {itemBatch.filter(r => r.result).map(r => <div key={r.id}>{r.result}</div>)}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </Section>
