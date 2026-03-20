@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
     const dbRows = Array.from(dailyAgg.entries()).map(([date, d]) => ({
       date,
       channel: "coupang_ads",
-      brand: "all",
+      brand: "nutty",
       spend: Math.round(d.spend),
       impressions: d.impressions,
       clicks: d.clicks,

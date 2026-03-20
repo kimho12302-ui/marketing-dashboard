@@ -135,7 +135,7 @@ async function syncGoogleAds(supabase: any, dateStr: string) {
 
     if (totalSpend > 0) {
       const row = {
-        date: dateStr, channel: "google_ads", brand: "all",
+        date: dateStr, channel: "google_ads", brand: "nutty",
         spend: Math.round(totalSpend), impressions: totalImp, clicks: totalClicks,
         conversions: Math.round(totalConv), conversion_value: Math.round(totalConvValue),
         roas: totalSpend > 0 ? totalConvValue / totalSpend : 0,
