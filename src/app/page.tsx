@@ -74,6 +74,10 @@ export default function OverviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [adsChannels, setAdsChannels] = useState<{ channel: string; spend: number; conversionValue: number }[]>([]);
   const [targets, setTargets] = useState<Record<string, number>>({});
+  const [gongguSales, setGongguSales] = useState<{ seller: string; revenue: number; orders: number }[]>([]);
+  const [gongguSalesTotal, setGongguSalesTotal] = useState(0);
+  const [selfSalesTotal, setSelfSalesTotal] = useState(0);
+  const [gongguTargets, setGongguTargets] = useState<{ seller: string; target: number; note: string }[]>([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -100,6 +104,10 @@ export default function OverviewPage() {
       setBrandAdSpend(data.brandAdSpend || []);
       setBrandRoasTrend(data.brandRoasTrend || []);
       setTargets(data.targets || {});
+      setGongguSales(data.gongguSales || []);
+      setGongguSalesTotal(data.gongguSalesTotal || 0);
+      setSelfSalesTotal(data.selfSalesTotal || 0);
+      setGongguTargets(data.gongguTargets || []);
 
       if (adsRes.ok) {
         const adsData = await adsRes.json();
@@ -509,6 +517,76 @@ export default function OverviewPage() {
               </Card>
               </div>
             </section>
+
+            {/* 밸런스랩 공동구매 현황 카드 */}
+            {(gongguSales.length > 0 || selfSalesTotal > 0) && (
+              <section>
+                <h2 className="text-sm font-medium text-gray-500 dark:text-zinc-400 mb-3">🤝 밸런스랩 공동구매 현황</h2>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader><CardTitle>자체판매 vs 공동구매</CardTitle></CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 text-center">
+                          <p className="text-xs text-gray-500 dark:text-zinc-400">자체판매</p>
+                          <p className="text-xl font-bold text-blue-400">₩{formatCompact(selfSalesTotal)}</p>
+                        </div>
+                        <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 text-center">
+                          <p className="text-xs text-gray-500 dark:text-zinc-400">공동구매</p>
+                          <p className="text-xl font-bold text-purple-400">₩{formatCompact(gongguSalesTotal)}</p>
+                        </div>
+                      </div>
+                      <div className="h-3 bg-gray-100 dark:bg-zinc-800 rounded-full overflow-hidden flex">
+                        {(selfSalesTotal + gongguSalesTotal) > 0 && (
+                          <>
+                            <div className="bg-blue-400 h-full" style={{ width: `${(selfSalesTotal / (selfSalesTotal + gongguSalesTotal)) * 100}%` }} />
+                            <div className="bg-purple-400 h-full" style={{ width: `${(gongguSalesTotal / (selfSalesTotal + gongguSalesTotal)) * 100}%` }} />
+                          </>
+                        )}
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span className="text-[10px] text-gray-400">{(selfSalesTotal + gongguSalesTotal) > 0 ? `${((selfSalesTotal / (selfSalesTotal + gongguSalesTotal)) * 100).toFixed(0)}%` : ""}</span>
+                        <span className="text-[10px] text-gray-400">{(selfSalesTotal + gongguSalesTotal) > 0 ? `${((gongguSalesTotal / (selfSalesTotal + gongguSalesTotal)) * 100).toFixed(0)}%` : ""}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader><CardTitle>공구별 매출</CardTitle></CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {gongguSales.map((g, i) => {
+                          const maxRev = gongguSales[0]?.revenue || 1;
+                          const pct = (g.revenue / maxRev) * 100;
+                          const target = gongguTargets.find(t => t.seller === g.seller);
+                          const achievePct = target && target.target > 0 ? (g.revenue / target.target * 100) : null;
+                          return (
+                            <div key={g.seller}>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-sm text-gray-700 dark:text-zinc-300">{g.seller}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-medium">₩{formatCompact(g.revenue)}</span>
+                                  <span className="text-[10px] text-gray-400">{g.orders}건</span>
+                                  {achievePct !== null && (
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${achievePct >= 100 ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" : "bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400"}`}>
+                                      {achievePct.toFixed(0)}%
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="h-2 bg-gray-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                <div className="h-full rounded-full bg-purple-400" style={{ width: `${pct}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {gongguSales.length === 0 && <p className="text-sm text-gray-400">공동구매 데이터 없음</p>}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </section>
+            )}
 
             <section>
               <h2 className="text-sm font-medium text-gray-500 dark:text-zinc-400 mb-3">🏷️ 브랜드 & 상품</h2>

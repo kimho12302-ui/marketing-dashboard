@@ -181,6 +181,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, message: `${row.brand} 퍼널 저장 완료 (${data.date})` });
     }
 
+    if (type === "gonggu_target") {
+      // 공구 목표: month, seller(metric), target(value), note
+      const monthDate = data.month.length === 7 ? data.month + "-01" : data.month;
+      const { data: existing } = await supabase.from("manual_monthly")
+        .select("id").eq("month", monthDate).eq("brand", "balancelab").eq("category", "gonggu_target").eq("metric", data.seller).limit(1);
+      const row = {
+        month: monthDate,
+        brand: "balancelab",
+        channel: "gonggu",
+        category: "gonggu_target",
+        metric: data.seller,
+        value: data.target,
+        note: data.note || "",
+      };
+      if (existing && existing.length > 0) {
+        const { error } = await supabase.from("manual_monthly").update(row).eq("id", existing[0].id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("manual_monthly").insert(row);
+        if (error) throw error;
+      }
+      return NextResponse.json({ ok: true });
+    }
+
     if (type === "manual_ad_spend") {
       // Check duplicate: same date + brand + channel
       const { data: existing } = await supabase.from("daily_ad_spend")

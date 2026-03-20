@@ -285,6 +285,43 @@ export async function GET(request: NextRequest) {
       try { targets = JSON.parse(targetData[0].note || "{}"); } catch {}
     }
 
+    // 공동구매(공구) 데이터 집계 (balancelab brand)
+    let gongguSales: { seller: string; revenue: number; orders: number }[] = [];
+    let selfSalesTotal = 0;
+    let gongguSalesTotal = 0;
+    if (brand === "balancelab" || brand === "all") {
+      let gongguQuery = supabase.from("daily_sales").select("channel,revenue,orders").gte("date", from).lte("date", to).eq("brand", "balancelab");
+      const { data: gongguData } = await gongguQuery;
+      const sellerMap = new Map<string, { revenue: number; orders: number }>();
+      for (const row of gongguData || []) {
+        if (row.channel.startsWith("공구_")) {
+          const seller = row.channel.replace("공구_", "");
+          const existing = sellerMap.get(seller) || { revenue: 0, orders: 0 };
+          existing.revenue += Number(row.revenue);
+          existing.orders += Number(row.orders);
+          sellerMap.set(seller, existing);
+          gongguSalesTotal += Number(row.revenue);
+        } else {
+          selfSalesTotal += Number(row.revenue);
+        }
+      }
+      gongguSales = Array.from(sellerMap.entries())
+        .map(([seller, d]) => ({ seller, revenue: d.revenue, orders: d.orders }))
+        .sort((a, b) => b.revenue - a.revenue);
+    }
+
+    // 공구 목표 데이터 조회
+    let gongguTargets: { seller: string; target: number; note: string }[] = [];
+    const { data: gongguTargetData } = await supabase
+      .from("manual_monthly")
+      .select("metric,value,note")
+      .eq("category", "gonggu_target")
+      .eq("brand", "balancelab")
+      .eq("month", currentMonth);
+    for (const row of gongguTargetData || []) {
+      gongguTargets.push({ seller: row.metric, target: Number(row.value), note: row.note || "" });
+    }
+
     // Add 7-day moving average to trend
     const trendWithMA = trend.map((t: any, i: number) => {
       const window = trend.slice(Math.max(0, i - 6), i + 1);
@@ -309,6 +346,7 @@ export async function GET(request: NextRequest) {
       trend: trendWithMA, channels, channelRoasTrend, brandRevenue, brandRevenueTrend, brandAdSpend, brandRoasTrend,
       funnelSummary: { ...funnelSummary, convRate, cartToOrderRate },
       topProducts, salesByChannel, targets,
+      gongguSales, gongguSalesTotal, selfSalesTotal, gongguTargets,
     });
   } catch (error) {
     console.error("Dashboard API error:", error);
