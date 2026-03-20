@@ -154,6 +154,10 @@ export async function POST(request: NextRequest) {
       const brand = detectBrand(productCode, productListMap);
       const plInfo = productListMap.get(productCode) || {};
 
+      // 밸런스랩 공동구매: 매출 = 단가 (단가 × 수량이 아님)
+      const isGonggu = brand === "balancelab" && (plInfo.brand || "").includes("공동구매");
+      const revenue = isGonggu ? unitPrice : unitPrice * qty;
+
       rows.push({
         date: dateStr,
         channel,
@@ -164,7 +168,7 @@ export async function POST(request: NextRequest) {
         productCode,
         quantity: qty,
         unitPrice,
-        revenue: unitPrice * qty,
+        revenue,
         supplyAmount: supply,
       });
     }
