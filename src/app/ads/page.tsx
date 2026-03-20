@@ -55,11 +55,6 @@ const CH_LABELS: Record<string, string> = {
   coupang: "쿠팡광고", gdn: "GDN",
 };
 
-function getDefaultDates() {
-  const to = new Date(); const from = new Date(); from.setDate(from.getDate() - 30);
-  return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
-}
-
 export default function AdsPage() {
   const chartTheme = useChartTheme();
   const { filters, setFilters } = useFilters();
