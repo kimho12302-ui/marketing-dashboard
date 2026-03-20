@@ -85,8 +85,12 @@ function ManualAdInput({ channel, label, fields, onSave, date }: {
   onSave: (data: any) => Promise<any>;
 }) {
   const [values, setValues] = useState<Record<string, string>>({});
+  const [localDate, setLocalDate] = useState(date);
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<any>(null);
+
+  // Sync with parent date when it changes
+  useEffect(() => { setLocalDate(date); }, [date]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -100,7 +104,7 @@ function ManualAdInput({ channel, label, fields, onSave, date }: {
           parsed[f.key] = Number(values[f.key] || 0);
         }
       }
-      const res = await onSave({ date, channel, ...parsed });
+      const res = await onSave({ date: localDate, channel, ...parsed });
       setResult(res);
       if (!res.error) setValues({});
     } catch {
@@ -111,6 +115,11 @@ function ManualAdInput({ channel, label, fields, onSave, date }: {
 
   return (
     <div className="space-y-3">
+      <div className="flex items-center gap-2 mb-1">
+        <label className="text-[11px] text-gray-500 dark:text-zinc-400">📅 날짜</label>
+        <input type="date" value={localDate} onChange={e => setLocalDate(e.target.value)}
+          className="text-xs border rounded px-2 py-1 bg-white dark:bg-zinc-800 dark:border-zinc-600" />
+      </div>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {fields.map(f => (
           <div key={f.key}>
