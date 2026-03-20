@@ -283,6 +283,7 @@ export default function DailyInput() {
   type BatchRow = { id: number; date: string; file: File | null; status: "pending" | "uploading" | "done" | "error"; result?: string };
   const [dailyBatch, setDailyBatch] = useState<BatchRow[]>([]);
   const [itemBatch, setItemBatch] = useState<BatchRow[]>([]);
+  const [salesBatch, setSalesBatch] = useState<BatchRow[]>([]);
 
   const batchIdRef = useRef(0);
 
@@ -293,6 +294,7 @@ export default function DailyInput() {
       .then((missing: Record<string, string[]>) => {
         const makeBatch = (dates: string[]) => dates.map(d => ({ id: ++batchIdRef.current, date: d, file: null, status: "pending" as const }));
         if (missing.coupang_item?.length) setItemBatch(makeBatch(missing.coupang_item));
+        if (missing.sales?.length) setSalesBatch(makeBatch(missing.sales));
       })
       .catch(() => {});
   }, []);
@@ -305,6 +307,31 @@ export default function DailyInput() {
   };
   const updateBatchRow = (setter: React.Dispatch<React.SetStateAction<BatchRow[]>>, id: number, patch: Partial<BatchRow>) => {
     setter(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
+  };
+
+  const uploadSalesBatch = async () => {
+    for (const row of salesBatch) {
+      if (!row.file || row.status === "done") continue;
+      updateBatchRow(setSalesBatch, row.id, { status: "uploading" });
+      try {
+        const form = new FormData();
+        form.append("file", row.file);
+        form.append("date", row.date);
+        const res = await fetch("/api/upload-sales", { method: "POST", body: form });
+        const data = await res.json();
+        if (data.ok) {
+          const brands = data.brandSummary ? Object.entries(data.brandSummary)
+            .map(([b, info]: [string, any]) => `${({"nutty":"너티","ironpet":"아이언펫","saip":"사입","balancelab":"밸런스랩"} as any)[b]||b} ${info.count}건`)
+            .join(", ") : "";
+          updateBatchRow(setSalesBatch, row.id, { status: "done", result: `✅ ${row.date} ${data.parsed}건 | ${brands}` });
+        } else {
+          updateBatchRow(setSalesBatch, row.id, { status: "error", result: data.error || "실패" });
+        }
+      } catch {
+        updateBatchRow(setSalesBatch, row.id, { status: "error", result: "업로드 실패" });
+      }
+    }
+    refreshStatus();
   };
 
   const uploadBatch = async (batch: BatchRow[], setter: React.Dispatch<React.SetStateAction<BatchRow[]>>, type: "daily" | "item") => {
@@ -620,11 +647,44 @@ export default function DailyInput() {
         }} />
       </Section>
 
-      {/* 6. 판매 실적 */}
-      <Section num={6} emoji="📤" title="판매 실적 (이카운트)" desc="이카운트 → 판매입력 엑셀 다운로드 → 업로드"
+      {/* 6. 판매 실적 (배치) */}
+      <Section num={6} emoji="📤" title="판매 실적 (이카운트)" desc="이카운트 → 판매입력 엑셀 날짜별 업로드"
         done={completed.has(6)} onToggleDone={() => toggle(6)}>
-        <FileZone label="판매입력 엑셀(.xlsx) 드래그 또는 클릭" uploading={salesUploading} onFile={uploadSales} />
-        <ResultBox result={salesResult} />
+        <div className="space-y-2">
+          {salesBatch.map(row => (
+            <div key={row.id} className="flex items-center gap-2">
+              <input type="date" value={row.date} onChange={e => updateBatchRow(setSalesBatch, row.id, { date: e.target.value })}
+                className="text-xs border rounded px-2 py-1 bg-white dark:bg-zinc-800 dark:border-zinc-600 w-36" disabled={row.status !== "pending"} />
+              <label className="flex-1 text-xs border rounded px-2 py-1.5 bg-gray-50 dark:bg-zinc-800 dark:border-zinc-600 cursor-pointer truncate hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors">
+                <input type="file" accept=".xlsx,.xls,.csv" className="hidden"
+                  onChange={e => { if (e.target.files?.[0]) updateBatchRow(setSalesBatch, row.id, { file: e.target.files[0] }); }}
+                  disabled={row.status !== "pending"} />
+                {row.file ? row.file.name : "판매입력 엑셀(.xlsx)"}
+              </label>
+              {row.status === "pending" && (
+                <button onClick={() => removeBatchRow(setSalesBatch, row.id)} className="text-gray-400 hover:text-red-500 text-sm px-1">✕</button>
+              )}
+              {row.status === "uploading" && <span className="text-xs text-blue-500 animate-pulse">⏳</span>}
+              {row.status === "done" && <span className="text-xs text-green-500" title={row.result}>✅</span>}
+              {row.status === "error" && <span className="text-xs text-red-500" title={row.result}>❌</span>}
+            </div>
+          ))}
+          <div className="flex gap-2">
+            <button onClick={() => addBatchRow(setSalesBatch, selectedDate)}
+              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">+ 날짜 추가</button>
+            {salesBatch.some(r => r.file && r.status === "pending") && (
+              <button onClick={() => uploadSalesBatch()}
+                className="text-xs px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+                한번에 업로드 ({salesBatch.filter(r => r.file && r.status === "pending").length}개)
+              </button>
+            )}
+          </div>
+          {salesBatch.some(r => r.result) && (
+            <div className="text-[11px] text-gray-500 space-y-0.5">
+              {salesBatch.filter(r => r.result).map(r => <div key={r.id}>{r.result}</div>)}
+            </div>
+          )}
+        </div>
       </Section>
 
       {/* 7. 싱크 & 확인 */}

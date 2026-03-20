@@ -17,9 +17,10 @@ export async function GET(req: NextRequest) {
   }
 
   // Check each source for existing dates
-  const [funnel, adSpend] = await Promise.all([
+  const [funnel, adSpend, sales] = await Promise.all([
     supabase.from("daily_funnel").select("date,brand").in("date", dates),
     supabase.from("daily_ad_spend").select("date,channel").in("date", dates),
+    supabase.from("daily_sales").select("date").in("date", dates),
   ]);
 
   const funnelDates: Record<string, Set<string>> = {};
@@ -48,6 +49,10 @@ export async function GET(req: NextRequest) {
   
   // Smartstore funnel (daily_funnel brand=smartstore)
   missing.smartstore = dates.filter(d => !funnelDates["smartstore"]?.has(d));
+  
+  // Sales (daily_sales)
+  const salesDates = new Set((sales.data || []).map((r: any) => r.date));
+  missing.sales = dates.filter(d => !salesDates.has(d));
 
   // Convert Sets to arrays for JSON
   const result: Record<string, string[]> = {};
