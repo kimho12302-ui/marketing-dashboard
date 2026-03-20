@@ -127,7 +127,8 @@ export default function OverviewPage() {
 
   const gmTotalRevenue = adsChannels.reduce((s, c) => s + (c.conversionValue || 0), 0);
   const gmTotalSpend = adsChannels.reduce((s, c) => s + c.spend, 0);
-  const gmCogs = gmTotalRevenue * 0.4;
+  const hasActualCogs = (kpi.cogs || 0) > 0;
+  const gmCogs = hasActualCogs ? (kpi.cogs || 0) : gmTotalRevenue * 0.4;
   const grossMarginRoas = gmTotalSpend > 0 ? (gmTotalRevenue - gmCogs) / gmTotalSpend : 0;
 
   const renderDrilldown = () => {
@@ -806,14 +807,14 @@ export default function OverviewPage() {
                     <CardContent>
                       <div className="flex flex-wrap items-center gap-6">
                         <div>
-                          <p className="text-sm text-gray-500 dark:text-zinc-400">GM-ROAS (매출원가 40% 가정)</p>
+                          <p className="text-sm text-gray-500 dark:text-zinc-400">GM-ROAS ({hasActualCogs ? "실제 원가 기준" : "매출원가 40% 가정"})</p>
                           <p className={`text-4xl font-bold ${grossMarginRoas >= 2.0 ? "text-green-400" : grossMarginRoas >= 1.0 ? "text-yellow-400" : "text-red-400"}`}>
                             {grossMarginRoas.toFixed(2)}x
                           </p>
                         </div>
                         <div className="text-xs text-gray-400 dark:text-zinc-500 space-y-1">
                           <p>매출: ₩{formatCompact(gmTotalRevenue)}</p>
-                          <p>COGS: ₩{formatCompact(gmCogs)} (40%)</p>
+                          <p>COGS: ₩{formatCompact(gmCogs)} ({hasActualCogs ? "실제" : "40%"})</p>
                           <p>매출총이익: ₩{formatCompact(gmTotalRevenue - gmCogs)}</p>
                           <p>광고비: ₩{formatCompact(gmTotalSpend)}</p>
                         </div>

@@ -578,7 +578,20 @@ export default function DailyInput() {
     });
     const result = await res.json();
     if (res.ok) { refreshStatus(); return { message: `✅ ${channel} ${date} 저장 완료` }; }
-    return { error: result.error || "저장 실패" };
+    if (res.status === 409) {
+      // Duplicate data — auto-override with confirmation
+      if (window.confirm(`⚠️ 중복 데이터\n\n${result.message}\n\n덮어쓰시겠습니까?`)) {
+        const res2 = await fetch("/api/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "manual_ad_spend", data: row, forceOverride: true }),
+        });
+        if (res2.ok) { refreshStatus(); return { message: `✅ ${channel} ${date} 덮어쓰기 완료` }; }
+        return { error: "덮어쓰기 실패" };
+      }
+      return { error: "취소됨" };
+    }
+    return { error: result.error || result.message || "저장 실패" };
   };
 
   // Misc cost save handler
@@ -590,7 +603,19 @@ export default function DailyInput() {
     });
     const result = await res.json();
     if (res.ok) { refreshStatus(); return { message: `✅ 비용 저장 완료` }; }
-    return { error: result.error || "저장 실패" };
+    if (res.status === 409) {
+      if (window.confirm(`⚠️ 중복 데이터\n\n${result.message}\n\n덮어쓰시겠습니까?`)) {
+        const res2 = await fetch("/api/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "misc_cost", data, forceOverride: true }),
+        });
+        if (res2.ok) { refreshStatus(); return { message: `✅ 비용 덮어쓰기 완료` }; }
+        return { error: "덮어쓰기 실패" };
+      }
+      return { error: "취소됨" };
+    }
+    return { error: result.error || result.message || "저장 실패" };
   };
 
   // Date selector - default yesterday
