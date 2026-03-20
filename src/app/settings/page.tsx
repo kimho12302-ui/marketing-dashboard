@@ -402,8 +402,155 @@ function TargetsTab() {
   );
 }
 
+function GongguTargetsTab() {
+  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [sellers, setSellers] = useState<{ seller: string; target: number; note: string }[]>([
+    { seller: "", target: 0, note: "" },
+  ]);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const fetchTargets = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ brand: "balancelab", from: month + "-01", to: month + "-28" });
+      const res = await fetch(`/api/dashboard?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        const targets = data.gongguTargets || [];
+        if (targets.length > 0) {
+          setSellers(targets.map((t: any) => ({ seller: t.seller, target: t.target, note: t.note || "" })));
+        } else {
+          setSellers([{ seller: "", target: 0, note: "" }]);
+        }
+      }
+    } catch { /* ignore */ }
+    setLoading(false);
+  }, [month]);
+
+  useEffect(() => { fetchTargets(); }, [fetchTargets]);
+
+  const addSeller = () => {
+    setSellers(prev => [...prev, { seller: "", target: 0, note: "" }]);
+  };
+
+  const removeSeller = (idx: number) => {
+    setSellers(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const updateSeller = (idx: number, field: string, value: any) => {
+    setSellers(prev => prev.map((s, i) => i === idx ? { ...s, [field]: value } : s));
+  };
+
+  const saveAll = async () => {
+    const valid = sellers.filter(s => s.seller.trim() && s.target > 0);
+    if (valid.length === 0) { showToast("셀러명과 목표 금액을 입력하세요", "error"); return; }
+    setSaving(true);
+    let success = 0;
+    for (const s of valid) {
+      try {
+        const res = await fetch("/api/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "gonggu_target",
+            data: { month, seller: s.seller.trim(), target: s.target, note: s.note },
+          }),
+        });
+        if (res.ok) success++;
+      } catch { /* ignore */ }
+    }
+    if (success > 0) showToast(`✅ ${success}건 공구 목표 저장 완료`);
+    else showToast("❌ 저장 실패", "error");
+    setSaving(false);
+  };
+
+  const inputClass = "bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-zinc-100 focus:border-indigo-500 focus:outline-none w-full";
+
+  return (
+    <div className="space-y-6">
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium ${toast.type === "success" ? "bg-green-500 text-white" : "bg-red-500 text-white"}`}>
+          {toast.message}
+        </div>
+      )}
+      <Card>
+        <CardHeader>
+          <CardTitle>🤝 공구 목표 설정</CardTitle>
+          <p className="text-xs text-gray-500 dark:text-zinc-500 mt-1">
+            밸런스랩 공동구매 셀러별 월간 목표 매출을 설정합니다.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4">
+            <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">월</label>
+            <input type="month" className={`${inputClass} max-w-xs`} value={month}
+              onChange={e => setMonth(e.target.value)} />
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-500" />
+            </div>
+          ) : (
+            <>
+              <div className="space-y-3">
+                {sellers.map((s, idx) => (
+                  <div key={idx} className="flex items-end gap-3 p-3 bg-gray-50 dark:bg-zinc-900 rounded-lg">
+                    <div className="flex-1">
+                      <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">셀러명</label>
+                      <input className={inputClass} value={s.seller}
+                        onChange={e => updateSeller(idx, "seller", e.target.value)}
+                        placeholder="예: 김셀러" />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">목표 매출 (₩)</label>
+                      <input type="number" className={inputClass} value={s.target || ""}
+                        onChange={e => updateSeller(idx, "target", Number(e.target.value))}
+                        placeholder="5,000,000" />
+                      {s.target > 0 && <p className="text-[10px] text-gray-400 dark:text-zinc-600 mt-0.5">₩{formatCompact(s.target)}</p>}
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">메모</label>
+                      <input className={inputClass} value={s.note}
+                        onChange={e => updateSeller(idx, "note", e.target.value)}
+                        placeholder="선택사항" />
+                    </div>
+                    <button onClick={() => removeSeller(idx)}
+                      className="px-2 py-2 text-red-400 hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      title="삭제">
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-3 mt-4">
+                <button onClick={addSeller}
+                  className="px-4 py-2 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 rounded-lg text-sm font-medium text-gray-600 dark:text-zinc-300 transition-colors">
+                  + 셀러 추가
+                </button>
+                <button onClick={saveAll} disabled={saving}
+                  className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50">
+                  {saving ? "저장 중..." : "💾 목표 저장"}
+                </button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<"daily" | "targets" | "costs" | "manual_ads" | "misc_costs" | "shipping" | "sales_upload" | "coupang_ads" | "info">("daily");
+  const [activeTab, setActiveTab] = useState<"daily" | "targets" | "gonggu_targets" | "costs" | "manual_ads" | "misc_costs" | "shipping" | "sales_upload" | "coupang_ads" | "info">("daily");
   // Note: sales_upload and coupang_ads tabs kept for backward compat but hidden from UI
   const [productCosts, setProductCosts] = useState<ProductCost[]>([]);
   const [productList, setProductList] = useState<{ product: string; brand: string; category: string; revenue: number; hasCost: boolean }[]>([]);
@@ -684,6 +831,7 @@ export default function SettingsPage() {
           {[
             { key: "daily" as const, label: "📋 일일 입력" },
             { key: "targets" as const, label: "🎯 목표 설정" },
+            { key: "gonggu_targets" as const, label: "🤝 공구 목표" },
             { key: "costs" as const, label: "💰 제품 원가" },
             { key: "manual_ads" as const, label: "📢 수동 광고비" },
             { key: "misc_costs" as const, label: "🧾 건별 비용" },
@@ -715,6 +863,9 @@ export default function SettingsPage() {
 
         {/* Targets Tab */}
         {activeTab === "targets" && <TargetsTab />}
+
+        {/* Gonggu Targets Tab */}
+        {activeTab === "gonggu_targets" && <GongguTargetsTab />}
 
         {/* Product Costs Tab */}
         {activeTab === "costs" && (

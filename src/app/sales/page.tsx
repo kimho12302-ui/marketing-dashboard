@@ -56,6 +56,8 @@ function getQuadrantColor(cacIndex: number, roasIndex: number): string {
   return "#ef4444";
 }
 
+interface GongguSeller { seller: string; revenue: number; orders: number; }
+
 export default function SalesPage() {
   const chartTheme = useChartTheme();
   const { filters, setFilters } = useFilters();
@@ -71,6 +73,9 @@ export default function SalesPage() {
   const [topProducts, setTopProducts] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [quadrantFilter, setQuadrantFilter] = useState<QuadrantFilter>("all");
+  const [gongguSales, setGongguSales] = useState<GongguSeller[]>([]);
+  const [gongguSalesTotal, setGongguSalesTotal] = useState(0);
+  const [selfSalesTotal, setSelfSalesTotal] = useState(0);
 
   const filteredScatter = SCATTER_DATA.filter(d => quadrantFilter === "all" || d.type === quadrantFilter);
 
@@ -78,7 +83,12 @@ export default function SalesPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ brand: filters.brand, from: filters.from, to: filters.to });
-      const res = await fetch(`/api/product-sales?${params}`);
+      const [res, dashRes] = await Promise.all([
+        fetch(`/api/product-sales?${params}`),
+        (filters.brand === "balancelab" || filters.brand === "all")
+          ? fetch(`/api/dashboard?brand=${filters.brand}&from=${filters.from}&to=${filters.to}`)
+          : Promise.resolve(null),
+      ]);
       if (!res.ok) throw new Error("fetch failed");
       const data = await res.json();
       setChannelPie(data.channelPie || []);
@@ -91,6 +101,17 @@ export default function SalesPage() {
       setBrandTrend(data.brandTrend || []);
       setProductTrend(data.productTrend || []);
       setTopProducts(data.topProducts || []);
+
+      if (dashRes && dashRes.ok) {
+        const dashData = await dashRes.json();
+        setGongguSales(dashData.gongguSales || []);
+        setGongguSalesTotal(dashData.gongguSalesTotal || 0);
+        setSelfSalesTotal(dashData.selfSalesTotal || 0);
+      } else {
+        setGongguSales([]);
+        setGongguSalesTotal(0);
+        setSelfSalesTotal(0);
+      }
     } catch { /* ignore */ } finally { setLoading(false); }
   }, [filters]);
 
@@ -226,6 +247,98 @@ export default function SalesPage() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* 공구 브레이크다운: 밸런스랩 선택 시 또는 전체에서 공구 데이터 있을 때 */}
+            {(filters.brand === "balancelab" || filters.brand === "all") && (gongguSalesTotal > 0 || selfSalesTotal > 0) && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader><CardTitle>🏪 자체판매 vs 공동구매</CardTitle></CardHeader>
+                  <CardContent>
+                    {(() => {
+                      const total = selfSalesTotal + gongguSalesTotal;
+                      const selfPct = total > 0 ? (selfSalesTotal / total * 100).toFixed(1) : "0";
+                      const gongguPct = total > 0 ? (gongguSalesTotal / total * 100).toFixed(1) : "0";
+                      const pieData = [
+                        { name: "자체판매", value: selfSalesTotal },
+                        { name: "공동구매", value: gongguSalesTotal },
+                      ];
+                      const colors = ["#6366f1", "#ec4899"];
+                      return (
+                        <>
+                          <div className="h-52">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={80}
+                                  label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                  labelLine={{ stroke: chartTheme.isDark ? "#555" : "#9ca3af" }}>
+                                  {pieData.map((_, i) => <Cell key={i} fill={colors[i]} />)}
+                                </Pie>
+                                <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={chartTheme.tooltipStyle} />
+                              </PieChart>
+                            </ResponsiveContainer>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 mt-2">
+                            <div className="bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800/30 rounded-lg p-3 text-center">
+                              <p className="text-xs text-gray-500 dark:text-zinc-400">자체판매</p>
+                              <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">₩{formatCompact(selfSalesTotal)}</p>
+                              <p className="text-xs text-gray-400 dark:text-zinc-500">{selfPct}%</p>
+                            </div>
+                            <div className="bg-pink-50 dark:bg-pink-950/20 border border-pink-200 dark:border-pink-800/30 rounded-lg p-3 text-center">
+                              <p className="text-xs text-gray-500 dark:text-zinc-400">공동구매</p>
+                              <p className="text-lg font-bold text-pink-600 dark:text-pink-400">₩{formatCompact(gongguSalesTotal)}</p>
+                              <p className="text-xs text-gray-400 dark:text-zinc-500">{gongguPct}%</p>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader><CardTitle>🤝 공구별 매출 상세</CardTitle></CardHeader>
+                  <CardContent>
+                    {gongguSales.length > 0 ? (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-gray-200 dark:border-zinc-700">
+                              <th className="text-left py-2.5 px-2 text-gray-500 dark:text-zinc-400">셀러명</th>
+                              <th className="text-right py-2.5 px-2 text-gray-500 dark:text-zinc-400">매출</th>
+                              <th className="text-right py-2.5 px-2 text-gray-500 dark:text-zinc-400">주문수</th>
+                              <th className="text-right py-2.5 px-2 text-gray-500 dark:text-zinc-400">비중(%)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {gongguSales.map((row) => {
+                              const pct = gongguSalesTotal > 0 ? (row.revenue / gongguSalesTotal * 100).toFixed(1) : "0";
+                              return (
+                                <tr key={row.seller} className="border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50">
+                                  <td className="py-2 px-2 text-gray-800 dark:text-zinc-200 font-medium">{row.seller}</td>
+                                  <td className="py-2 px-2 text-right text-gray-900 dark:text-zinc-100">₩{formatCompact(row.revenue)}</td>
+                                  <td className="py-2 px-2 text-right text-gray-600 dark:text-zinc-300">{row.orders.toLocaleString()}</td>
+                                  <td className="py-2 px-2 text-right text-gray-500 dark:text-zinc-400">{pct}%</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                          <tfoot>
+                            <tr className="border-t-2 border-gray-300 dark:border-zinc-600 font-semibold">
+                              <td className="py-2 px-2 text-gray-700 dark:text-zinc-300">합계</td>
+                              <td className="py-2 px-2 text-right text-gray-900 dark:text-zinc-100">₩{formatCompact(gongguSalesTotal)}</td>
+                              <td className="py-2 px-2 text-right text-gray-600 dark:text-zinc-300">{gongguSales.reduce((s, r) => s + r.orders, 0).toLocaleString()}</td>
+                              <td className="py-2 px-2 text-right text-gray-500 dark:text-zinc-400">100%</td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-400 dark:text-zinc-500 text-center py-8">공동구매 데이터가 없습니다</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             <Card>
               <CardHeader><CardTitle>채널별 매출 트렌드</CardTitle></CardHeader>

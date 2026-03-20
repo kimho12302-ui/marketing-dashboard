@@ -53,6 +53,18 @@ export async function POST(request: NextRequest) {
     const wb = XLSX.read(buffer, { type: "array", cellDates: true });
 
     // Find 판매정리 sheet
+    // Extract date from filename: 판매입력_260319 → 2026-03-19
+    let fileDate = "";
+    const fnMatch = file.name.match(/(\d{6})/);
+    if (fnMatch) {
+      const digits = fnMatch[1]; // e.g. "260319"
+      const yy = parseInt(digits.slice(0, 2), 10);
+      const mm = digits.slice(2, 4);
+      const dd = digits.slice(4, 6);
+      const year = yy >= 70 ? 1900 + yy : 2000 + yy;
+      fileDate = `${year}-${mm}-${dd}`;
+    }
+
     const sheetName = wb.SheetNames.find(n => n.includes("판매정리"));
     if (!sheetName) {
       return NextResponse.json({ error: "판매정리 탭을 찾을 수 없습니다" }, { status: 400 });
@@ -75,6 +87,7 @@ export async function POST(request: NextRequest) {
     });
 
     const dateCol = colMap["일자"] ?? -1;
+    const paymentDateCol = colMap["결제일"] ?? -1; // F열: 결제일 (날짜 필터링용)
     const clientCol = colMap["거래처명"] ?? -1;
     const warehouseCol = colMap["출하창고"] ?? -1;
     const productCodeCol = colMap["품목코드"] ?? -1;
@@ -127,6 +140,7 @@ export async function POST(request: NextRequest) {
 
     const rows: SalesRow[] = [];
     let skipped = 0;
+    let dateFiltered = 0;
 
     for (let i = 1; i < allData.length; i++) {
       const row = allData[i];
@@ -142,6 +156,21 @@ export async function POST(request: NextRequest) {
       }
       if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) { skipped++; continue; }
 
+      // Date filtering: compare 결제일(F열) with fileDate extracted from filename
+      if (fileDate && paymentDateCol >= 0) {
+        let payDateVal = row[paymentDateCol];
+        let payDateStr = "";
+        if (payDateVal instanceof Date) {
+          payDateStr = payDateVal.toISOString().slice(0, 10);
+        } else if (payDateVal) {
+          payDateStr = String(payDateVal).slice(0, 10);
+        }
+        if (payDateStr && payDateStr !== fileDate) {
+          dateFiltered++;
+          continue; // Skip rows where 결제일 doesn't match filename date
+        }
+      }
+
       const productCode = String(row[productCodeCol] || "").trim();
       if (!productCode) { skipped++; continue; }
 
@@ -150,10 +179,12 @@ export async function POST(request: NextRequest) {
       const qty = Number(row[qtyCol] || 0);
       const unitPrice = Number(row[unitPriceCol] || 0);
       const supply = supplyCol >= 0 ? Number(row[supplyCol] || 0) : 0;
+      const tax = taxCol >= 0 ? Number(row[taxCol] || 0) : 0;
 
       const brand = detectBrand(productCode, productListMap);
       const plInfo = productListMap.get(productCode) || {};
-      const revenue = unitPrice * qty;
+      // Revenue = 공급가액(AM열) + 부가세(AN열)
+      const revenue = supply + tax;
 
       rows.push({
         date: dateStr,
@@ -399,6 +430,8 @@ export async function POST(request: NextRequest) {
       ok: true,
       parsed: rows.length,
       skipped,
+      dateFiltered,
+      fileDate: fileDate || null,
       productSales: productSalesRows.length,
       dailySales: dailySalesRows.length,
       sheetAppended: dbResults.sheetAppended || 0,
