@@ -815,7 +815,7 @@ export default function DailyInput() {
         <CardHeader><CardTitle className="text-sm">🤖 자동 수집 (입력 불필요)</CardTitle></CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-2 text-xs text-gray-500 dark:text-zinc-400">
-            {["Meta 광고비 (너티+아이언펫)", "네이버 검색/쇼핑 광고", "Google Ads", "GA4 퍼널", "카페24 매출"].map(name => (
+            {["Meta 광고비 (너티+아이언펫+밸런스랩)", "네이버 검색/쇼핑 광고", "Google Ads", "GA4 퍼널", "카페24 매출"].map(name => (
               <div key={name} className="flex items-center gap-1.5">
                 <span className="text-green-500">✓</span> {name}
               </div>

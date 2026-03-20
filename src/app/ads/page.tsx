@@ -410,7 +410,7 @@ export default function AdsPage() {
                                     <span className={`text-[9px] px-1 rounded ${cr.status === "ACTIVE" ? "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400" : "bg-gray-100 dark:bg-zinc-700 text-gray-400"}`}>
                                       {cr.status === "ACTIVE" ? "활성" : "중지"}
                                     </span>
-                                    <span className="text-[9px] text-gray-400">{cr.brand === "nutty" ? "너티" : "아이언펫"}</span>
+                                    <span className="text-[9px] text-gray-400">{({"nutty":"너티","ironpet":"아이언펫","balancelab":"밸런스랩","saip":"사입"} as Record<string,string>)[cr.brand] || cr.brand}</span>
                                   </div>
                                 </div>
                               </div>
