@@ -107,7 +107,7 @@ async function syncGoogleAds(supabase: any, dateStr: string) {
     // Query Google Ads
     const query = `SELECT campaign.name, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date = '${dateStr}'`;
     const gaResp = await globalThis.fetch(
-      `https://googleads.googleapis.com/v19/customers/${customerId}/googleAds:searchStream`,
+      `https://googleads.googleapis.com/v17/customers/${customerId}/googleAds:searchStream`,
       {
         method: "POST",
         headers: {
@@ -159,8 +159,9 @@ async function syncGA4Funnel(supabase: any, dateStr: string) {
 
     // Get access token from service account
     const now = Math.floor(Date.now() / 1000);
-    const header = btoa(JSON.stringify({ alg: "RS256", typ: "JWT" }));
-    const payload = btoa(JSON.stringify({
+    const b64url = (s: string) => btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+    const header = b64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+    const payload = b64url(JSON.stringify({
       iss: creds.client_email,
       scope: "https://www.googleapis.com/auth/analytics.readonly",
       aud: "https://oauth2.googleapis.com/token",

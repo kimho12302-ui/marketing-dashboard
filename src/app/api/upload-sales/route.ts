@@ -153,6 +153,7 @@ export async function POST(request: NextRequest) {
 
       const brand = detectBrand(productCode, productListMap);
       const plInfo = productListMap.get(productCode) || {};
+      const revenue = unitPrice * qty;
 
       rows.push({
         date: dateStr,
