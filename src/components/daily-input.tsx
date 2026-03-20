@@ -262,6 +262,7 @@ export default function DailyInput() {
   type BatchRow = { id: number; date: string; file: File | null; status: "pending" | "uploading" | "done" | "error"; result?: string };
   const [dailyBatch, setDailyBatch] = useState<BatchRow[]>([]);
   const [itemBatch, setItemBatch] = useState<BatchRow[]>([]);
+  const [gfaBatch, setGfaBatch] = useState<BatchRow[]>([]);
   const batchIdRef = useRef(0);
 
   const addBatchRow = (setter: React.Dispatch<React.SetStateAction<BatchRow[]>>, defaultDate: string) => {
@@ -272,6 +273,29 @@ export default function DailyInput() {
   };
   const updateBatchRow = (setter: React.Dispatch<React.SetStateAction<BatchRow[]>>, id: number, patch: Partial<BatchRow>) => {
     setter(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
+  };
+
+  const uploadGfaBatch = async () => {
+    for (const row of gfaBatch) {
+      if (!row.file || row.status === "done") continue;
+      updateBatchRow(setGfaBatch, row.id, { status: "uploading" });
+      try {
+        const form = new FormData();
+        form.append("file", row.file);
+        form.append("channel", "gfa");
+        form.append("date", row.date);
+        const res = await fetch("/api/upload-ad-report", { method: "POST", body: form });
+        const data = await res.json();
+        if (data.ok) {
+          updateBatchRow(setGfaBatch, row.id, { status: "done", result: `✅ ${row.date} GFA ₩${formatCompact(data.spend || 0)}` });
+        } else {
+          updateBatchRow(setGfaBatch, row.id, { status: "error", result: data.error || "실패" });
+        }
+      } catch {
+        updateBatchRow(setGfaBatch, row.id, { status: "error", result: "업로드 실패" });
+      }
+    }
+    refreshStatus();
   };
 
   const uploadBatch = async (batch: BatchRow[], setter: React.Dispatch<React.SetStateAction<BatchRow[]>>, type: "daily" | "item") => {
@@ -514,32 +538,62 @@ export default function DailyInput() {
         </div>
       </Section>
 
-      {/* 2. GFA 광고비 */}
-      <Section num={2} emoji="🟢" title="GFA 광고비" desc="네이버 성과형 디스플레이 광고 → 어제 비용 확인"
+      {/* 2. GFA 광고비 (배치 업로드) */}
+      <Section num={2} emoji="🟢" title="GFA 광고비" desc="네이버 성과형 디스플레이 광고 → 날짜별 보고서 파일"
         done={completed.has(2)} onToggleDone={() => toggle(2)}>
-        <ManualAdInput channel="gfa" label="GFA" date={selectedDate} fields={[
-          { key: "spend", label: "광고비 (원)", placeholder: "50000" },
-          { key: "impressions", label: "노출수", placeholder: "10000" },
-          { key: "clicks", label: "클릭수", placeholder: "100" },
-        ]} onSave={async (data) => {
-          const r = await saveAdSpend(data);
-          if (!r.error) toggle(2);
-          return r;
-        }} />
+        <div className="space-y-2">
+          {gfaBatch.map(row => (
+            <div key={row.id} className="flex items-center gap-2">
+              <input type="date" value={row.date} onChange={e => updateBatchRow(setGfaBatch, row.id, { date: e.target.value })}
+                className="text-xs border rounded px-2 py-1 bg-white dark:bg-zinc-800 dark:border-zinc-600 w-36" disabled={row.status !== "pending"} />
+              <label className="flex-1 text-xs border rounded px-2 py-1.5 bg-gray-50 dark:bg-zinc-800 dark:border-zinc-600 cursor-pointer truncate hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors">
+                <input type="file" accept=".xlsx,.xls,.csv" className="hidden"
+                  onChange={e => { if (e.target.files?.[0]) updateBatchRow(setGfaBatch, row.id, { file: e.target.files[0] }); }}
+                  disabled={row.status !== "pending"} />
+                {row.file ? row.file.name : "파일 선택..."}
+              </label>
+              {row.status === "pending" && (
+                <button onClick={() => removeBatchRow(setGfaBatch, row.id)} className="text-gray-400 hover:text-red-500 text-sm px-1">✕</button>
+              )}
+              {row.status === "uploading" && <span className="text-xs text-blue-500 animate-pulse">⏳</span>}
+              {row.status === "done" && <span className="text-xs text-green-500" title={row.result}>✅</span>}
+              {row.status === "error" && <span className="text-xs text-red-500" title={row.result}>❌</span>}
+            </div>
+          ))}
+          <div className="flex gap-2">
+            <button onClick={() => addBatchRow(setGfaBatch, selectedDate)}
+              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">+ 날짜 추가</button>
+            {gfaBatch.some(r => r.file && r.status === "pending") && (
+              <button onClick={() => uploadGfaBatch()}
+                className="text-xs px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+                한번에 업로드 ({gfaBatch.filter(r => r.file && r.status === "pending").length}개)
+              </button>
+            )}
+          </div>
+          {gfaBatch.some(r => r.result) && (
+            <div className="text-[11px] text-gray-500 space-y-0.5">
+              {gfaBatch.filter(r => r.result).map(r => <div key={r.id}>{r.result}</div>)}
+            </div>
+          )}
+        </div>
       </Section>
 
-      {/* 3. 스마트스토어 광고비 */}
-      <Section num={3} emoji="🟩" title="스마트스토어 광고비" desc="스마트스토어 광고 → 어제 비용 + 알림받기 수 확인"
+      {/* 3. 스마트스토어 지표 */}
+      <Section num={3} emoji="🟩" title="스마트스토어 지표" desc="스마트스토어 → 알림받기 / 체류시간 / 유입"
         done={completed.has(3)} onToggleDone={() => toggle(3)}>
-        <ManualAdInput channel="smartstore_ads" label="스마트스토어" date={selectedDate} fields={[
-          { key: "spend", label: "광고비 (원)", placeholder: "30000" },
-          { key: "impressions", label: "노출수", placeholder: "5000" },
-          { key: "clicks", label: "클릭수", placeholder: "50" },
+        <ManualAdInput channel="smartstore_funnel" label="스마트스토어" date={selectedDate} fields={[
           { key: "subscribers", label: "알림받기 수", placeholder: "12" },
+          { key: "sessions", label: "유입 (토탈)", placeholder: "300" },
+          { key: "avg_duration", label: "체류시간 (초)", placeholder: "120" },
         ]} onSave={async (data) => {
-          const r = await saveAdSpend(data);
-          if (!r.error) toggle(3);
-          return r;
+          const res = await fetch("/api/settings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: "smartstore_funnel", data: { date: selectedDate, ...data } }),
+          });
+          const result = await res.json();
+          if (res.ok) { refreshStatus(); toggle(3); return { message: `✅ 스마트스토어 ${selectedDate} 저장 완료` }; }
+          return { error: result.error || "저장 실패" };
         }} />
       </Section>
 
