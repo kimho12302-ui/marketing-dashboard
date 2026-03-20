@@ -141,7 +141,8 @@ export async function GET(request: NextRequest) {
     // Orders trend by brand
     // Fetch daily_sales for order counts
     let ordersQuery = supabase.from("daily_sales").select("date,brand,orders").gte("date", from).lte("date", to).order("date");
-    if (brand !== "all") ordersQuery = ordersQuery.eq("brand", brand);
+    if (brand !== "all") { ordersQuery = ordersQuery.eq("brand", brand); }
+    else { ordersQuery = ordersQuery.neq("brand", "all"); }
     const { data: salesData } = await ordersQuery;
     const ordersMap = new Map<string, Record<string, number>>();
     const brandLabels2: Record<string, string> = { nutty: "너티", ironpet: "아이언펫", saip: "사입", balancelab: "밸런스랩" };

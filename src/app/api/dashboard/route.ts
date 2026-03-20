@@ -11,12 +11,22 @@ export async function GET(request: NextRequest) {
 
   try {
     let salesQuery = supabase.from("daily_sales").select("*").gte("date", from).lte("date", to).order("date", { ascending: true });
-    if (brand !== "all") salesQuery = salesQuery.eq("brand", brand);
+    if (brand !== "all") {
+      salesQuery = salesQuery.eq("brand", brand);
+    } else {
+      // Exclude pre-aggregated "all" rows to avoid double-counting
+      salesQuery = salesQuery.neq("brand", "all");
+    }
     const { data: sales, error: salesErr } = await salesQuery;
     if (salesErr) throw salesErr;
 
     let adQuery = supabase.from("daily_ad_spend").select("*").gte("date", from).lte("date", to).order("date", { ascending: true });
-    if (brand !== "all") adQuery = adQuery.eq("brand", brand);
+    if (brand !== "all") {
+      adQuery = adQuery.eq("brand", brand);
+    } else {
+      // Exclude pre-aggregated "all" rows to avoid double-counting
+      adQuery = adQuery.neq("brand", "all");
+    }
     const { data: adSpend, error: adErr } = await adQuery;
     if (adErr) throw adErr;
 
@@ -28,11 +38,13 @@ export async function GET(request: NextRequest) {
     const prevTo = new Date(fromDate.getTime() - 86400000).toISOString().slice(0, 10);
 
     let prevSalesQuery = supabase.from("daily_sales").select("revenue, orders").gte("date", prevFrom).lte("date", prevTo);
-    if (brand !== "all") prevSalesQuery = prevSalesQuery.eq("brand", brand);
+    if (brand !== "all") { prevSalesQuery = prevSalesQuery.eq("brand", brand); }
+    else { prevSalesQuery = prevSalesQuery.neq("brand", "all"); }
     const { data: prevSales } = await prevSalesQuery;
 
     let prevAdQuery = supabase.from("daily_ad_spend").select("spend").gte("date", prevFrom).lte("date", prevTo);
-    if (brand !== "all") prevAdQuery = prevAdQuery.eq("brand", brand);
+    if (brand !== "all") { prevAdQuery = prevAdQuery.eq("brand", brand); }
+    else { prevAdQuery = prevAdQuery.neq("brand", "all"); }
     const { data: prevAd } = await prevAdQuery;
 
     // Fetch misc marketing costs from manual_monthly

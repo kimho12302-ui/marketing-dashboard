@@ -10,7 +10,8 @@ export async function GET(request: NextRequest) {
 
   try {
     let query = supabase.from("daily_ad_spend").select("*").gte("date", from).lte("date", to).order("date");
-    if (brand !== "all") query = query.eq("brand", brand);
+    if (brand !== "all") { query = query.eq("brand", brand); }
+    else { query = query.neq("brand", "all"); }
     const { data, error } = await query;
     if (error) throw error;
     const rows = data || [];
