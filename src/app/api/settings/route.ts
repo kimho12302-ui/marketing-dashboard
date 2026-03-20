@@ -165,6 +165,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    if (type === "cafe24_funnel" || type === "smartstore_funnel") {
+      const row = {
+        date: data.date,
+        brand: type === "cafe24_funnel" ? "cafe24" : "smartstore",
+        sessions: Number(data.sessions || 0),
+        impressions: Number(data.impressions || 0),
+        cart_adds: Number(data.cart_adds || 0),
+        signups: Number(data.signups || 0),
+        purchases: Number(data.purchases || 0),
+        repurchases: Number(data.repurchases || 0),
+      };
+      const { error } = await supabase.from("daily_funnel").upsert(row, { onConflict: "date,brand" });
+      if (error) throw error;
+      return NextResponse.json({ ok: true, message: `${row.brand} 퍼널 저장 완료 (${data.date})` });
+    }
+
     if (type === "manual_ad_spend") {
       // Check duplicate: same date + brand + channel
       const { data: existing } = await supabase.from("daily_ad_spend")
