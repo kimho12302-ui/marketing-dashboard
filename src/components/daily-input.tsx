@@ -480,7 +480,7 @@ export default function DailyInput() {
   const [selectedDate, setSelectedDate] = useState(getYesterday());
   const selectedLabel = new Date(selectedDate + "T00:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" });
   const progress = completed.size;
-  const total = 7;
+  const total = 6;
 
   return (
     <div className="space-y-3">
@@ -611,26 +611,9 @@ export default function DailyInput() {
         }} />
       </Section>
 
-      {/* 4. 건별 비용 */}
-      <Section num={4} emoji="🧾" title="건별 비용" desc="인플루언서/체험단/공구/촬영비/디자인비 등 건별 비용"
+      {/* 4. 카페24 퍼널 지표 */}
+      <Section num={4} emoji="🛒" title="카페24 퍼널" desc="카페24 → 장바구니 / 회원가입 / 재구매"
         done={completed.has(4)} onToggleDone={() => toggle(4)}>
-        <ManualAdInput channel="misc_cost" label="건별비용" date={selectedDate} fields={[
-          { key: "brand", label: "브랜드", placeholder: "선택", type: "select", options: ["아이언펫", "너티", "사입", "밸런스랩"] },
-          { key: "category", label: "구분", placeholder: "선택", type: "select", options: ["인플루언서", "협찬", "공구", "체험단", "촬영비", "디자인비", "샘플비", "배송비", "수수료", "기타"] },
-          { key: "description", label: "사유", placeholder: "광고비 정산 등", type: "text" },
-          { key: "spend", label: "비용 (원)", placeholder: "100000" },
-          { key: "note", label: "비고", placeholder: "업체명 등", type: "text" },
-        ]} onSave={async (data) => {
-          const brandMap: Record<string, string> = { "아이언펫": "ironpet", "너티": "nutty", "사입": "saip", "밸런스랩": "balancelab" };
-          const r = await saveMiscCost({ ...data, brand: brandMap[data.brand] || data.brand });
-          if (!r.error) toggle(4);
-          return r;
-        }} />
-      </Section>
-
-      {/* 5. 카페24 퍼널 지표 */}
-      <Section num={5} emoji="🛒" title="카페24 퍼널" desc="카페24 → 장바구니 / 회원가입 / 재구매"
-        done={completed.has(5)} onToggleDone={() => toggle(5)}>
         <ManualAdInput channel="cafe24_funnel" label="카페24" date={selectedDate} fields={[
           { key: "cart_adds", label: "장바구니", placeholder: "15" },
           { key: "signups", label: "회원가입", placeholder: "3" },
@@ -642,14 +625,14 @@ export default function DailyInput() {
             body: JSON.stringify({ type: "cafe24_funnel", data: { date: selectedDate, ...data } }),
           });
           const result = await res.json();
-          if (res.ok) { refreshStatus(); toggle(5); return { message: `✅ 카페24 ${selectedDate} 저장 완료` }; }
+          if (res.ok) { refreshStatus(); toggle(4); return { message: `✅ 카페24 ${selectedDate} 저장 완료` }; }
           return { error: result.error || "저장 실패" };
         }} />
       </Section>
 
-      {/* 6. 판매 실적 (배치) */}
-      <Section num={6} emoji="📤" title="판매 실적 (이카운트)" desc="이카운트 → 판매입력 엑셀 날짜별 업로드"
-        done={completed.has(6)} onToggleDone={() => toggle(6)}>
+      {/* 5. 판매 실적 (배치) */}
+      <Section num={5} emoji="📤" title="판매 실적 (이카운트)" desc="이카운트 → 판매입력 엑셀 날짜별 업로드"
+        done={completed.has(5)} onToggleDone={() => toggle(5)}>
         <div className="space-y-2">
           {salesBatch.map(row => (
             <div key={row.id} className="flex items-center gap-2">
@@ -687,22 +670,21 @@ export default function DailyInput() {
         </div>
       </Section>
 
-      {/* 7. 싱크 & 확인 */}
-      <Section num={7} emoji="🔄" title="싱크 & 대시보드 확인" desc="싱크 버튼 누르고 Overview에서 데이터 확인"
-        done={completed.has(7)} onToggleDone={() => toggle(7)}>
-        <div className="flex gap-3">
-          <button onClick={async () => {
-            await Promise.all([
-              fetch("/api/sync", { method: "POST" }),
-              fetch("/api/sync-ads", { method: "POST", headers: {"Content-Type":"application/json"}, body: "{}" }),
-            ]);
-            toggle(7);
-            refreshStatus();
-          }}
-            className="px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700">
-            🔄 싱크 후 대시보드 보기
-          </button>
-        </div>
+      {/* 6. 건별 비용 */}
+      <Section num={6} emoji="🧾" title="건별 비용" desc="인플루언서/체험단/공구/촬영비/디자인비 등 건별 비용"
+        done={completed.has(6)} onToggleDone={() => toggle(6)}>
+        <ManualAdInput channel="misc_cost" label="건별비용" date={selectedDate} fields={[
+          { key: "brand", label: "브랜드", placeholder: "선택", type: "select", options: ["아이언펫", "너티", "사입", "밸런스랩"] },
+          { key: "category", label: "구분", placeholder: "선택", type: "select", options: ["인플루언서", "협찬", "공구", "체험단", "촬영비", "디자인비", "샘플비", "배송비", "수수료", "기타"] },
+          { key: "description", label: "사유", placeholder: "광고비 정산 등", type: "text" },
+          { key: "spend", label: "비용 (원)", placeholder: "100000" },
+          { key: "note", label: "비고", placeholder: "업체명 등", type: "text" },
+        ]} onSave={async (data) => {
+          const brandMap: Record<string, string> = { "아이언펫": "ironpet", "너티": "nutty", "사입": "saip", "밸런스랩": "balancelab" };
+          const r = await saveMiscCost({ ...data, brand: brandMap[data.brand] || data.brand });
+          if (!r.error) toggle(6);
+          return r;
+        }} />
       </Section>
 
       {/* Auto status */}
