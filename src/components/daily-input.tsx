@@ -81,7 +81,7 @@ function ResultBox({ result }: { result: any }) {
 // ─── Manual ad spend input ───
 function ManualAdInput({ channel, label, fields, onSave, date }: {
   channel: string; label: string; date: string;
-  fields: { key: string; label: string; placeholder: string; type?: string }[];
+  fields: { key: string; label: string; placeholder: string; type?: string; options?: string[] }[];
   onSave: (data: any) => Promise<any>;
 }) {
   const [values, setValues] = useState<Record<string, string>>({});
@@ -92,11 +92,15 @@ function ManualAdInput({ channel, label, fields, onSave, date }: {
     setSaving(true);
     setResult(null);
     try {
-      const numValues: Record<string, number> = {};
+      const parsed: Record<string, any> = {};
       for (const f of fields) {
-        numValues[f.key] = Number(values[f.key] || 0);
+        if (f.type === "select" || f.type === "text") {
+          parsed[f.key] = values[f.key] || "";
+        } else {
+          parsed[f.key] = Number(values[f.key] || 0);
+        }
       }
-      const res = await onSave({ date, channel, ...numValues });
+      const res = await onSave({ date, channel, ...parsed });
       setResult(res);
       if (!res.error) setValues({});
     } catch {
@@ -111,10 +115,18 @@ function ManualAdInput({ channel, label, fields, onSave, date }: {
         {fields.map(f => (
           <div key={f.key}>
             <label className="text-[11px] text-gray-500 dark:text-zinc-400">{f.label}</label>
+            {f.type === "select" && f.options ? (
+              <select value={values[f.key] || ""} onChange={e => setValues(prev => ({ ...prev, [f.key]: e.target.value }))}
+                className="w-full text-sm border rounded px-2 py-1.5 bg-white dark:bg-zinc-800 dark:border-zinc-600">
+                <option value="">선택</option>
+                {f.options.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            ) : (
             <input type={f.type || "number"} placeholder={f.placeholder}
               value={values[f.key] || ""}
               onChange={e => setValues(prev => ({ ...prev, [f.key]: e.target.value }))}
               className="w-full text-sm border rounded px-2 py-1.5 bg-white dark:bg-zinc-800 dark:border-zinc-600" />
+            )}
           </div>
         ))}
       </div>
@@ -262,8 +274,7 @@ export default function DailyInput() {
   type BatchRow = { id: number; date: string; file: File | null; status: "pending" | "uploading" | "done" | "error"; result?: string };
   const [dailyBatch, setDailyBatch] = useState<BatchRow[]>([]);
   const [itemBatch, setItemBatch] = useState<BatchRow[]>([]);
-  const [gfaBatch, setGfaBatch] = useState<BatchRow[]>([]);
-  const [influencerBatch, setInfluencerBatch] = useState<BatchRow[]>([]);
+
   const batchIdRef = useRef(0);
 
   // Auto-populate batch rows with missing dates
@@ -273,8 +284,6 @@ export default function DailyInput() {
       .then((missing: Record<string, string[]>) => {
         const makeBatch = (dates: string[]) => dates.map(d => ({ id: ++batchIdRef.current, date: d, file: null, status: "pending" as const }));
         if (missing.coupang_item?.length) setItemBatch(makeBatch(missing.coupang_item));
-        if (missing.gfa?.length) setGfaBatch(makeBatch(missing.gfa));
-        if (missing.influencer?.length) setInfluencerBatch(makeBatch(missing.influencer));
       })
       .catch(() => {});
   }, []);
@@ -287,52 +296,6 @@ export default function DailyInput() {
   };
   const updateBatchRow = (setter: React.Dispatch<React.SetStateAction<BatchRow[]>>, id: number, patch: Partial<BatchRow>) => {
     setter(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
-  };
-
-  const uploadGfaBatch = async () => {
-    for (const row of gfaBatch) {
-      if (!row.file || row.status === "done") continue;
-      updateBatchRow(setGfaBatch, row.id, { status: "uploading" });
-      try {
-        const form = new FormData();
-        form.append("file", row.file);
-        form.append("channel", "gfa");
-        form.append("date", row.date);
-        const res = await fetch("/api/upload-ad-report", { method: "POST", body: form });
-        const data = await res.json();
-        if (data.ok) {
-          updateBatchRow(setGfaBatch, row.id, { status: "done", result: `✅ ${row.date} GFA ₩${formatCompact(data.spend || 0)}` });
-        } else {
-          updateBatchRow(setGfaBatch, row.id, { status: "error", result: data.error || "실패" });
-        }
-      } catch {
-        updateBatchRow(setGfaBatch, row.id, { status: "error", result: "업로드 실패" });
-      }
-    }
-    refreshStatus();
-  };
-
-  const uploadInfluencerBatch = async () => {
-    for (const row of influencerBatch) {
-      if (!row.file || row.status === "done") continue;
-      updateBatchRow(setInfluencerBatch, row.id, { status: "uploading" });
-      try {
-        const form = new FormData();
-        form.append("file", row.file);
-        form.append("channel", "influencer");
-        form.append("date", row.date);
-        const res = await fetch("/api/upload-ad-report", { method: "POST", body: form });
-        const data = await res.json();
-        if (data.ok) {
-          updateBatchRow(setInfluencerBatch, row.id, { status: "done", result: `✅ ${row.date} 인플루언서 ₩${formatCompact(data.spend || 0)}` });
-        } else {
-          updateBatchRow(setInfluencerBatch, row.id, { status: "error", result: data.error || "실패" });
-        }
-      } catch {
-        updateBatchRow(setInfluencerBatch, row.id, { status: "error", result: "업로드 실패" });
-      }
-    }
-    refreshStatus();
   };
 
   const uploadBatch = async (batch: BatchRow[], setter: React.Dispatch<React.SetStateAction<BatchRow[]>>, type: "daily" | "item") => {
@@ -575,44 +538,22 @@ export default function DailyInput() {
         </div>
       </Section>
 
-      {/* 2. GFA 광고비 (배치 업로드) */}
-      <Section num={2} emoji="🟢" title="GFA 광고비" desc="네이버 성과형 디스플레이 광고 → 날짜별 보고서 파일"
+      {/* 2. GFA 광고비 */}
+      <Section num={2} emoji="🟢" title="GFA 광고비" desc="네이버 성과형 디스플레이 광고 → 브랜드별 입력"
         done={completed.has(2)} onToggleDone={() => toggle(2)}>
-        <div className="space-y-2">
-          {gfaBatch.map(row => (
-            <div key={row.id} className="flex items-center gap-2">
-              <input type="date" value={row.date} onChange={e => updateBatchRow(setGfaBatch, row.id, { date: e.target.value })}
-                className="text-xs border rounded px-2 py-1 bg-white dark:bg-zinc-800 dark:border-zinc-600 w-36" disabled={row.status !== "pending"} />
-              <label className="flex-1 text-xs border rounded px-2 py-1.5 bg-gray-50 dark:bg-zinc-800 dark:border-zinc-600 cursor-pointer truncate hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors">
-                <input type="file" accept=".xlsx,.xls,.csv" className="hidden"
-                  onChange={e => { if (e.target.files?.[0]) updateBatchRow(setGfaBatch, row.id, { file: e.target.files[0] }); }}
-                  disabled={row.status !== "pending"} />
-                {row.file ? row.file.name : "파일 선택..."}
-              </label>
-              {row.status === "pending" && (
-                <button onClick={() => removeBatchRow(setGfaBatch, row.id)} className="text-gray-400 hover:text-red-500 text-sm px-1">✕</button>
-              )}
-              {row.status === "uploading" && <span className="text-xs text-blue-500 animate-pulse">⏳</span>}
-              {row.status === "done" && <span className="text-xs text-green-500" title={row.result}>✅</span>}
-              {row.status === "error" && <span className="text-xs text-red-500" title={row.result}>❌</span>}
-            </div>
-          ))}
-          <div className="flex gap-2">
-            <button onClick={() => addBatchRow(setGfaBatch, selectedDate)}
-              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">+ 날짜 추가</button>
-            {gfaBatch.some(r => r.file && r.status === "pending") && (
-              <button onClick={() => uploadGfaBatch()}
-                className="text-xs px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700">
-                한번에 업로드 ({gfaBatch.filter(r => r.file && r.status === "pending").length}개)
-              </button>
-            )}
-          </div>
-          {gfaBatch.some(r => r.result) && (
-            <div className="text-[11px] text-gray-500 space-y-0.5">
-              {gfaBatch.filter(r => r.result).map(r => <div key={r.id}>{r.result}</div>)}
-            </div>
-          )}
-        </div>
+        <ManualAdInput channel="gfa" label="GFA" date={selectedDate} fields={[
+          { key: "brand", label: "브랜드", placeholder: "선택", type: "select", options: ["아이언펫", "너티", "사입", "밸런스랩"] },
+          { key: "spend", label: "비용 (원)", placeholder: "50000" },
+          { key: "impressions", label: "노출수", placeholder: "10000" },
+          { key: "clicks", label: "클릭수", placeholder: "100" },
+          { key: "conversions", label: "구매건수", placeholder: "5" },
+          { key: "conversion_value", label: "매출액 (원)", placeholder: "200000" },
+        ]} onSave={async (data) => {
+          const brandMap: Record<string, string> = { "아이언펫": "ironpet", "너티": "nutty", "사입": "saip", "밸런스랩": "balancelab" };
+          const r = await saveAdSpend({ ...data, brand: brandMap[data.brand] || data.brand });
+          if (!r.error) toggle(2);
+          return r;
+        }} />
       </Section>
 
       {/* 3. 스마트스토어 지표 */}
@@ -634,44 +575,21 @@ export default function DailyInput() {
         }} />
       </Section>
 
-      {/* 4. 인플루언서/체험단 비용 (배치) */}
-      <Section num={4} emoji="👥" title="인플루언서/체험단 비용" desc="인플루언서/체험단/공구 비용 → 날짜별 파일"
+      {/* 4. 인플루언서/체험단/건별 비용 */}
+      <Section num={4} emoji="👥" title="인플루언서/체험단 비용" desc="협찬, 인플루언서, 공구 등 건별 비용"
         done={completed.has(4)} onToggleDone={() => toggle(4)}>
-        <div className="space-y-2">
-          {influencerBatch.map(row => (
-            <div key={row.id} className="flex items-center gap-2">
-              <input type="date" value={row.date} onChange={e => updateBatchRow(setInfluencerBatch, row.id, { date: e.target.value })}
-                className="text-xs border rounded px-2 py-1 bg-white dark:bg-zinc-800 dark:border-zinc-600 w-36" disabled={row.status !== "pending"} />
-              <label className="flex-1 text-xs border rounded px-2 py-1.5 bg-gray-50 dark:bg-zinc-800 dark:border-zinc-600 cursor-pointer truncate hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors">
-                <input type="file" accept=".xlsx,.xls,.csv" className="hidden"
-                  onChange={e => { if (e.target.files?.[0]) updateBatchRow(setInfluencerBatch, row.id, { file: e.target.files[0] }); }}
-                  disabled={row.status !== "pending"} />
-                {row.file ? row.file.name : "파일 선택..."}
-              </label>
-              {row.status === "pending" && (
-                <button onClick={() => removeBatchRow(setInfluencerBatch, row.id)} className="text-gray-400 hover:text-red-500 text-sm px-1">✕</button>
-              )}
-              {row.status === "uploading" && <span className="text-xs text-blue-500 animate-pulse">⏳</span>}
-              {row.status === "done" && <span className="text-xs text-green-500" title={row.result}>✅</span>}
-              {row.status === "error" && <span className="text-xs text-red-500" title={row.result}>❌</span>}
-            </div>
-          ))}
-          <div className="flex gap-2">
-            <button onClick={() => addBatchRow(setInfluencerBatch, selectedDate)}
-              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">+ 날짜 추가</button>
-            {influencerBatch.some(r => r.file && r.status === "pending") && (
-              <button onClick={() => uploadInfluencerBatch()}
-                className="text-xs px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700">
-                한번에 업로드 ({influencerBatch.filter(r => r.file && r.status === "pending").length}개)
-              </button>
-            )}
-          </div>
-          {influencerBatch.some(r => r.result) && (
-            <div className="text-[11px] text-gray-500 space-y-0.5">
-              {influencerBatch.filter(r => r.result).map(r => <div key={r.id}>{r.result}</div>)}
-            </div>
-          )}
-        </div>
+        <ManualAdInput channel="influencer" label="인플루언서" date={selectedDate} fields={[
+          { key: "brand", label: "브랜드", placeholder: "선택", type: "select", options: ["아이언펫", "너티", "사입", "밸런스랩"] },
+          { key: "category", label: "구분", placeholder: "선택", type: "select", options: ["협찬", "인플루언서", "공구", "체험단", "기타"] },
+          { key: "description", label: "사유", placeholder: "광고비 정산 등", type: "text" },
+          { key: "spend", label: "비용 (원)", placeholder: "100000" },
+          { key: "note", label: "비고", placeholder: "업체명 등", type: "text" },
+        ]} onSave={async (data) => {
+          const brandMap: Record<string, string> = { "아이언펫": "ironpet", "너티": "nutty", "사입": "saip", "밸런스랩": "balancelab" };
+          const r = await saveAdSpend({ ...data, brand: brandMap[data.brand] || data.brand });
+          if (!r.error) toggle(4);
+          return r;
+        }} />
       </Section>
 
       {/* 5. 카페24 퍼널 지표 */}
