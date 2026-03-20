@@ -185,6 +185,55 @@ function ManualAdInput({ channel, label, fields, onSave, date }: {
 }
 
 // ─── Data Status Panel ───
+// ─── Missing dates gap panel ───
+function MissingDatesPanel({ refreshKey }: { refreshKey: number }) {
+  const [gaps, setGaps] = useState<{ date: string; missing: string[] }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch("/api/missing-dates?days=7")
+      .then(r => r.json())
+      .then(d => setGaps(d.gaps || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [refreshKey]);
+
+  if (loading) return null;
+  if (gaps.length === 0) return null;
+
+  const dayName = (d: string) => {
+    const day = new Date(d + "T00:00:00").getDay();
+    return ["일", "월", "화", "수", "목", "금", "토"][day];
+  };
+  const shortDate = (d: string) => {
+    const p = d.split("-");
+    return `${parseInt(p[1])}/${parseInt(p[2])}(${dayName(d)})`;
+  };
+
+  return (
+    <div className="mb-4 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 overflow-hidden">
+      <div className="px-4 py-2.5 border-b border-amber-100 dark:border-amber-800/50">
+        <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">⚠️ 미입력 데이터</span>
+      </div>
+      <div className="p-3 space-y-2">
+        {gaps.map(g => (
+          <div key={g.date} className="flex items-start gap-2 text-xs">
+            <span className="font-medium text-amber-800 dark:text-amber-300 w-16 shrink-0">{shortDate(g.date)}</span>
+            <div className="flex flex-wrap gap-1">
+              {g.missing.map(m => (
+                <span key={m} className="px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-[10px]">
+                  {m}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function DataStatusPanel({ refreshKey }: { refreshKey: number }) {
   const [sources, setSources] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
@@ -549,6 +598,7 @@ export default function DailyInput() {
       </Card>
 
       {/* Data Status Panel */}
+      <MissingDatesPanel refreshKey={statusRefreshKey} />
       <DataStatusPanel refreshKey={statusRefreshKey} />
 
       {/* 1. 쿠팡 데이터 */}
