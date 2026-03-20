@@ -239,49 +239,54 @@ function DataStatusPanel({ refreshKey }: { refreshKey: number }) {
         </div>
       </div>
 
-      <div className="p-4 space-y-3">
-        {/* Auto sources */}
-        <div>
-          <p className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-2 font-semibold">🔄 자동 수집 (API)</p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {autoSources.map(s => (
-              <div key={s.id} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs ${s.ok
-                ? "bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800"
-                : "bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800"
-              }`}>
-                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s.ok ? "bg-green-500" : "bg-red-500 animate-pulse"}`} />
-                <div className="min-w-0">
-                  <p className={`font-medium truncate ${s.ok ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
-                    {s.label}
-                  </p>
-                  <p className="text-[10px] text-gray-400">{formatDate(s.latestDate)}</p>
+      {/* Only show stale/missing sources */}
+      {(() => {
+        const staleAuto = autoSources.filter(s => !s.ok);
+        const staleManual = manualSources.filter(s => !s.ok);
+        if (staleAuto.length === 0 && staleManual.length === 0) {
+          return (
+            <div className="px-4 py-3 text-center text-xs text-green-600 dark:text-green-400">
+              ✅ 모든 데이터 최신 상태
+            </div>
+          );
+        }
+        return (
+          <div className="p-4 space-y-3">
+            {staleAuto.length > 0 && (
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-2 font-semibold">🔄 자동 수집 (API)</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {staleAuto.map(s => (
+                    <div key={s.id} className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0 bg-red-500 animate-pulse" />
+                      <div className="min-w-0">
+                        <p className="font-medium truncate text-red-700 dark:text-red-400">{s.label}</p>
+                        <p className="text-[10px] text-gray-400">{formatDate(s.latestDate)}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Manual sources */}
-        <div>
-          <p className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-2 font-semibold">✍️ 수기 입력</p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {manualSources.map(s => (
-              <div key={s.id} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs ${s.ok
-                ? "bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800"
-                : "bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800"
-              }`}>
-                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s.ok ? "bg-green-500" : "bg-red-500 animate-pulse"}`} />
-                <div className="min-w-0">
-                  <p className={`font-medium truncate ${s.ok ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
-                    {s.label}
-                  </p>
-                  <p className="text-[10px] text-gray-400">{formatDate(s.latestDate)}</p>
+            )}
+            {staleManual.length > 0 && (
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-2 font-semibold">✍️ 수기 입력</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {staleManual.map(s => (
+                    <div key={s.id} className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0 bg-red-500 animate-pulse" />
+                      <div className="min-w-0">
+                        <p className="font-medium truncate text-red-700 dark:text-red-400">{s.label}</p>
+                        <p className="text-[10px] text-gray-400">{formatDate(s.latestDate)}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
+            )}
           </div>
-        </div>
-      </div>
+        );
+      })()}
     </div>
   );
 }
