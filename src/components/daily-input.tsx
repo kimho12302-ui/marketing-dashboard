@@ -453,7 +453,7 @@ export default function DailyInput() {
   const [selectedDate, setSelectedDate] = useState(getYesterday());
   const selectedLabel = new Date(selectedDate + "T00:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" });
   const progress = completed.size;
-  const total = 8;
+  const total = 7;
 
   return (
     <div className="space-y-3">
@@ -584,18 +584,18 @@ export default function DailyInput() {
         }} />
       </Section>
 
-      {/* 4. 인플루언서/체험단/건별 비용 */}
-      <Section num={4} emoji="👥" title="인플루언서/체험단 비용" desc="협찬, 인플루언서, 공구 등 건별 비용"
+      {/* 4. 건별 비용 */}
+      <Section num={4} emoji="🧾" title="건별 비용" desc="인플루언서/체험단/공구/촬영비/디자인비 등 건별 비용"
         done={completed.has(4)} onToggleDone={() => toggle(4)}>
-        <ManualAdInput channel="influencer" label="인플루언서" date={selectedDate} fields={[
+        <ManualAdInput channel="misc_cost" label="건별비용" date={selectedDate} fields={[
           { key: "brand", label: "브랜드", placeholder: "선택", type: "select", options: ["아이언펫", "너티", "사입", "밸런스랩"] },
-          { key: "category", label: "구분", placeholder: "선택", type: "select", options: ["협찬", "인플루언서", "공구", "체험단", "기타"] },
+          { key: "category", label: "구분", placeholder: "선택", type: "select", options: ["인플루언서", "협찬", "공구", "체험단", "촬영비", "디자인비", "샘플비", "배송비", "수수료", "기타"] },
           { key: "description", label: "사유", placeholder: "광고비 정산 등", type: "text" },
           { key: "spend", label: "비용 (원)", placeholder: "100000" },
           { key: "note", label: "비고", placeholder: "업체명 등", type: "text" },
         ]} onSave={async (data) => {
           const brandMap: Record<string, string> = { "아이언펫": "ironpet", "너티": "nutty", "사입": "saip", "밸런스랩": "balancelab" };
-          const r = await saveAdSpend({ ...data, brand: brandMap[data.brand] || data.brand });
+          const r = await saveMiscCost({ ...data, brand: brandMap[data.brand] || data.brand });
           if (!r.error) toggle(4);
           return r;
         }} />
@@ -620,33 +620,23 @@ export default function DailyInput() {
         }} />
       </Section>
 
-      {/* 6. 건별 비용 */}
-      <Section num={6} emoji="🧾" title="건별 비용" desc="촬영비, 디자인비, 샘플비, 기타 비용"
+      {/* 6. 판매 실적 */}
+      <Section num={6} emoji="📤" title="판매 실적 (이카운트)" desc="이카운트 → 판매입력 엑셀 다운로드 → 업로드"
         done={completed.has(6)} onToggleDone={() => toggle(6)}>
-        <MiscCostInput date={selectedDate} onSave={async (data) => {
-          const r = await saveMiscCost(data);
-          if (!r.error) toggle(6);
-          return r;
-        }} />
-      </Section>
-
-      {/* 7. 판매 실적 */}
-      <Section num={7} emoji="📤" title="판매 실적 (이카운트)" desc="이카운트 → 판매입력 엑셀 다운로드 → 업로드"
-        done={completed.has(7)} onToggleDone={() => toggle(7)}>
         <FileZone label="판매입력 엑셀(.xlsx) 드래그 또는 클릭" uploading={salesUploading} onFile={uploadSales} />
         <ResultBox result={salesResult} />
       </Section>
 
-      {/* 8. 싱크 & 확인 */}
-      <Section num={8} emoji="🔄" title="싱크 & 대시보드 확인" desc="싱크 버튼 누르고 Overview에서 데이터 확인"
-        done={completed.has(8)} onToggleDone={() => toggle(8)}>
+      {/* 7. 싱크 & 확인 */}
+      <Section num={7} emoji="🔄" title="싱크 & 대시보드 확인" desc="싱크 버튼 누르고 Overview에서 데이터 확인"
+        done={completed.has(7)} onToggleDone={() => toggle(7)}>
         <div className="flex gap-3">
           <button onClick={async () => {
             await Promise.all([
               fetch("/api/sync", { method: "POST" }),
               fetch("/api/sync-ads", { method: "POST", headers: {"Content-Type":"application/json"}, body: "{}" }),
             ]);
-            toggle(8);
+            toggle(7);
             refreshStatus();
           }}
             className="px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700">
