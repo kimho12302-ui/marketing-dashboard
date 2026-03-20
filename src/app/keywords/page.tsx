@@ -27,6 +27,7 @@ export default function KeywordsPage() {
   const [keywords, setKeywords] = useState<KeywordSummary[]>([]);
   const [platformTab, setPlatformTab] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [gscData, setGscData] = useState<{ query: string; device: string; clicks: number; impressions: number; ctr: number; position: number }[]>([]);
   const [gscSummary, setGscSummary] = useState<{ totalClicks: number; totalImpressions: number; avgCtr: number; avgPosition: number }>({ totalClicks: 0, totalImpressions: 0, avgCtr: 0, avgPosition: 0 });
   const [naverCampaigns, setNaverCampaigns] = useState<any[]>([]);
@@ -44,7 +45,7 @@ export default function KeywordsPage() {
       if (kwRes.ok) { const d = await kwRes.json(); setKeywords(d.keywords || []); }
       if (gscRes.ok) { const d = await gscRes.json(); setGscData(d.queries || []); setGscSummary(d.summary || { totalClicks: 0, totalImpressions: 0, avgCtr: 0, avgPosition: 0 }); }
       if (ncRes.ok) { const d = await ncRes.json(); setNaverCampaigns(d.campaigns || []); setNaverSummary(d.summary || null); }
-    } catch { /* ignore */ } finally { setLoading(false); }
+    } catch { setError("키워드 데이터를 불러오는데 실패했습니다."); } finally { setLoading(false); }
   }, [filters]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -89,6 +90,10 @@ export default function KeywordsPage() {
             </button>
           ))}
         </div>
+
+        {error && (
+          <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 text-red-600 dark:text-red-400 text-sm">{error}</div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-20">

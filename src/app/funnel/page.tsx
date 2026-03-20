@@ -30,9 +30,11 @@ export default function FunnelPage() {
   const [trend, setTrend] = useState<TrendPoint[]>([]);
   const [channelFunnel, setChannelFunnel] = useState<{ channel: string; sessions: number; cart_adds: number; purchases: number; repurchases: number; convRate: number }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const params = new URLSearchParams({ brand: filters.brand, from: filters.from, to: filters.to });
       const res = await fetch(`/api/funnel?${params}`);
@@ -53,7 +55,7 @@ export default function FunnelPage() {
         const prevData = await prevRes.json();
         setPrevFunnel(prevData.funnel || []);
       }
-    } catch { /* ignore */ } finally { setLoading(false); }
+    } catch (err) { setError("퍼널 데이터를 불러오는데 실패했습니다. 새로고침해 주세요."); } finally { setLoading(false); }
   }, [filters]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -77,6 +79,10 @@ export default function FunnelPage() {
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
         <PageHeader title="🔄 Funnel" subtitle="전환 퍼널 분석" />
         <Filters filters={filters} onChange={setFilters} />
+
+        {error && (
+          <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 text-red-600 dark:text-red-400 text-sm">{error}</div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-20">

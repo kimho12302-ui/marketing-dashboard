@@ -63,6 +63,7 @@ export default function MonthlyPage() {
               <option value="nutty">너티</option>
               <option value="ironpet">아이언펫</option>
               <option value="saip">사입</option>
+              <option value="balancelab">밸런스랩</option>
             </select>
             <ExportReport targetId="monthly-content" filename="PPMI-Monthly" />
           </div>
