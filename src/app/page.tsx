@@ -399,7 +399,7 @@ export default function OverviewPage() {
           <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 text-red-600 dark:text-red-400 text-sm">{error}</div>
         )}
 
-        <div id="overview-content">
+        <div id="overview-content" className="space-y-6">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500" />

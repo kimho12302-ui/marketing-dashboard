@@ -827,7 +827,7 @@ export default function SettingsPage() {
         <PageHeader title="⚙️ 설정" subtitle="원가 관리 & 수동 데이터 입력" />
 
         {/* Tab Navigation */}
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {[
             { key: "daily" as const, label: "📋 일일 입력" },
             { key: "targets" as const, label: "🎯 목표 설정" },

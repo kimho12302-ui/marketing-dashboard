@@ -557,9 +557,9 @@ export default function DailyInput() {
 
   // Ad spend save handler
   const saveAdSpend = async (data: any) => {
-    const { date, channel, spend, impressions, clicks, conversions, conversion_value, subscribers } = data;
+    const { date, channel, brand, spend, impressions, clicks, conversions, conversion_value, subscribers } = data;
     const row: any = {
-      date, channel, brand: "all",
+      date, channel, brand: brand || "all",
       spend: spend || 0,
       impressions: impressions || 0,
       clicks: clicks || 0,

@@ -365,8 +365,7 @@ export default function AdsPage() {
               ) : creatives.length === 0 ? (
                   <p className="text-sm text-gray-500 dark:text-zinc-500">Meta 크리에이티브 데이터가 없습니다.</p>
               ) : (
-                  <div>
-                ) : (
+                  <>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
                       <thead className="sticky top-0 bg-white dark:bg-zinc-900">
@@ -477,7 +476,7 @@ export default function AdsPage() {
                       </div>
                     );
                   })()}
-                  </div>
+                  </>
               )}
               </CardContent>
             </Card>
