@@ -185,10 +185,13 @@ function ManualAdInput({ channel, label, fields, onSave, date }: {
 }
 
 // ─── Data Status Panel ───
-// ─── Missing dates gap panel ───
+// ─── Missing dates gap panel (toggle per date) ───
+const ALL_SOURCES = ["판매실적", "메타광고", "구글광고", "네이버SA", "쿠팡광고", "GFA", "쿠팡퍼널", "카페24퍼널", "스마트스토어퍼널"];
+
 function MissingDatesPanel({ refreshKey }: { refreshKey: number }) {
   const [gaps, setGaps] = useState<{ date: string; missing: string[] }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -215,20 +218,49 @@ function MissingDatesPanel({ refreshKey }: { refreshKey: number }) {
     <div className="mb-4 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 overflow-hidden">
       <div className="px-4 py-2.5 border-b border-amber-100 dark:border-amber-800/50">
         <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">⚠️ 미입력 데이터</span>
+        <span className="text-[10px] text-gray-400 ml-2">최근 7일</span>
       </div>
-      <div className="p-3 space-y-2">
-        {gaps.map(g => (
-          <div key={g.date} className="flex items-start gap-2 text-xs">
-            <span className="font-medium text-amber-800 dark:text-amber-300 w-16 shrink-0">{shortDate(g.date)}</span>
-            <div className="flex flex-wrap gap-1">
-              {g.missing.map(m => (
-                <span key={m} className="px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-[10px]">
-                  {m}
-                </span>
-              ))}
+      <div className="divide-y divide-amber-100 dark:divide-amber-800/30">
+        {gaps.map(g => {
+          const okCount = ALL_SOURCES.length - g.missing.length;
+          const missCount = g.missing.length;
+          const isOpen = expanded === g.date;
+          const filled = ALL_SOURCES.filter(s => !g.missing.includes(s));
+
+          return (
+            <div key={g.date}>
+              <button
+                onClick={() => setExpanded(isOpen ? null : g.date)}
+                className="w-full flex items-center justify-between px-4 py-2.5 text-xs hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+              >
+                <span className="font-medium text-gray-700 dark:text-zinc-300">{shortDate(g.date)}</span>
+                <div className="flex items-center gap-2">
+                  <span className="px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 text-[10px]">
+                    ✅ {okCount}
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-[10px]">
+                    ❌ {missCount}
+                  </span>
+                  <span className="text-gray-400 text-[10px]">{isOpen ? "▲" : "▼"}</span>
+                </div>
+              </button>
+              {isOpen && (
+                <div className="px-4 pb-3 flex flex-wrap gap-1">
+                  {filled.map(s => (
+                    <span key={s} className="px-1.5 py-0.5 rounded bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-[10px]">
+                      ✅ {s}
+                    </span>
+                  ))}
+                  {g.missing.map(m => (
+                    <span key={m} className="px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-[10px]">
+                      ❌ {m}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
