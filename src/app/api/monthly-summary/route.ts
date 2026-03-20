@@ -12,11 +12,13 @@ export async function GET(request: NextRequest) {
     const toDate = `${year}-12-31`;
 
     let salesQ = supabase.from("daily_sales").select("date,revenue,orders").gte("date", fromDate).lte("date", toDate);
-    if (brand !== "all") salesQ = salesQ.eq("brand", brand);
+    if (brand !== "all") { salesQ = salesQ.eq("brand", brand); }
+    else { salesQ = salesQ.neq("brand", "all"); }
     const { data: sales } = await salesQ;
 
     let adQ = supabase.from("daily_ad_spend").select("date,spend,conversion_value").gte("date", fromDate).lte("date", toDate);
-    if (brand !== "all") adQ = adQ.eq("brand", brand);
+    if (brand !== "all") { adQ = adQ.eq("brand", brand); }
+    else { adQ = adQ.neq("brand", "all"); }
     const { data: ads } = await adQ;
 
     // Group by month

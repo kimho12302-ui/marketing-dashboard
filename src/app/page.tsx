@@ -738,8 +738,8 @@ export default function OverviewPage() {
                           { label: "장바구니", value: funnelSummary.cartAdds, color: FUNNEL_COLORS[2] },
                           { label: "구매", value: funnelSummary.purchases, color: FUNNEL_COLORS[3] },
                           { label: "재구매", value: funnelSummary.repurchases, color: FUNNEL_COLORS[4] },
-                        ].map((step) => {
-                          const maxVal = funnelSummary.impressions || 1;
+                        ].map((step, _, steps) => {
+                          const maxVal = Math.max(...steps.map(s => s.value), 1);
                           const pct = maxVal > 0 ? (step.value / maxVal) * 100 : 0;
                           return (
                             <div key={step.label} className="flex items-center gap-2">
