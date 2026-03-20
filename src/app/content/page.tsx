@@ -13,11 +13,6 @@ import {
 
 const COLORS = ["#6366f1", "#f97316", "#22c55e", "#eab308"];
 
-function getDefaultDates() {
-  const to = new Date(); const from = new Date(); from.setDate(from.getDate() - 30);
-  return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
-}
-
 interface ContentTypeData { content_type: string; posts: number; impressions: number; clicks: number; ctr: number; engagement: number; }
 interface FollowerTrend { date: string; followers: number; }
 

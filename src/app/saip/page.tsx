@@ -14,11 +14,6 @@ import {
 
 const COLORS = ["#6366f1", "#f97316", "#22c55e", "#eab308", "#ec4899", "#14b8a6", "#f43f5e", "#8b5cf6"];
 
-function getDefaultDates() {
-  const to = new Date(); const from = new Date(); from.setDate(from.getDate() - 90);
-  return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
-}
-
 interface LineupData { name: string; revenue: number; quantity: number; count: number; }
 interface ProductData { product: string; revenue: number; quantity: number; lineup: string; }
 interface ChannelData { name: string; value: number; }

@@ -8,8 +8,8 @@ export async function GET(request: NextRequest) {
 
   try {
     // Get sales data
-    const { data: sales } = await supabase.from("daily_sales").select("*").gte("date", from).lte("date", to);
-    const { data: adSpend } = await supabase.from("daily_ad_spend").select("*").gte("date", from).lte("date", to);
+    const { data: sales } = await supabase.from("daily_sales").select("*").gte("date", from).lte("date", to).neq("brand", "all");
+    const { data: adSpend } = await supabase.from("daily_ad_spend").select("*").gte("date", from).lte("date", to).neq("brand", "all");
     const { data: funnel } = await supabase.from("daily_funnel").select("*").gte("date", from).lte("date", to);
     const { data: products } = await supabase.from("product_sales").select("*").gte("date", from).lte("date", to);
 

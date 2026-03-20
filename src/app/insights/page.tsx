@@ -6,11 +6,6 @@ import PageHeader from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertTriangle, AlertCircle, Zap, Info } from "lucide-react";
 
-function getDefaultDates() {
-  const to = new Date(); const from = new Date(); from.setDate(from.getDate() - 30);
-  return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
-}
-
 interface Insight {
   type: "critical" | "warning" | "opportunity" | "info";
   text: string;
@@ -41,7 +36,7 @@ export default function InsightsPage() {
       if (!res.ok) throw new Error("fetch failed");
       const data = await res.json();
       setInsights(data.insights || []);
-    } catch { /* ignore */ } finally { setLoading(false); }
+    } catch { /* error handled silently */ } finally { setLoading(false); }
   }, [from, to]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
