@@ -263,6 +263,7 @@ export default function DailyInput() {
   const [dailyBatch, setDailyBatch] = useState<BatchRow[]>([]);
   const [itemBatch, setItemBatch] = useState<BatchRow[]>([]);
   const [gfaBatch, setGfaBatch] = useState<BatchRow[]>([]);
+  const [influencerBatch, setInfluencerBatch] = useState<BatchRow[]>([]);
   const batchIdRef = useRef(0);
 
   const addBatchRow = (setter: React.Dispatch<React.SetStateAction<BatchRow[]>>, defaultDate: string) => {
@@ -293,6 +294,29 @@ export default function DailyInput() {
         }
       } catch {
         updateBatchRow(setGfaBatch, row.id, { status: "error", result: "업로드 실패" });
+      }
+    }
+    refreshStatus();
+  };
+
+  const uploadInfluencerBatch = async () => {
+    for (const row of influencerBatch) {
+      if (!row.file || row.status === "done") continue;
+      updateBatchRow(setInfluencerBatch, row.id, { status: "uploading" });
+      try {
+        const form = new FormData();
+        form.append("file", row.file);
+        form.append("channel", "influencer");
+        form.append("date", row.date);
+        const res = await fetch("/api/upload-ad-report", { method: "POST", body: form });
+        const data = await res.json();
+        if (data.ok) {
+          updateBatchRow(setInfluencerBatch, row.id, { status: "done", result: `✅ ${row.date} 인플루언서 ₩${formatCompact(data.spend || 0)}` });
+        } else {
+          updateBatchRow(setInfluencerBatch, row.id, { status: "error", result: data.error || "실패" });
+        }
+      } catch {
+        updateBatchRow(setInfluencerBatch, row.id, { status: "error", result: "업로드 실패" });
       }
     }
     refreshStatus();
@@ -444,7 +468,7 @@ export default function DailyInput() {
   const [selectedDate, setSelectedDate] = useState(getYesterday());
   const selectedLabel = new Date(selectedDate + "T00:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" });
   const progress = completed.size;
-  const total = 7;
+  const total = 8;
 
   return (
     <div className="space-y-3">
@@ -597,46 +621,92 @@ export default function DailyInput() {
         }} />
       </Section>
 
-      {/* 4. 인플루언서/체험단 비용 */}
-      <Section num={4} emoji="👥" title="인플루언서/체험단 비용" desc="어제 집행한 인플루언서/체험단/공구 비용"
+      {/* 4. 인플루언서/체험단 비용 (배치) */}
+      <Section num={4} emoji="👥" title="인플루언서/체험단 비용" desc="인플루언서/체험단/공구 비용 → 날짜별 파일"
         done={completed.has(4)} onToggleDone={() => toggle(4)}>
-        <ManualAdInput channel="influencer" label="인플루언서" date={selectedDate} fields={[
-          { key: "spend", label: "비용 (원)", placeholder: "100000" },
-          { key: "conversions", label: "건수", placeholder: "1" },
+        <div className="space-y-2">
+          {influencerBatch.map(row => (
+            <div key={row.id} className="flex items-center gap-2">
+              <input type="date" value={row.date} onChange={e => updateBatchRow(setInfluencerBatch, row.id, { date: e.target.value })}
+                className="text-xs border rounded px-2 py-1 bg-white dark:bg-zinc-800 dark:border-zinc-600 w-36" disabled={row.status !== "pending"} />
+              <label className="flex-1 text-xs border rounded px-2 py-1.5 bg-gray-50 dark:bg-zinc-800 dark:border-zinc-600 cursor-pointer truncate hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors">
+                <input type="file" accept=".xlsx,.xls,.csv" className="hidden"
+                  onChange={e => { if (e.target.files?.[0]) updateBatchRow(setInfluencerBatch, row.id, { file: e.target.files[0] }); }}
+                  disabled={row.status !== "pending"} />
+                {row.file ? row.file.name : "파일 선택..."}
+              </label>
+              {row.status === "pending" && (
+                <button onClick={() => removeBatchRow(setInfluencerBatch, row.id)} className="text-gray-400 hover:text-red-500 text-sm px-1">✕</button>
+              )}
+              {row.status === "uploading" && <span className="text-xs text-blue-500 animate-pulse">⏳</span>}
+              {row.status === "done" && <span className="text-xs text-green-500" title={row.result}>✅</span>}
+              {row.status === "error" && <span className="text-xs text-red-500" title={row.result}>❌</span>}
+            </div>
+          ))}
+          <div className="flex gap-2">
+            <button onClick={() => addBatchRow(setInfluencerBatch, selectedDate)}
+              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">+ 날짜 추가</button>
+            {influencerBatch.some(r => r.file && r.status === "pending") && (
+              <button onClick={() => uploadInfluencerBatch()}
+                className="text-xs px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+                한번에 업로드 ({influencerBatch.filter(r => r.file && r.status === "pending").length}개)
+              </button>
+            )}
+          </div>
+          {influencerBatch.some(r => r.result) && (
+            <div className="text-[11px] text-gray-500 space-y-0.5">
+              {influencerBatch.filter(r => r.result).map(r => <div key={r.id}>{r.result}</div>)}
+            </div>
+          )}
+        </div>
+      </Section>
+
+      {/* 5. 카페24 퍼널 지표 */}
+      <Section num={5} emoji="🛒" title="카페24 퍼널" desc="카페24 → 장바구니 / 회원가입 / 재구매"
+        done={completed.has(5)} onToggleDone={() => toggle(5)}>
+        <ManualAdInput channel="cafe24_funnel" label="카페24" date={selectedDate} fields={[
+          { key: "cart_adds", label: "장바구니", placeholder: "15" },
+          { key: "signups", label: "회원가입", placeholder: "3" },
+          { key: "repurchases", label: "재구매", placeholder: "2" },
         ]} onSave={async (data) => {
-          const r = await saveAdSpend(data);
-          if (!r.error) toggle(4);
-          return r;
+          const res = await fetch("/api/settings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: "cafe24_funnel", data: { date: selectedDate, ...data } }),
+          });
+          const result = await res.json();
+          if (res.ok) { refreshStatus(); toggle(5); return { message: `✅ 카페24 ${selectedDate} 저장 완료` }; }
+          return { error: result.error || "저장 실패" };
         }} />
       </Section>
 
-      {/* 5. 건별 비용 */}
-      <Section num={5} emoji="🧾" title="건별 비용" desc="촬영비, 디자인비, 샘플비, 기타 비용"
-        done={completed.has(5)} onToggleDone={() => toggle(5)}>
+      {/* 6. 건별 비용 */}
+      <Section num={6} emoji="🧾" title="건별 비용" desc="촬영비, 디자인비, 샘플비, 기타 비용"
+        done={completed.has(6)} onToggleDone={() => toggle(6)}>
         <MiscCostInput date={selectedDate} onSave={async (data) => {
           const r = await saveMiscCost(data);
-          if (!r.error) toggle(5);
+          if (!r.error) toggle(6);
           return r;
         }} />
       </Section>
 
-      {/* 6. 판매 실적 */}
-      <Section num={6} emoji="📤" title="판매 실적 (이카운트)" desc="이카운트 → 판매입력 엑셀 다운로드 → 업로드"
-        done={completed.has(6)} onToggleDone={() => toggle(6)}>
+      {/* 7. 판매 실적 */}
+      <Section num={7} emoji="📤" title="판매 실적 (이카운트)" desc="이카운트 → 판매입력 엑셀 다운로드 → 업로드"
+        done={completed.has(7)} onToggleDone={() => toggle(7)}>
         <FileZone label="판매입력 엑셀(.xlsx) 드래그 또는 클릭" uploading={salesUploading} onFile={uploadSales} />
         <ResultBox result={salesResult} />
       </Section>
 
-      {/* 7. 싱크 & 확인 */}
-      <Section num={7} emoji="🔄" title="싱크 & 대시보드 확인" desc="싱크 버튼 누르고 Overview에서 데이터 확인"
-        done={completed.has(7)} onToggleDone={() => toggle(7)}>
+      {/* 8. 싱크 & 확인 */}
+      <Section num={8} emoji="🔄" title="싱크 & 대시보드 확인" desc="싱크 버튼 누르고 Overview에서 데이터 확인"
+        done={completed.has(8)} onToggleDone={() => toggle(8)}>
         <div className="flex gap-3">
           <button onClick={async () => {
             await Promise.all([
               fetch("/api/sync", { method: "POST" }),
               fetch("/api/sync-ads", { method: "POST", headers: {"Content-Type":"application/json"}, body: "{}" }),
             ]);
-            toggle(7);
+            toggle(8);
             refreshStatus();
           }}
             className="px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700">
