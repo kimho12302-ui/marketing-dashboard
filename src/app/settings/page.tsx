@@ -88,7 +88,8 @@ function DailyInputGuide({ onSwitchTab }: { onSwitchTab: (tab: string) => void }
   useEffect(() => {
     fetch("/api/data-status").then(r => r.json()).then(setDataStatus).catch(() => {});
     // Load today's completion state
-    const saved = localStorage.getItem("daily-input-" + new Date().toISOString().slice(0, 10));
+    const todayKST = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const saved = localStorage.getItem("daily-input-" + todayKST);
     if (saved) setCompletedSteps(new Set(JSON.parse(saved)));
   }, []);
 
@@ -96,12 +97,13 @@ function DailyInputGuide({ onSwitchTab }: { onSwitchTab: (tab: string) => void }
     setCompletedSteps(prev => {
       const next = new Set(prev);
       if (next.has(step)) next.delete(step); else next.add(step);
-      localStorage.setItem("daily-input-" + new Date().toISOString().slice(0, 10), JSON.stringify([...next]));
+      const todayKST = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      localStorage.setItem("daily-input-" + todayKST, JSON.stringify([...next]));
       return next;
     });
   };
 
-  const today = new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" });
+  const today = new Date().toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "short" });
   const allDone = completedSteps.size >= 5;
 
   const steps = [

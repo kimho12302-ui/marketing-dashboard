@@ -101,6 +101,17 @@ function ManualAdInput({ channel, label, fields, onSave, date }: {
   const handleSaveAll = async () => {
     for (const row of rows) {
       if (row.status === "done") continue;
+      // Validate required fields
+      const requiredFields = fields.filter(f => f.type === "select" || f.key === "spend");
+      const missingField = requiredFields.find(f => !row.values[f.key]);
+      if (missingField) {
+        updateRow(row.id, { status: "error", result: `${missingField.label} 입력 필요` });
+        continue;
+      }
+      if (!row.date) {
+        updateRow(row.id, { status: "error", result: "날짜 입력 필요" });
+        continue;
+      }
       updateRow(row.id, { status: "saving" });
       try {
         const parsed: Record<string, any> = {};
@@ -374,7 +385,7 @@ function DataStatusPanel({ refreshKey }: { refreshKey: number }) {
 
 // ─── Main DailyInput ───
 export default function DailyInput() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const [completed, setCompleted] = useState<Set<number>>(new Set());
   const [statusRefreshKey, setStatusRefreshKey] = useState(0);
   const refreshStatus = () => setStatusRefreshKey(k => k + 1);
@@ -618,9 +629,9 @@ export default function DailyInput() {
     return { error: result.error || result.message || "저장 실패" };
   };
 
-  // Date selector - default yesterday
+  // Date selector - default yesterday (KST)
   const getYesterday = () => {
-    const d = new Date();
+    const d = new Date(Date.now() + 9 * 60 * 60 * 1000);
     d.setDate(d.getDate() - 1);
     return d.toISOString().slice(0, 10);
   };
