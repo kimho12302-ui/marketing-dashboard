@@ -756,11 +756,11 @@ export default function OverviewPage() {
                       </div>
                       <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-200 dark:border-zinc-800">
                         <div className="text-center">
-                          <p className="text-xl font-bold text-green-400">{funnelSummary.convRate.toFixed(2)}%</p>
+                          <p className="text-xl font-bold text-green-400">{isFinite(funnelSummary.convRate) ? funnelSummary.convRate.toFixed(2) : "0.00"}%</p>
                           <p className="text-[10px] text-gray-400 dark:text-zinc-500">전환율 (세션→구매)</p>
                         </div>
                         <div className="text-center">
-                          <p className="text-xl font-bold text-orange-400">{funnelSummary.cartToOrderRate.toFixed(1)}%</p>
+                          <p className="text-xl font-bold text-orange-400">{isFinite(funnelSummary.cartToOrderRate) ? funnelSummary.cartToOrderRate.toFixed(1) : "0.0"}%</p>
                           <p className="text-[10px] text-gray-400 dark:text-zinc-500">장바구니→구매율</p>
                         </div>
                       </div>

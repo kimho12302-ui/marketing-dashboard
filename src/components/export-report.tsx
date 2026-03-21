@@ -20,11 +20,22 @@ export default function ExportReport({ targetId, filename = "report" }: ExportRe
       const el = document.getElementById(targetId);
       if (!el) return;
 
+      // Add export timestamp watermark
+      const watermark = document.createElement("div");
+      watermark.className = "text-xs text-gray-400 dark:text-zinc-500 py-2 px-4 border-t border-gray-200 dark:border-zinc-800 mt-4";
+      const now = new Date();
+      const kstStr = now.toLocaleString("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+      watermark.textContent = `📊 PPMI 마케팅 대시보드 | 내보내기: ${kstStr} | ${filename}`;
+      el.appendChild(watermark);
+
       const canvas = await html2canvas(el, {
         scale: 2,
         useCORS: true,
         backgroundColor: document.documentElement.classList.contains("dark") ? "#09090b" : "#ffffff",
       });
+
+      // Remove watermark after capture
+      el.removeChild(watermark);
 
       const imgData = canvas.toDataURL("image/png");
       const imgW = canvas.width;
