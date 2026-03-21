@@ -100,7 +100,7 @@ export default function KPICards({ data, periodLabel, onCardClick, selectedCard,
                   <Icon className="h-3.5 w-3.5 text-gray-300 dark:text-zinc-600" />
                 </div>
                 {tooltip === card.key && GLOSSARY[card.key] && (
-                  <div className="absolute top-12 left-2 right-2 z-50 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-lg p-2 text-xs text-gray-600 dark:text-zinc-300">
+                  <div className="absolute top-12 left-0 right-0 md:left-2 md:right-2 z-50 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-lg p-2 text-xs text-gray-600 dark:text-zinc-300 max-w-[200px]">
                     {GLOSSARY[card.key]}
                   </div>
                 )}

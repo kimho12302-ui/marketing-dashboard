@@ -149,11 +149,11 @@ export default function MonthlyPage() {
             <Card>
               <CardHeader><CardTitle>📊 월별 상세</CardTitle></CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
+                <div className="overflow-x-auto -mx-2 px-2 md:mx-0 md:px-0">
+                  <table className="w-full text-xs min-w-[680px]">
                     <thead>
                       <tr className="border-b border-gray-200 dark:border-zinc-700">
-                        <th className="text-left py-2 px-2 text-gray-500 dark:text-zinc-400">월</th>
+                        <th className="text-left py-2 px-2 text-gray-500 dark:text-zinc-400 sticky left-0 bg-white dark:bg-zinc-900 z-10">월</th>
                         <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">매출</th>
                         <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">주문수</th>
                         <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">광고비</th>
