@@ -138,11 +138,13 @@ export async function GET(request: NextRequest) {
     const brandLabelsMap: Record<string, string> = { nutty: "너티", ironpet: "아이언펫", saip: "사입", balancelab: "밸런스랩" };
     const trendMap = new Map<string, Record<string, number>>();
     for (const row of sales || []) {
+      const nb = normalizeBrand(row.brand);
+      if (!nb) continue;
       const key = getGroupKey(row.date);
       const existing = trendMap.get(key) || { revenue: 0, adSpend: 0 };
       existing.revenue = (existing.revenue || 0) + Number(row.revenue);
       // Brand-level revenue
-      const bl = brandLabelsMap[row.brand] || row.brand;
+      const bl = brandLabelsMap[nb] || nb;
       existing[bl] = (existing[bl] || 0) + Number(row.revenue);
       trendMap.set(key, existing);
     }
@@ -191,13 +193,22 @@ export async function GET(request: NextRequest) {
         return row;
       });
 
+    // Normalize brand names (자체판매 → balancelab, etc.)
+    const normalizeBrand = (b: string) => {
+      if (b === "자체판매" || b === "공동구매") return "balancelab";
+      if (b === "all" || b === "unknown") return null; // exclude
+      return b;
+    };
+
     // Brand revenue breakdown
     const brandMap = new Map<string, { revenue: number; orders: number }>();
     for (const row of sales || []) {
-      const existing = brandMap.get(row.brand) || { revenue: 0, orders: 0 };
+      const nb = normalizeBrand(row.brand);
+      if (!nb) continue;
+      const existing = brandMap.get(nb) || { revenue: 0, orders: 0 };
       existing.revenue += Number(row.revenue);
       existing.orders += Number(row.orders);
-      brandMap.set(row.brand, existing);
+      brandMap.set(nb, existing);
     }
     const brandRevenue = Array.from(brandMap.entries()).map(([b, d]) => ({ brand: b, revenue: d.revenue, orders: d.orders }));
 
@@ -205,9 +216,11 @@ export async function GET(request: NextRequest) {
     const brandLabels: Record<string, string> = { nutty: "너티", ironpet: "아이언펫", saip: "사입", balancelab: "밸런스랩" };
     const brandTrendMap = new Map<string, Record<string, number>>();
     for (const row of sales || []) {
+      const nb = normalizeBrand(row.brand);
+      if (!nb) continue;
       const dateKey = getGroupKey(row.date);
       const existing = brandTrendMap.get(dateKey) || {};
-      const bl = brandLabels[row.brand] || row.brand;
+      const bl = brandLabels[nb] || nb;
       existing[bl] = (existing[bl] || 0) + Number(row.revenue);
       brandTrendMap.set(dateKey, existing);
     }
@@ -353,9 +366,11 @@ export async function GET(request: NextRequest) {
         const dayBrandRev = new Map<string, Map<string, number>>();
         for (const row of sales || []) {
           if (row.date === lastDate || row.date === prevDate) {
+            const nb = normalizeBrand(row.brand);
+            if (!nb) continue;
             if (!dayBrandRev.has(row.date)) dayBrandRev.set(row.date, new Map());
             const dayMap = dayBrandRev.get(row.date)!;
-            dayMap.set(row.brand, (dayMap.get(row.brand) || 0) + Number(row.revenue));
+            dayMap.set(nb, (dayMap.get(nb) || 0) + Number(row.revenue));
           }
         }
 
