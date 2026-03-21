@@ -3,9 +3,11 @@
 import { useState } from "react";
 import type { KPIData } from "@/lib/types";
 import { AlertTriangle, X } from "lucide-react";
+import { formatCompact } from "@/lib/utils";
 
 interface AnomalyBannerProps {
   data: KPIData;
+  brandAnomalies?: { brand: string; metric: string; change: number; current: number; previous: number }[];
 }
 
 interface Anomaly {
@@ -18,7 +20,6 @@ function detectAnomalies(data: KPIData): Anomaly[] {
   const anomalies: Anomaly[] = [];
   const { revenue, revenuePrev, adSpend, adSpendPrev, roas, roasPrev, orders, ordersPrev } = data;
 
-  // ROAS dropped 30%+
   if (roasPrev > 0 && roas < roasPrev * 0.7) {
     const drop = ((1 - roas / roasPrev) * 100).toFixed(0);
     anomalies.push({
@@ -28,27 +29,24 @@ function detectAnomalies(data: KPIData): Anomaly[] {
     });
   }
 
-  // Ad spend surged 50%+
   if (adSpendPrev > 0 && adSpend > adSpendPrev * 1.5) {
     const surge = ((adSpend / adSpendPrev - 1) * 100).toFixed(0);
     anomalies.push({
       type: "warning",
       message: `광고비 ${surge}% 급증`,
-      detail: `₩${(adSpendPrev / 10000).toFixed(0)}만 → ₩${(adSpend / 10000).toFixed(0)}만. 예산 초과 여부를 확인하세요.`,
+      detail: `₩${formatCompact(adSpendPrev)} → ₩${formatCompact(adSpend)}. 예산 초과 여부를 확인하세요.`,
     });
   }
 
-  // Revenue dropped 20%+
   if (revenuePrev > 0 && revenue < revenuePrev * 0.8) {
     const drop = ((1 - revenue / revenuePrev) * 100).toFixed(0);
     anomalies.push({
       type: "danger",
       message: `매출 ${drop}% 하락`,
-      detail: `₩${(revenuePrev / 10000).toFixed(0)}만 → ₩${(revenue / 10000).toFixed(0)}만. 채널별 매출을 확인하세요.`,
+      detail: `₩${formatCompact(revenuePrev)} → ₩${formatCompact(revenue)}. 채널별 매출을 확인하세요.`,
     });
   }
 
-  // CAC surged 40%+
   const cac = orders > 0 ? adSpend / orders : 0;
   const prevCac = ordersPrev > 0 ? adSpendPrev / ordersPrev : 0;
   if (prevCac > 0 && cac > prevCac * 1.4) {
@@ -60,7 +58,6 @@ function detectAnomalies(data: KPIData): Anomaly[] {
     });
   }
 
-  // Orders dropped 25%+
   if (ordersPrev > 0 && orders < ordersPrev * 0.75) {
     const drop = ((1 - orders / ordersPrev) * 100).toFixed(0);
     anomalies.push({
@@ -73,16 +70,34 @@ function detectAnomalies(data: KPIData): Anomaly[] {
   return anomalies;
 }
 
-export default function AnomalyBanner({ data }: AnomalyBannerProps) {
+export default function AnomalyBanner({ data, brandAnomalies }: AnomalyBannerProps) {
   const [dismissed, setDismissed] = useState<Set<number>>(new Set());
-  const anomalies = detectAnomalies(data);
-  const visible = anomalies.filter((_, i) => !dismissed.has(i));
+
+  // Period-over-period anomalies
+  const periodAnomalies = detectAnomalies(data);
+
+  // Brand-level day-over-day anomalies
+  const brandAlerts: Anomaly[] = (brandAnomalies || []).map(a => {
+    const direction = a.change >= 0 ? "증가" : "감소";
+    const absChange = Math.abs(a.change).toFixed(0);
+    const isMetric = a.metric === "ROAS";
+    const fmtCur = isMetric ? `${a.current.toFixed(2)}x` : `₩${formatCompact(a.current)}`;
+    const fmtPrev = isMetric ? `${a.previous.toFixed(2)}x` : `₩${formatCompact(a.previous)}`;
+    return {
+      type: a.change < -30 ? "danger" as const : "warning" as const,
+      message: `${a.brand} ${a.metric}이 전일 대비 ${a.change >= 0 ? "+" : ""}${absChange}% ${direction}`,
+      detail: `${fmtPrev} → ${fmtCur}`,
+    };
+  });
+
+  const allAnomalies = [...brandAlerts, ...periodAnomalies];
+  const visible = allAnomalies.filter((_, i) => !dismissed.has(i));
 
   if (visible.length === 0) return null;
 
   return (
     <div className="space-y-2">
-      {anomalies.map((a, i) => {
+      {allAnomalies.map((a, i) => {
         if (dismissed.has(i)) return null;
         const bgClass = a.type === "danger"
           ? "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"

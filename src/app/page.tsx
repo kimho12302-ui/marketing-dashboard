@@ -85,6 +85,7 @@ export default function OverviewPage() {
   const [gongguSalesTotal, setGongguSalesTotal] = useState(0);
   const [selfSalesTotal, setSelfSalesTotal] = useState(0);
   const [gongguTargets, setGongguTargets] = useState<{ seller: string; target: number; note: string }[]>([]);
+  const [brandAnomalies, setBrandAnomalies] = useState<{ brand: string; metric: string; change: number; current: number; previous: number }[]>([]);
   const [lastFetched, setLastFetched] = useState<string>("");
 
   const fetchData = useCallback(async () => {
@@ -116,6 +117,7 @@ export default function OverviewPage() {
       setGongguSalesTotal(data.gongguSalesTotal || 0);
       setSelfSalesTotal(data.selfSalesTotal || 0);
       setGongguTargets(data.gongguTargets || []);
+      setBrandAnomalies(data.anomalies || []);
 
       if (adsRes.ok) {
         const adsData = await adsRes.json();
@@ -439,7 +441,7 @@ export default function OverviewPage() {
         ) : (
           <>
             <MissingDataAlert />
-            <AnomalyBanner data={kpi} />
+            <AnomalyBanner data={kpi} brandAnomalies={brandAnomalies} />
 
             <section>
               <KPICards data={kpi} periodLabel={`${filters.from} ~ ${filters.to}`}

@@ -339,6 +339,74 @@ export async function GET(request: NextRequest) {
       gongguTargets.push({ seller: row.metric, target: Number(row.value), note: row.note || "" });
     }
 
+    // ── Brand-level anomaly detection (day-over-day) ──
+    const anomalies: { brand: string; metric: string; change: number; current: number; previous: number }[] = [];
+    {
+      // Get yesterday and day before from the selected range
+      const sortedDates = [...new Set((sales || []).map(r => r.date))].sort();
+      if (sortedDates.length >= 2) {
+        const lastDate = sortedDates[sortedDates.length - 1];
+        const prevDate = sortedDates[sortedDates.length - 2];
+        const brandLabelsLocal: Record<string, string> = { nutty: "너티", ironpet: "아이언펫", saip: "사입", balancelab: "밸런스랩" };
+
+        // Revenue by brand for last 2 days
+        const dayBrandRev = new Map<string, Map<string, number>>();
+        for (const row of sales || []) {
+          if (row.date === lastDate || row.date === prevDate) {
+            if (!dayBrandRev.has(row.date)) dayBrandRev.set(row.date, new Map());
+            const dayMap = dayBrandRev.get(row.date)!;
+            dayMap.set(row.brand, (dayMap.get(row.brand) || 0) + Number(row.revenue));
+          }
+        }
+
+        // Ad spend by brand for last 2 days
+        const dayBrandAd = new Map<string, Map<string, number>>();
+        for (const row of adSpend || []) {
+          if (row.date === lastDate || row.date === prevDate) {
+            if (!dayBrandAd.has(row.date)) dayBrandAd.set(row.date, new Map());
+            const dayMap = dayBrandAd.get(row.date)!;
+            dayMap.set(row.brand, (dayMap.get(row.brand) || 0) + Number(row.spend));
+          }
+        }
+
+        const lastRev = dayBrandRev.get(lastDate) || new Map();
+        const prevRev = dayBrandRev.get(prevDate) || new Map();
+        const lastAd = dayBrandAd.get(lastDate) || new Map();
+        const prevAd = dayBrandAd.get(prevDate) || new Map();
+
+        for (const b of ["nutty", "ironpet", "saip", "balancelab"]) {
+          const label = brandLabelsLocal[b] || b;
+          const curRev = lastRev.get(b) || 0;
+          const pRev = prevRev.get(b) || 0;
+          if (pRev > 0) {
+            const change = ((curRev - pRev) / pRev) * 100;
+            if (Math.abs(change) >= 30) {
+              anomalies.push({ brand: label, metric: "매출", change, current: curRev, previous: pRev });
+            }
+          }
+
+          const curAd = lastAd.get(b) || 0;
+          const pAd = prevAd.get(b) || 0;
+          if (pAd > 0) {
+            const change = ((curAd - pAd) / pAd) * 100;
+            if (Math.abs(change) >= 30) {
+              anomalies.push({ brand: label, metric: "광고비", change, current: curAd, previous: pAd });
+            }
+          }
+
+          // ROAS
+          const curRoas = curAd > 0 ? curRev / curAd : 0;
+          const pRoas = pAd > 0 ? pRev / pAd : 0;
+          if (pRoas > 0) {
+            const change = ((curRoas - pRoas) / pRoas) * 100;
+            if (Math.abs(change) >= 30) {
+              anomalies.push({ brand: label, metric: "ROAS", change, current: curRoas, previous: pRoas });
+            }
+          }
+        }
+      }
+    }
+
     // Add 7-day moving average to trend
     const trendWithMA = trend.map((t: any, i: number) => {
       const window = trend.slice(Math.max(0, i - 6), i + 1);
@@ -363,7 +431,7 @@ export async function GET(request: NextRequest) {
       trend: trendWithMA, channels, channelRoasTrend, brandRevenue, brandRevenueTrend, brandAdSpend, brandRoasTrend,
       funnelSummary: { ...funnelSummary, convRate, cartToOrderRate },
       topProducts, salesByChannel, targets,
-      gongguSales, gongguSalesTotal, selfSalesTotal, gongguTargets,
+      gongguSales, gongguSalesTotal, selfSalesTotal, gongguTargets, anomalies,
     });
   } catch (error) {
     console.error("Dashboard API error:", error);
