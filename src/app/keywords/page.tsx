@@ -331,7 +331,8 @@ export default function KeywordsPage() {
                         domain={[0, "auto"]} />
                       <YAxis type="number" dataKey="cpc" name="CPC" tick={{ fill: chartTheme.tickColor, fontSize: 11 }}
                         label={{ value: "CPC (₩)", angle: -90, position: "insideLeft", fill: chartTheme.axisColor, fontSize: 11, dx: -5 }}
-                        scale="log" domain={[100, "auto"]} allowDataOverflow />
+                        scale={scatterData.length > 0 && scatterData.some(d => d.cpc > 0) ? "log" : "auto"}
+                        domain={[Math.max(1, Math.min(...scatterData.map(d => d.cpc).filter(v => v > 0), 100)), "auto"]} allowDataOverflow />
                       <ZAxis type="number" dataKey="clicks" range={[40, 400]} name="클릭수" />
                       <ReferenceLine y={avgCpc} stroke="#ef4444" strokeDasharray="5 5" strokeOpacity={0.6} />
                       <ReferenceLine x={avgCtr} stroke="#ef4444" strokeDasharray="5 5" strokeOpacity={0.6} />

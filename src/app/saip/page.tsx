@@ -6,6 +6,7 @@ import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompact } from "@/lib/utils";
 import { useChartTheme } from "@/hooks/use-chart-theme";
+import ExportReport from "@/components/export-report";
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -58,7 +59,10 @@ export default function SaipPage() {
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-zinc-100">
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
-        <PageHeader title="📦 사입 브랜드" subtitle="파미나 · 닥터레이 · 고네이티브 · 테라카니스" />
+        <div className="flex items-center justify-between">
+          <PageHeader title="📦 사입 브랜드" subtitle="파미나 · 닥터레이 · 고네이티브 · 테라카니스" />
+          <ExportReport targetId="saip-content" filename="PPMI-Saip" />
+        </div>
         
         {/* Date Range */}
         <div className="flex gap-2 items-center">
@@ -74,9 +78,9 @@ export default function SaipPage() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500" />
           </div>
         ) : (
-          <>
+          <div id="saip-content" className="space-y-6">
             {/* KPI Summary */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               <Card>
                 <CardContent className="pt-4">
                   <p className="text-xs text-gray-500 dark:text-zinc-400">총 매출</p>
@@ -87,6 +91,12 @@ export default function SaipPage() {
                 <CardContent className="pt-4">
                   <p className="text-xs text-gray-500 dark:text-zinc-400">총 판매량</p>
                   <p className="text-2xl font-bold">{totalQuantity.toLocaleString()}개</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-4">
+                  <p className="text-xs text-gray-500 dark:text-zinc-400">객단가 (AOV)</p>
+                  <p className="text-2xl font-bold text-blue-400">₩{formatCompact(totalQuantity > 0 ? Math.round(totalRevenue / totalQuantity) : 0)}</p>
                 </CardContent>
               </Card>
               <Card>
@@ -202,7 +212,7 @@ export default function SaipPage() {
                 </div>
               </CardContent>
             </Card>
-          </>
+          </div>
         )}
       </div>
     </main>
