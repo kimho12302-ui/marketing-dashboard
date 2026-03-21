@@ -25,7 +25,6 @@ const NAV_ITEMS = [
   { href: "/keywords", label: "Keywords", icon: Search, emoji: "🔍" },
   { href: "/content", label: "Content", icon: FileText, emoji: "📝" },
   { href: "/insights", label: "Insights", icon: Lightbulb, emoji: "💡" },
-  { href: "/saip", label: "사입 분석", icon: Package, emoji: "📦" },
   { href: "/monthly", label: "월별 요약", icon: BarChart3, emoji: "📅" },
   { href: "/settings", label: "설정", icon: Settings, emoji: "⚙️" },
 ];
