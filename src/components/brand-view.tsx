@@ -59,6 +59,7 @@ interface BrandViewData {
   gongguRevenue?: number;
   gongguSales?: { seller: string; revenue: number; orders: number }[];
   selfGongguTrend?: { date: string; 자체판매: number; 공동구매: number }[];
+  optionBreakdown?: { option: string; count: number; revenue: number }[];
   // saip
   subBrandRevenue?: { subBrand: string; revenue: number }[];
   subBrandTrend?: Record<string, unknown>[];
@@ -310,6 +311,7 @@ function BalancelabSection({ data, chartTheme }: { data: BrandViewData; chartThe
   const total = selfRev + gongguRev;
   const gongguSales = data.gongguSales || [];
   const sgTrend = data.selfGongguTrend || [];
+  const optionBreakdown = data.optionBreakdown || [];
 
   return (
     <section className="space-y-6">
@@ -367,6 +369,34 @@ function BalancelabSection({ data, chartTheme }: { data: BrandViewData; chartThe
           </CardContent>
         </Card>
       </div>
+
+      {optionBreakdown.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle>🧪 제품/옵션별 판매 현황</CardTitle></CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {optionBreakdown.map((opt, i) => {
+                const maxCount = optionBreakdown[0]?.count || 1;
+                const pct = (opt.count / maxCount) * 100;
+                return (
+                  <div key={opt.option}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm text-gray-700 dark:text-zinc-300">{opt.option}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium">{opt.count}건</span>
+                        {opt.revenue > 0 && <span className="text-[10px] text-gray-400">₩{formatCompact(opt.revenue)}</span>}
+                      </div>
+                    </div>
+                    <div className="h-2 bg-gray-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full bg-pink-400" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {sgTrend.length > 0 && (
         <Card>

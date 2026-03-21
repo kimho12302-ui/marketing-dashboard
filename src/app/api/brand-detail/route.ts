@@ -197,6 +197,45 @@ export async function GET(request: NextRequest) {
     }
 
     if (brand === "balancelab") {
+      // Option parsing: 종이결과지, 맞춤영양제 counts from product names
+      const optionCounts = new Map<string, { count: number; revenue: number }>();
+      for (const r of prodData || []) {
+        const pName = r.product || "";
+        // Parse "+" separated options
+        const parts = pName.split("+").map((p: string) => p.trim());
+        for (const part of parts) {
+          if (part.includes("종이결과지")) {
+            const e = optionCounts.get("종이결과지") || { count: 0, revenue: 0 };
+            e.count += Number(r.quantity);
+            optionCounts.set("종이결과지", e);
+          } else if (part.includes("맞춤") && part.includes("영양제")) {
+            const e = optionCounts.get("맞춤영양제") || { count: 0, revenue: 0 };
+            e.count += Number(r.quantity);
+            optionCounts.set("맞춤영양제", e);
+          }
+        }
+        // Base product classification
+        if (pName.includes("뉴트리션")) {
+          const e = optionCounts.get("큐모발검사 뉴트리션") || { count: 0, revenue: 0 };
+          e.count += Number(r.quantity);
+          e.revenue += Number(r.revenue);
+          optionCounts.set("큐모발검사 뉴트리션", e);
+        } else if (pName.includes("중금속")) {
+          const e = optionCounts.get("큐모발검사 중금속") || { count: 0, revenue: 0 };
+          e.count += Number(r.quantity);
+          e.revenue += Number(r.revenue);
+          optionCounts.set("큐모발검사 중금속", e);
+        } else if (pName.includes("맞춤영양제") && !pName.includes("+")) {
+          const e = optionCounts.get("맞춤영양제(단품)") || { count: 0, revenue: 0 };
+          e.count += Number(r.quantity);
+          e.revenue += Number(r.revenue);
+          optionCounts.set("맞춤영양제(단품)", e);
+        }
+      }
+      extra.optionBreakdown = Array.from(optionCounts.entries())
+        .map(([option, d]) => ({ option, count: d.count, revenue: d.revenue }))
+        .sort((a, b) => b.count - a.count);
+
       // Self vs gonggu
       let selfRevenue = 0;
       let gongguRevenue = 0;
