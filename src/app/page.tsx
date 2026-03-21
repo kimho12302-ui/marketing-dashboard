@@ -12,6 +12,7 @@ import SyncButton from "@/components/sync-button";
 import TrendChart from "@/components/trend-chart";
 import ChannelChart from "@/components/channel-chart";
 import BrandCompareChart from "@/components/brand-compare-chart";
+import BrandView from "@/components/brand-view";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompact } from "@/lib/utils";
@@ -415,7 +416,10 @@ export default function OverviewPage() {
         )}
 
         <div id="overview-content" className="space-y-6">
-        {loading ? (
+        {/* Brand-specific view when a single brand is selected */}
+        {filters.brand !== "all" ? (
+          <BrandView />
+        ) : loading ? (
           <div className="space-y-6">
             {/* Skeleton for KPI cards */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
