@@ -117,7 +117,7 @@ export default function KeywordsPage() {
                 </CardContent></Card>
                 <Card><CardContent className="pt-4 text-center">
                   <p className="text-xs text-gray-500 dark:text-zinc-400">평균 CPC</p>
-                  <p className="text-xl font-bold">₩{naverSummary.avgCpc.toLocaleString()}</p>
+                  <p className="text-xl font-bold">₩{Math.round(naverSummary.avgCpc).toLocaleString()}</p>
                 </CardContent></Card>
               </div>
             )}
@@ -153,7 +153,7 @@ export default function KeywordsPage() {
                               <td className="py-2 px-2 text-right">{c.impressions.toLocaleString()}</td>
                               <td className="py-2 px-2 text-right">{c.clicks.toLocaleString()}</td>
                               <td className="py-2 px-2 text-right">{c.ctr.toFixed(2)}%</td>
-                              <td className="py-2 px-2 text-right">₩{c.cpc.toLocaleString()}</td>
+                              <td className="py-2 px-2 text-right">₩{Math.round(c.cpc).toLocaleString()}</td>
                               <td className="py-2 px-2 text-right font-medium">₩{formatCompact(c.cost)}</td>
                               <td className="py-2 px-2 text-right">{c.conversions}</td>
                             </tr>
@@ -385,7 +385,7 @@ export default function KeywordsPage() {
                 </div>
                 <div className="flex gap-4 mt-2 text-xs text-gray-400 dark:text-zinc-500">
                   <span>평균 CTR: {avgCtr.toFixed(2)}%</span>
-                  <span>평균 CPC: ₩{formatCompact(avgCpc)}</span>
+                  <span>평균 CPC: ₩{formatCompact(Math.round(avgCpc))}</span>
                   <span>버블 크기 = 클릭수</span>
                 </div>
               </CardContent>
