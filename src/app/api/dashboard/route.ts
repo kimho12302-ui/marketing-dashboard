@@ -215,9 +215,8 @@ export async function GET(request: NextRequest) {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, d]) => ({ date, ...d }));
 
-    // Funnel summary for overview
-    // Funnel: use "all" brand for total funnel (채널별은 별도 brand=cafe24/smartstore/coupang)
-    let funnelQuery = supabase.from("daily_funnel").select("*").gte("date", from).lte("date", to).eq("brand", "all");
+    // Funnel summary for overview — sum all channels (cafe24/smartstore/coupang/ga4)
+    let funnelQuery = supabase.from("daily_funnel").select("*").gte("date", from).lte("date", to).neq("brand", "all");
     const { data: funnelData } = await funnelQuery;
     const funnelRows = funnelData || [];
     const funnelSummary = {

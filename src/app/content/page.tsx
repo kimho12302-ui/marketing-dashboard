@@ -81,7 +81,7 @@ export default function ContentPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke={chart.gridColor} />
                       <XAxis dataKey="date" tick={{ fill: chart.tickColor, fontSize: 12 }} tickFormatter={(v: string) => v.slice(5)} />
                       <YAxis tick={{ fill: chart.tickColor, fontSize: 12 }} />
-                      <Tooltip contentStyle={chart.tooltipStyle} />
+                      <Tooltip contentStyle={chart.tooltipStyle} labelStyle={chart.tooltipLabelStyle} itemStyle={chart.tooltipItemStyle} />
                       <Legend />
                       {byType.map((ct, i) => (
                         <Bar key={ct.content_type} dataKey={ct.content_type} stackId="a" fill={COLORS[i % COLORS.length]} />
@@ -102,7 +102,7 @@ export default function ContentPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke={chart.gridColor} />
                       <XAxis dataKey="date" tick={{ fill: chart.tickColor, fontSize: 12 }} tickFormatter={(v: string) => v.slice(5)} />
                       <YAxis tick={{ fill: chart.tickColor, fontSize: 12 }} />
-                      <Tooltip contentStyle={chart.tooltipStyle} />
+                      <Tooltip contentStyle={chart.tooltipStyle} labelStyle={chart.tooltipLabelStyle} itemStyle={chart.tooltipItemStyle} />
                       <Line type="monotone" dataKey="followers" stroke="#6366f1" strokeWidth={2} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>

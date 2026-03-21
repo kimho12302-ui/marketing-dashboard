@@ -251,7 +251,7 @@ export default function FunnelPage() {
                         <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
                         <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
                         <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} />
-                        <Tooltip contentStyle={chartTheme.tooltipStyle} />
+                        <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} />
                         <Legend />
                         <Area type="monotone" dataKey="sessions" name="세션" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} />
                         <Area type="monotone" dataKey="cart_adds" name="장바구니" stroke="#a78bfa" fill="#a78bfa" fillOpacity={0.2} />
@@ -312,7 +312,7 @@ export default function FunnelPage() {
                             <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
                             <XAxis dataKey="channel" tick={{ fill: chartTheme.labelColor, fontSize: 12 }} />
                             <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}%`} />
-                            <Tooltip contentStyle={chartTheme.tooltipStyle}
+                            <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle}
                               formatter={(v: any) => [`${Number(v).toFixed(2)}%`, "전환율"]} />
                             <Bar dataKey="convRate" name="전환율" radius={[4, 4, 0, 0]}>
                               {channelFunnel.map((_, i) => (

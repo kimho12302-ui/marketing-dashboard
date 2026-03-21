@@ -126,7 +126,7 @@ export default function SaipPage() {
                           onClick={(_, index) => setSelectedLineup(selectedLineup === byLineup[index].name ? null : byLineup[index].name)}>
                           {byLineup.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} className="cursor-pointer" />)}
                         </Pie>
-                        <Tooltip formatter={(v: any) => [`₩${formatCompact(v)}`, "매출"]} contentStyle={chart.tooltipStyle} />
+                        <Tooltip formatter={(v: any) => [`₩${formatCompact(v)}`, "매출"]} contentStyle={chart.tooltipStyle} labelStyle={chart.tooltipLabelStyle} itemStyle={chart.tooltipItemStyle} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -145,7 +145,7 @@ export default function SaipPage() {
                         <CartesianGrid strokeDasharray="3 3" stroke={chart.gridColor} />
                         <XAxis type="number" tick={{ fill: chart.tickColor, fontSize: 12 }} tickFormatter={(v) => formatCompact(v)} />
                         <YAxis type="category" dataKey="name" width={80} tick={{ fill: chart.tickColor, fontSize: 12 }} />
-                        <Tooltip formatter={(v: any) => [`₩${formatCompact(v)}`, "매출"]} contentStyle={chart.tooltipStyle} />
+                        <Tooltip formatter={(v: any) => [`₩${formatCompact(v)}`, "매출"]} contentStyle={chart.tooltipStyle} labelStyle={chart.tooltipLabelStyle} itemStyle={chart.tooltipItemStyle} />
                         <Bar dataKey="value" fill="#f97316" radius={[0, 4, 4, 0]}>
                           {byChannel.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                         </Bar>
@@ -166,7 +166,7 @@ export default function SaipPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke={chart.gridColor} />
                       <XAxis dataKey="date" tick={{ fill: chart.tickColor, fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
                       <YAxis tick={{ fill: chart.tickColor, fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
-                      <Tooltip contentStyle={chart.tooltipStyle}
+                      <Tooltip contentStyle={chart.tooltipStyle} labelStyle={chart.tooltipLabelStyle} itemStyle={chart.tooltipItemStyle}
                         formatter={(v: any) => [`₩${formatCompact(v)}`, "매출"]} />
                       <Area type="monotone" dataKey="revenue" fill="#f97316" fillOpacity={0.3} stroke="#f97316" strokeWidth={2} />
                     </AreaChart>

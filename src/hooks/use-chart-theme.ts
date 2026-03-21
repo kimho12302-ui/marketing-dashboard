@@ -28,6 +28,12 @@ export function useChartTheme() {
       borderRadius: 8,
       color: isDark ? "#e4e4e7" : "#1f2937",
     },
+    tooltipLabelStyle: {
+      color: isDark ? "#e4e4e7" : "#1f2937",
+    },
+    tooltipItemStyle: {
+      color: isDark ? "#e4e4e7" : "#1f2937",
+    },
     isDark,
   };
 }

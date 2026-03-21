@@ -212,7 +212,7 @@ export default function SalesPage() {
                           <Pie data={channelPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={85} label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={{ stroke: chartTheme.isDark ? "#555" : "#9ca3af" }}>
                             {channelPie.map((entry, i) => <Cell key={i} fill={CHANNEL_COLORS[entry.name] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]} />)}
                           </Pie>
-                          <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={chartTheme.tooltipStyle} />
+                          <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} />
                         </PieChart>
                       </ResponsiveContainer>
                     ) : (
@@ -232,7 +232,7 @@ export default function SalesPage() {
                           <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
                           <XAxis type="number" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
                           <YAxis type="category" dataKey="name" width={65} tick={{ fill: chartTheme.labelColor, fontSize: 11 }} />
-                          <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={chartTheme.tooltipStyle} />
+                          <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} />
                           <Bar dataKey="value" radius={[0, 6, 6, 0]}>
                             {fullBrandPie.map((entry, i) => (
                               <Cell key={i} fill={BRAND_COLORS[entry.name] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]} />
@@ -259,7 +259,7 @@ export default function SalesPage() {
                         <Pie data={breakdownPie} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={85} label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={{ stroke: chartTheme.isDark ? "#555" : "#9ca3af" }}>
                           {breakdownPie.map((_, i) => <Cell key={i} fill={FALLBACK_COLORS[i % FALLBACK_COLORS.length]} />)}
                         </Pie>
-                        <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={chartTheme.tooltipStyle} />
+                        <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -293,7 +293,7 @@ export default function SalesPage() {
                                   labelLine={{ stroke: chartTheme.isDark ? "#555" : "#9ca3af" }}>
                                   {pieData.map((_, i) => <Cell key={i} fill={colors[i]} />)}
                                 </Pie>
-                                <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={chartTheme.tooltipStyle} />
+                                <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} />
                               </PieChart>
                             </ResponsiveContainer>
                           </div>
@@ -392,7 +392,7 @@ export default function SalesPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
                       <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 12 }} tickFormatter={(v: string) => v.slice(5)} />
                       <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 12 }} tickFormatter={(v: any) => formatCompact(v)} />
-                      <Tooltip contentStyle={chartTheme.tooltipStyle} />
+                      <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} />
                       <Legend />
                       {trendChannels.map((ch, i) => (
                         <Line key={ch} type="monotone" dataKey={ch} name={ch} stroke={CHANNEL_COLORS[ch] || TREND_COLORS[i % TREND_COLORS.length]} dot={false} strokeWidth={2} />
@@ -413,7 +413,7 @@ export default function SalesPage() {
                         <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
                         <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
                         <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
-                        <Tooltip contentStyle={chartTheme.tooltipStyle} formatter={(v: any) => [`₩${formatCompact(v)}`, ""]} />
+                        <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} formatter={(v: any) => [`₩${formatCompact(v)}`, ""]} />
                         <Legend />
                         {trendBrands.map((b, i) => (
                           <Line key={b} type="monotone" dataKey={b} name={b} stroke={BRAND_COLORS[b] || TREND_COLORS[i % TREND_COLORS.length]} dot={false} strokeWidth={2} />
@@ -433,7 +433,7 @@ export default function SalesPage() {
                         <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
                         <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
                         <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} />
-                        <Tooltip contentStyle={chartTheme.tooltipStyle} formatter={(v: any) => [`${Number(v).toLocaleString()}건`, ""]} />
+                        <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} formatter={(v: any) => [`${Number(v).toLocaleString()}건`, ""]} />
                         <Legend />
                         {ordersBrands.map((b, i) => (
                           <Line key={b} type="monotone" dataKey={b} name={b} stroke={BRAND_COLORS[b] || TREND_COLORS[i % TREND_COLORS.length]} dot={false} strokeWidth={2} />
@@ -455,7 +455,7 @@ export default function SalesPage() {
                         <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
                         <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
                         <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
-                        <Tooltip contentStyle={chartTheme.tooltipStyle} formatter={(v: any) => [`₩${formatCompact(v)}`, ""]} />
+                        <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} formatter={(v: any) => [`₩${formatCompact(v)}`, ""]} />
                         <Legend formatter={(value: string) => value.length > 12 ? value.slice(0, 12) + "…" : value} />
                         {trendProducts.map((p, i) => (
                           <Line key={p} type="monotone" dataKey={p} name={p} stroke={TREND_COLORS[i % TREND_COLORS.length]} dot={false} strokeWidth={2} />
@@ -491,7 +491,7 @@ export default function SalesPage() {
                       <ReferenceLine x={50} stroke={chartTheme.referenceLine} strokeDasharray="5 5" />
                       <ReferenceLine y={50} stroke={chartTheme.referenceLine} strokeDasharray="5 5" />
                       <Tooltip
-                        contentStyle={chartTheme.tooltipStyle}
+                        contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle}
                         formatter={(value: any, name: any) => {
                           if (name === "광고비") return [`₩${formatCompact(value as number)}`, name];
                           return [value, name];
@@ -580,7 +580,7 @@ export default function SalesPage() {
                         <YAxis type="category" dataKey="name" width={120} tick={{ fill: chartTheme.labelColor, fontSize: 11 }} />
                         <Tooltip
                           formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]}
-                          contentStyle={chartTheme.tooltipStyle}
+                          contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle}
                         />
                         <Bar dataKey="revenue" radius={[0, 6, 6, 0]}>
                           {topProducts.map((_, i) => (

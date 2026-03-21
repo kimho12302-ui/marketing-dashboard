@@ -109,7 +109,7 @@ export default function MonthlyPage() {
                       <XAxis dataKey="name" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} />
                       <YAxis yAxisId="rev" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={v => formatCompact(v)} />
                       <YAxis yAxisId="roas" orientation="right" tick={{ fill: "#22c55e", fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}x`} />
-                      <Tooltip contentStyle={chartTheme.tooltipStyle}
+                      <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle}
                         formatter={(v: any, name: any) => [name === "ROAS" ? `${Number(v).toFixed(2)}x` : `₩${formatCompact(v)}`, name]} />
                       <Legend />
                       <Bar yAxisId="rev" dataKey="revenue" name="매출" fill="#6366f1" radius={[4, 4, 0, 0]} />
@@ -131,7 +131,7 @@ export default function MonthlyPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
                       <XAxis dataKey="name" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} />
                       <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(0)}%`} />
-                      <Tooltip contentStyle={chartTheme.tooltipStyle}
+                      <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle}
                         formatter={(v: any, name: any) => [`${Number(v).toFixed(1)}%`, name]} />
                       <Legend />
                       <Bar dataKey="revGrowth" name="매출 성장률">

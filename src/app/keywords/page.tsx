@@ -337,7 +337,7 @@ export default function KeywordsPage() {
                       <ReferenceLine y={avgCpc} stroke="#ef4444" strokeDasharray="5 5" strokeOpacity={0.6} />
                       <ReferenceLine x={avgCtr} stroke="#ef4444" strokeDasharray="5 5" strokeOpacity={0.6} />
                       <Tooltip
-                        contentStyle={chartTheme.tooltipStyle}
+                        contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle}
                         content={({ active, payload }: any) => {
                           if (!active || !payload?.length) return null;
                           const d = payload[0].payload;

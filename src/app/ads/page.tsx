@@ -161,7 +161,7 @@ export default function AdsPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
                       <XAxis dataKey="label" tick={{ fill: chartTheme.tickColor, fontSize: 12 }} />
                       <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 12 }} />
-                      <Tooltip contentStyle={chartTheme.tooltipStyle}
+                      <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle}
                         formatter={(value: any) => [`${Number(value).toFixed(2)}x`, "ROAS"]} />
                       <Bar dataKey="roas" radius={[6, 6, 0, 0]}>
                         {channels.map((c, i) => (
@@ -236,7 +236,7 @@ export default function AdsPage() {
                       <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 12 }} tickFormatter={(v: string) => v.slice(5)} />
                       <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 12 }} tickFormatter={(v: any) => formatCompact(v)} />
                       <Tooltip
-                        contentStyle={chartTheme.tooltipStyle}
+                        contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle}
                         formatter={(value: any, name: any) => [`₩${formatCompact(value)}`, name]}
                       />
                       <Legend wrapperStyle={{ paddingTop: 8 }} />
@@ -327,7 +327,7 @@ export default function AdsPage() {
                           <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }}
                             tickFormatter={(v: string) => spendPeriod === "monthly" ? v.slice(2) : v.slice(5)} />
                           <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
-                          <Tooltip contentStyle={chartTheme.tooltipStyle}
+                          <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle}
                             formatter={(v: any, name: any) => [`₩${formatCompact(v)}`, name === "total" ? "합계" : name]}
                             labelFormatter={(v) => String(v)} />
                           <Legend />
@@ -442,7 +442,7 @@ export default function AdsPage() {
                                       <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 10 }} tickFormatter={(v: string) => v.slice(5)} />
                                       <YAxis yAxisId="spend" tick={{ fill: chartTheme.tickColor, fontSize: 10 }} tickFormatter={(v: number) => formatCompact(v)} />
                                       <YAxis yAxisId="roas" orientation="right" tick={{ fill: "#22c55e", fontSize: 10 }} tickFormatter={(v: number) => `${v.toFixed(1)}x`} />
-                                      <Tooltip contentStyle={chartTheme.tooltipStyle} formatter={(v: any, name: any) => [name === "ROAS" ? `${Number(v).toFixed(2)}x` : `₩${formatCompact(v)}`, name]} />
+                                      <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} formatter={(v: any, name: any) => [name === "ROAS" ? `${Number(v).toFixed(2)}x` : `₩${formatCompact(v)}`, name]} />
                                       <Area yAxisId="spend" type="monotone" dataKey="spend" name="지출" fill="#6366f1" fillOpacity={0.2} stroke="#6366f1" strokeWidth={1.5} />
                                       <Area yAxisId="spend" type="monotone" dataKey="revenue" name="매출" fill="#22c55e" fillOpacity={0.2} stroke="#22c55e" strokeWidth={1.5} />
                                     </AreaChart>
