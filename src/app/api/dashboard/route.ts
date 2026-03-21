@@ -300,16 +300,19 @@ export async function GET(request: NextRequest) {
     }
 
     // 공동구매(공구) 데이터 집계 (balancelab brand)
+    // Known gonggu channels without 공구_ prefix
+    const GONGGU_CHANNELS_NO_PREFIX = ["더에르고"];
     let gongguSales: { seller: string; revenue: number; orders: number }[] = [];
     let selfSalesTotal = 0;
     let gongguSalesTotal = 0;
     if (brand === "balancelab" || brand === "all") {
-      let gongguQuery = supabase.from("daily_sales").select("channel,revenue,orders").gte("date", from).lte("date", to).eq("brand", "balancelab");
+      const gongguQuery = supabase.from("daily_sales").select("channel,revenue,orders").gte("date", from).lte("date", to).eq("brand", "balancelab");
       const { data: gongguData } = await gongguQuery;
       const sellerMap = new Map<string, { revenue: number; orders: number }>();
       for (const row of gongguData || []) {
-        if (row.channel.startsWith("공구_")) {
-          const seller = row.channel.replace("공구_", "");
+        const isGonggu = row.channel.startsWith("공구_") || GONGGU_CHANNELS_NO_PREFIX.includes(row.channel);
+        if (isGonggu) {
+          const seller = row.channel.startsWith("공구_") ? row.channel.replace("공구_", "") : row.channel;
           const existing = sellerMap.get(seller) || { revenue: 0, orders: 0 };
           existing.revenue += Number(row.revenue);
           existing.orders += Number(row.orders);
