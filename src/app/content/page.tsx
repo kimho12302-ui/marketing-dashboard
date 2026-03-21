@@ -83,8 +83,8 @@ export default function ContentPage() {
                       <YAxis tick={{ fill: chart.tickColor, fontSize: 12 }} />
                       <Tooltip contentStyle={chart.tooltipStyle} />
                       <Legend />
-                      {["블로그", "피드", "릴스", "스토리"].map((type, i) => (
-                        <Bar key={type} dataKey={type} stackId="a" fill={COLORS[i]} />
+                      {byType.map((ct, i) => (
+                        <Bar key={ct.content_type} dataKey={ct.content_type} stackId="a" fill={COLORS[i % COLORS.length]} />
                       ))}
                     </BarChart>
                   </ResponsiveContainer>

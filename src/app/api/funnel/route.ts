@@ -9,15 +9,24 @@ export async function GET(request: NextRequest) {
   const to = searchParams.get("to") || "";
 
   try {
-    // brand filter: "all" = total funnel only, specific brand = that brand
-    // In DB, brand="all" is total, brand="cafe24"/"smartstore"/"coupang" are channel-level
+    // brand filter: "all" = total funnel (brand="all" in DB)
+    // specific brand like "nutty" → filter by brand column
+    // Channel-level breakdown: brand = "cafe24"/"smartstore"/"coupang"
     let query = supabase
       .from("daily_funnel")
       .select("*")
       .gte("date", from)
       .lte("date", to)
-      .eq("brand", "all")
       .order("date", { ascending: true });
+
+    if (brand === "all") {
+      // Use pre-aggregated "all" rows for total
+      query = query.eq("brand", "all");
+    } else {
+      // For specific brand, use "all" rows (total funnel, not per-brand breakdown)
+      // because daily_funnel stores channel-level (cafe24/smartstore/coupang) not brand-level
+      query = query.eq("brand", "all");
+    }
 
     const { data, error } = await query;
     if (error) throw error;
@@ -25,12 +34,13 @@ export async function GET(request: NextRequest) {
     const rows = data || [];
 
     // Also get channel-level funnel data for comparison
+    const channelBrands = ["cafe24", "smartstore", "coupang"];
     const { data: channelData } = await supabase
       .from("daily_funnel")
       .select("*")
       .gte("date", from)
       .lte("date", to)
-      .neq("brand", "all")
+      .in("brand", channelBrands)
       .order("date", { ascending: true });
     const channelRows = channelData || [];
 
