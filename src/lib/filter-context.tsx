@@ -11,7 +11,7 @@ function fmtKST(d: Date): string {
 function getDefaultDates() {
   const to = new Date();
   const from = new Date();
-  from.setDate(from.getDate() - 30);
+  from.setDate(from.getDate() - 7);
   return { from: fmtKST(from), to: fmtKST(to) };
 }
 
