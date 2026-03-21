@@ -228,10 +228,11 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Sync last 3 days to catch delayed data
+    // Sync last 3 days to catch delayed data (KST)
     const dates: string[] = [];
+    const nowKST = new Date(Date.now() + 9 * 60 * 60 * 1000);
     for (let i = 1; i <= 3; i++) {
-      const d = new Date();
+      const d = new Date(nowKST);
       d.setDate(d.getDate() - i);
       dates.push(d.toISOString().slice(0, 10));
     }
