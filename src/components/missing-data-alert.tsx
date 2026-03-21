@@ -29,8 +29,8 @@ export default function MissingDataAlert({ className = "" }: MissingDataAlertPro
           }
         }
 
-        // Check if today's ad spend data is missing (yesterday should exist)
-        const yesterday = new Date();
+        // Check if today's ad spend data is missing (yesterday should exist, KST)
+        const yesterday = new Date(Date.now() + 9 * 60 * 60 * 1000);
         yesterday.setDate(yesterday.getDate() - 1);
         const yStr = yesterday.toISOString().slice(0, 10);
         const adTable = (data.tables || []).find((t: any) => t.table === "daily_ad_spend");

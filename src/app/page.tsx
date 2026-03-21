@@ -417,8 +417,21 @@ export default function OverviewPage() {
 
         <div id="overview-content" className="space-y-6">
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500" />
+          <div className="space-y-6">
+            {/* Skeleton for KPI cards */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-4 animate-pulse">
+                  <div className="h-3 w-16 bg-gray-200 dark:bg-zinc-700 rounded mb-2" />
+                  <div className="h-6 w-24 bg-gray-200 dark:bg-zinc-700 rounded" />
+                </div>
+              ))}
+            </div>
+            {/* Skeleton for charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl h-80 animate-pulse" />
+              <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl h-80 animate-pulse" />
+            </div>
           </div>
         ) : (
           <>
