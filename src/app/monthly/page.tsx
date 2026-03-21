@@ -18,6 +18,10 @@ interface MonthData {
   revenue: number;
   orders: number;
   adSpend: number;
+  cogs: number;
+  shippingCost: number;
+  profit: number;
+  profitRate: number;
   roas: number;
   aov: number;
   revGrowth?: number;
@@ -76,13 +80,14 @@ export default function MonthlyPage() {
         ) : (
           <>
             {/* YTD Summary */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
               {[
                 { label: "YTD 매출", value: `₩${formatCompact(ytd.revenue || 0)}`, color: "text-indigo-500" },
                 { label: "YTD 주문", value: `${(ytd.orders || 0).toLocaleString()}건`, color: "text-green-500" },
                 { label: "YTD 광고비", value: `₩${formatCompact(ytd.adSpend || 0)}`, color: "text-red-500" },
                 { label: "YTD ROAS", value: `${(ytd.roas || 0).toFixed(2)}x`, color: ytd.roas >= 2 ? "text-green-500" : "text-yellow-500" },
                 { label: "YTD AOV", value: `₩${formatCompact(ytd.aov || 0)}`, color: "text-blue-500" },
+                { label: "YTD 영업이익", value: `₩${formatCompact(ytd.profit || 0)}`, color: (ytd.profit || 0) >= 0 ? "text-emerald-500" : "text-red-500" },
               ].map(kpi => (
                 <Card key={kpi.label}>
                   <CardContent className="pt-4 text-center">
@@ -153,7 +158,8 @@ export default function MonthlyPage() {
                         <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">주문수</th>
                         <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">광고비</th>
                         <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">ROAS</th>
-                        <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">AOV</th>
+                        <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">영업이익</th>
+                        <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">이익률</th>
                         <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">MoM</th>
                       </tr>
                     </thead>
@@ -165,7 +171,8 @@ export default function MonthlyPage() {
                           <td className="py-2 px-2 text-right">{m.orders.toLocaleString()}건</td>
                           <td className="py-2 px-2 text-right">₩{formatCompact(m.adSpend)}</td>
                           <td className={`py-2 px-2 text-right font-medium ${m.roas >= 2 ? "text-green-500" : m.roas >= 1 ? "text-yellow-500" : "text-red-500"}`}>{m.roas.toFixed(2)}x</td>
-                          <td className="py-2 px-2 text-right">₩{formatCompact(m.aov)}</td>
+                          <td className={`py-2 px-2 text-right font-medium ${(m.profit || 0) >= 0 ? "text-emerald-500" : "text-red-500"}`}>₩{formatCompact(m.profit || 0)}</td>
+                          <td className={`py-2 px-2 text-right ${(m.profitRate || 0) >= 0 ? "text-emerald-500" : "text-red-500"}`}>{(m.profitRate || 0).toFixed(1)}%</td>
                           <td className={`py-2 px-2 text-right ${(m.revGrowth || 0) >= 0 ? "text-green-500" : "text-red-500"}`}>
                             {m.revGrowth !== undefined ? `${m.revGrowth >= 0 ? "+" : ""}${m.revGrowth.toFixed(1)}%` : "-"}
                           </td>

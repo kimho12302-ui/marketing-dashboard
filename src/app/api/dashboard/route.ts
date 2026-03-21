@@ -115,7 +115,10 @@ export async function GET(request: NextRequest) {
     const prevOrders = (prevSales || []).reduce((s, r) => s + Number(r.orders), 0);
     const prevAdSpendTotal = (prevAd || []).reduce((s, r) => s + Number(r.spend), 0);
     const prevRoas = prevAdSpendTotal > 0 ? prevRevenue / prevAdSpendTotal : 0;
-    const prevProfit = prevRevenue - prevAdSpendTotal;
+    // prevProfit: approximate COGS for prev period (use same ratio as current period)
+    const cogsRate = totalRevenue > 0 ? totalCOGS / totalRevenue : 0;
+    const prevCOGSEstimate = prevRevenue * cogsRate;
+    const prevProfit = prevRevenue - prevAdSpendTotal - prevCOGSEstimate;
     const prevMer = prevAdSpendTotal > 0 ? prevRevenue / prevAdSpendTotal : 0;
     const prevAov = prevOrders > 0 ? prevRevenue / prevOrders : 0;
 
