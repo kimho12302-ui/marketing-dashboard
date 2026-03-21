@@ -85,7 +85,7 @@ export default function AnomalyBanner({ data, brandAnomalies }: AnomalyBannerPro
     const fmtPrev = isMetric ? `${a.previous.toFixed(2)}x` : `₩${formatCompact(a.previous)}`;
     return {
       type: a.change < -30 ? "danger" as const : "warning" as const,
-      message: `${a.brand} ${a.metric}이 전일 대비 ${a.change >= 0 ? "+" : ""}${absChange}% ${direction}`,
+      message: `${a.brand} ${a.metric}${/[가-힣]/.test(a.metric.slice(-1)) && (a.metric.charCodeAt(a.metric.length - 1) - 0xAC00) % 28 === 0 ? "가" : "이"} 전일 대비 ${a.change >= 0 ? "+" : ""}${absChange}% ${direction}`,
       detail: `${fmtPrev} → ${fmtCur}`,
     };
   });
