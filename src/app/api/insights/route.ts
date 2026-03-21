@@ -74,10 +74,10 @@ export async function GET(request: NextRequest) {
       const aov = d.orders > 0 ? d.revenue / d.orders : 0;
       const revShare = totalRevenue > 0 ? (d.revenue / totalRevenue) * 100 : 0;
       if (revShare > 40) {
-        insights.push({ type: "info", text: `${brandLabels[brand] || brand} 매출 비중 ${revShare.toFixed(0)}% — 핵심 브랜드`, detail: `AOV ₩${aov.toFixed(0)}, 총 ${d.orders}건` });
+        insights.push({ type: "info", text: `${brandLabels[brand] || brand} 매출 비중 ${revShare.toFixed(0)}% — 핵심 브랜드`, detail: `AOV ₩${Math.round(aov).toLocaleString()}, 총 ${d.orders}건` });
       }
       if (d.orders > 10 && aov > 50000) {
-        insights.push({ type: "opportunity", text: `${brandLabels[brand] || brand} AOV ₩${aov.toFixed(0)} — 고가 상품 번들 기회`, detail: `객단가가 높은 고객군. 업셀/크로스셀 전략 검토` });
+        insights.push({ type: "opportunity", text: `${brandLabels[brand] || brand} AOV ₩${Math.round(aov).toLocaleString()} — 고가 상품 번들 기회`, detail: `객단가가 높은 고객군. 업셀/크로스셀 전략 검토` });
       }
     }
 
