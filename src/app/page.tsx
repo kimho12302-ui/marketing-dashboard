@@ -707,40 +707,39 @@ export default function OverviewPage() {
                 )}
               </div>
 
-              {fullBrandRevenue.some(b => b.revenue > 0) && (
-                <div className="mt-6">
-                  <Card>
-                    <CardHeader><CardTitle>🏷️ 브랜드별 매출 비중</CardTitle></CardHeader>
-                    <CardContent>
-                      <div className="h-72">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={fullBrandRevenue.filter(b => b.revenue > 0).map(b => ({ name: BRAND_LABELS[b.brand] || b.brand, value: b.revenue, brand: b.brand }))}
-                              dataKey="value"
-                              nameKey="name"
-                              cx="50%"
-                              cy="50%"
-                              outerRadius={100}
-                              innerRadius={40}
-                              label={({ name, percent }: any) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
-                              labelLine={{ stroke: chartTheme.isDark ? "#555" : "#9ca3af" }}
-                            >
-                              {fullBrandRevenue.filter(b => b.revenue > 0).map((b, i) => (
-                                <Cell key={i} fill={BRAND_COLORS[b.brand] || PRODUCT_COLORS[i % PRODUCT_COLORS.length]} />
-                              ))}
-                            </Pie>
-                            <Tooltip
-                              formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]}
-                              contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle}
-                            />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
+              {fullBrandRevenue.some(b => b.revenue > 0) && (() => {
+                const pieData = fullBrandRevenue.filter(b => b.revenue > 0);
+                const total = pieData.reduce((s, b) => s + b.revenue, 0);
+                return (
+                  <div className="mt-6">
+                    <Card>
+                      <CardHeader><CardTitle>🏷️ 브랜드별 매출 비중</CardTitle></CardHeader>
+                      <CardContent>
+                        <div className="flex h-8 rounded-full overflow-hidden mb-4">
+                          {pieData.map((b, i) => (
+                            <div key={i} style={{ width: `${(b.revenue / total * 100).toFixed(1)}%`, backgroundColor: BRAND_COLORS[b.brand] || PRODUCT_COLORS[i % PRODUCT_COLORS.length] }} className="transition-all" />
+                          ))}
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                          {pieData.map((b, i) => {
+                            const pct = (b.revenue / total * 100).toFixed(1);
+                            const color = BRAND_COLORS[b.brand] || PRODUCT_COLORS[i % PRODUCT_COLORS.length];
+                            return (
+                              <div key={i} className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                                <div>
+                                  <p className="text-sm font-medium text-gray-800 dark:text-zinc-200">{BRAND_LABELS[b.brand] || b.brand}</p>
+                                  <p className="text-xs text-gray-500 dark:text-zinc-400">₩{formatCompact(b.revenue)} ({pct}%)</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                );
+              })()}
             </section>
 
             <section>
