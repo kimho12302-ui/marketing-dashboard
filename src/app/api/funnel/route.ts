@@ -19,13 +19,12 @@ export async function GET(request: NextRequest) {
       .lte("date", to)
       .order("date", { ascending: true });
 
-    if (brand === "all") {
-      // Use pre-aggregated "all" rows for total
-      query = query.eq("brand", "all");
+    if (brand !== "all") {
+      // For specific brand, filter by brand
+      query = query.eq("brand", brand);
     } else {
-      // For specific brand, use "all" rows (total funnel, not per-brand breakdown)
-      // because daily_funnel stores channel-level (cafe24/smartstore/coupang) not brand-level
-      query = query.eq("brand", "all");
+      // "all" = aggregate all channels (cafe24/smartstore/coupang)
+      query = query.neq("brand", "all");
     }
 
     const { data, error } = await query;
