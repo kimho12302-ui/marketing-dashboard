@@ -429,7 +429,7 @@ export default function AdsPage() {
                             <td className="py-2 px-2 text-right text-green-600 dark:text-green-400 font-medium">{cr.purchases || "-"}</td>
                             <td className="py-2 px-2 text-right font-medium">₩{formatCompact(cr.revenue)}</td>
                             <td className={`py-2 px-2 text-right font-bold ${getPerformanceColor(cr.roas, { good: 3.0, mid: 2.0 })}`}>{cr.roas.toFixed(2)}x</td>
-                            <td className="py-2 px-2 text-right">{cr.cac > 0 ? `₩${formatCompact(cr.cac)}` : "-"}</td>
+                            <td className="py-2 px-2 text-right">{cr.cac > 0 ? `₩${formatCompact(Math.round(cr.cac))}` : "-"}</td>
                           </tr>
                           {selectedCreative === cr.id && creativeTrend.length > 0 && (
                             <tr key={`${cr.id}-trend`}>
