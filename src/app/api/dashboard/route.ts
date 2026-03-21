@@ -135,6 +135,13 @@ export async function GET(request: NextRequest) {
       return dateStr;
     };
 
+    // Normalize brand names (자체판매 → balancelab, etc.)
+    const normalizeBrand = (b: string): string | null => {
+      if (b === "자체판매" || b === "공동구매") return "balancelab";
+      if (b === "all" || b === "unknown") return null;
+      return b;
+    };
+
     const brandLabelsMap: Record<string, string> = { nutty: "너티", ironpet: "아이언펫", saip: "사입", balancelab: "밸런스랩" };
     const trendMap = new Map<string, Record<string, number>>();
     for (const row of sales || []) {
@@ -154,6 +161,18 @@ export async function GET(request: NextRequest) {
       existing.adSpend = (existing.adSpend || 0) + Number(row.spend);
       trendMap.set(key, existing);
     }
+    // Fill missing dates in range with zeros
+    const fillDates = (map: Map<string, Record<string, number>>, fromStr: string, toStr: string, period: string) => {
+      if (period !== "daily") return; // only fill for daily view
+      const start = new Date(fromStr);
+      const end = new Date(toStr);
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const key = d.toISOString().slice(0, 10);
+        if (!map.has(key)) map.set(key, { revenue: 0, adSpend: 0 });
+      }
+    };
+    fillDates(trendMap, from, to, period);
+
     const trend = Array.from(trendMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, data]) => ({ date, ...data }));
@@ -192,13 +211,6 @@ export async function GET(request: NextRequest) {
         }
         return row;
       });
-
-    // Normalize brand names (자체판매 → balancelab, etc.)
-    const normalizeBrand = (b: string) => {
-      if (b === "자체판매" || b === "공동구매") return "balancelab";
-      if (b === "all" || b === "unknown") return null; // exclude
-      return b;
-    };
 
     // Brand revenue breakdown
     const brandMap = new Map<string, { revenue: number; orders: number }>();
