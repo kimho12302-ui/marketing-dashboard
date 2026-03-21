@@ -398,7 +398,6 @@ export default function OverviewPage() {
         <div className="flex items-center justify-between">
           <PageHeader title="📊 Overview" subtitle="Executive Summary" />
           <div className="flex items-center gap-2">
-            <SyncButton onComplete={() => fetchData()} />
             <ExportReport targetId="overview-content" filename="PPMI-Overview" />
           </div>
         </div>

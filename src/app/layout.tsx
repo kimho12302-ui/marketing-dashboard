@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/sidebar";
+import GlobalSyncButton from "@/components/global-sync-button";
 import { ThemeProvider } from "@/components/theme-provider";
 import { FilterProvider } from "@/lib/filter-context";
 
@@ -33,6 +34,7 @@ export default function RootLayout({
         <ThemeProvider>
           <FilterProvider>
             <Sidebar />
+            <GlobalSyncButton />
             <div className="md:pl-56 min-h-screen pb-16 md:pb-0">
               {children}
             </div>
