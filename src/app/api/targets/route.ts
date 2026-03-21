@@ -1,64 +1,82 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
+// GET: Fetch targets for a brand and month
 export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams;
-  const month = sp.get("month") || new Date().toISOString().slice(0, 7);
   const brand = sp.get("brand") || "all";
+  const month = sp.get("month") || ""; // YYYY-MM-01
+
+  if (!month) {
+    return NextResponse.json({ targets: {} });
+  }
 
   const { data, error } = await supabase
     .from("manual_monthly")
-    .select("*")
+    .select("note")
     .eq("category", "target")
-    .eq("month", month + "-01")
+    .eq("month", month)
     .eq("brand", brand)
     .limit(1);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  if (data && data.length > 0) {
-    try {
-      const targets = JSON.parse(data[0].note || "{}");
-      return NextResponse.json({ targets, month, brand });
-    } catch {
-      return NextResponse.json({ targets: {}, month, brand });
-    }
+  if (error) {
+    console.error("Targets GET error:", error);
+    return NextResponse.json({ targets: {} });
   }
 
-  return NextResponse.json({ targets: {}, month, brand });
+  let targets = {};
+  if (data && data.length > 0) {
+    try { targets = JSON.parse(data[0].note || "{}"); } catch {}
+  }
+
+  return NextResponse.json({ targets });
 }
 
+// POST: Save targets for a brand and month
 export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const { month, brand = "all", targets } = body;
+  try {
+    const body = await request.json();
+    const { brand, month, targets } = body;
 
-  if (!month || !targets) {
-    return NextResponse.json({ error: "month and targets required" }, { status: 400 });
-  }
+    if (!brand || !month || !targets) {
+      return NextResponse.json({ error: "brand, month, targets required" }, { status: 400 });
+    }
 
-  const monthDate = month.length === 7 ? month + "-01" : month;
-
-  // Upsert: check if exists
-  const { data: existing } = await supabase
-    .from("manual_monthly")
-    .select("id")
-    .eq("category", "target")
-    .eq("month", monthDate)
-    .eq("brand", brand)
-    .limit(1);
-
-  if (existing && existing.length > 0) {
-    const { error } = await supabase
+    // Upsert: check if exists, then update or insert
+    const { data: existing } = await supabase
       .from("manual_monthly")
-      .update({ value: 0, note: JSON.stringify(targets) })
-      .eq("id", existing[0].id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  } else {
-    const { error } = await supabase
-      .from("manual_monthly")
-      .insert({ month: monthDate, brand, category: "target", value: 0, note: JSON.stringify(targets) });
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+      .select("id")
+      .eq("category", "target")
+      .eq("month", month)
+      .eq("brand", brand)
+      .limit(1);
 
-  return NextResponse.json({ ok: true });
+    if (existing && existing.length > 0) {
+      const { error } = await supabase
+        .from("manual_monthly")
+        .update({
+          note: JSON.stringify(targets),
+          value: targets.revenue || 0,
+        })
+        .eq("id", existing[0].id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase
+        .from("manual_monthly")
+        .insert({
+          month,
+          brand,
+          category: "target",
+          metric: "monthly_target",
+          value: targets.revenue || 0,
+          note: JSON.stringify(targets),
+        });
+      if (error) throw error;
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Targets POST error:", error);
+    return NextResponse.json({ error: "Failed to save targets" }, { status: 500 });
+  }
 }
