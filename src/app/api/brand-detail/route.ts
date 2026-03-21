@@ -24,10 +24,12 @@ function getGroupKey(dateStr: string, period: string): string {
 
 // Nutty lineup classification
 function classifyNuttyLineup(product: string): string {
-  if (product.includes("선물세트")) return "선물세트";
-  if (product.includes("하루루틴") || product.includes("스트레스제로껌") || product.includes("에너젯바") || product.includes("굿모닝퓨레")) return "하루루틴";
+  // 스트레스제로 라인: 스트레스제로껌, 에너젯바, 굿모닝퓨레, 하루루틴
+  if (product.includes("스트레스") || product.includes("에너젯") || product.includes("에너겟") || product.includes("굿모닝") || product.includes("퓨레") || product.includes("하루루틴")) return "스트레스제로";
+  // 사운드 라인: 냠, 바삭, 사운드
   if (product.includes("냠") || product.includes("바삭") || product.includes("사운드")) return "사운드";
-  return "기타";
+  // 그외: 세트, 선물세트, 기타
+  return "그외";
 }
 
 // Normalize nutty product name (merge quantity variants)
