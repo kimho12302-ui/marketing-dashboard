@@ -98,7 +98,7 @@ export default function AdsPage() {
       setDailySpend(data.dailySpend || []);
       setWeeklySpend(data.weeklySpend || []);
       setMonthlySpend(data.monthlySpend || []);
-      setCac(data.cac || 0);
+      setCac(Math.round(data.cac || 0));
     }
     setLoading(false);
 
