@@ -15,6 +15,7 @@ const BRAND_LABELS: Record<string, string> = {
   nutty: "너티",
   ironpet: "아이언펫",
   balancelab: "밸런스랩",
+  saip: "사입",
 };
 
 export default function BrandCompareChart({ data }: BrandCompareChartProps) {

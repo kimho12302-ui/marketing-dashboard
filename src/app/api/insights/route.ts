@@ -5,13 +5,23 @@ export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams;
   const from = sp.get("from") || "";
   const to = sp.get("to") || "";
+  const brand = sp.get("brand") || "all";
 
   try {
-    // Get sales data
-    const { data: sales } = await supabase.from("daily_sales").select("*").gte("date", from).lte("date", to).neq("brand", "all");
-    const { data: adSpend } = await supabase.from("daily_ad_spend").select("*").gte("date", from).lte("date", to).neq("brand", "all");
+    // Get sales data (with brand filter)
+    let salesQ = supabase.from("daily_sales").select("*").gte("date", from).lte("date", to).neq("brand", "all");
+    if (brand !== "all") salesQ = salesQ.eq("brand", brand);
+    const { data: sales } = await salesQ;
+
+    let adQ = supabase.from("daily_ad_spend").select("*").gte("date", from).lte("date", to).neq("brand", "all");
+    if (brand !== "all") adQ = adQ.eq("brand", brand);
+    const { data: adSpend } = await adQ;
+
     const { data: funnel } = await supabase.from("daily_funnel").select("*").gte("date", from).lte("date", to);
-    const { data: products } = await supabase.from("product_sales").select("*").gte("date", from).lte("date", to);
+
+    let prodQ = supabase.from("product_sales").select("*").gte("date", from).lte("date", to);
+    if (brand !== "all") prodQ = prodQ.eq("brand", brand);
+    const { data: products } = await prodQ;
 
     const salesRows = sales || [];
     const adRows = adSpend || [];

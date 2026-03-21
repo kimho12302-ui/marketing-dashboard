@@ -56,6 +56,7 @@ export default function SalesPage() {
   const [gongguSalesTotal, setGongguSalesTotal] = useState(0);
   const [selfSalesTotal, setSelfSalesTotal] = useState(0);
   const [channelAds, setChannelAds] = useState<{ channel: string; spend: number; conversions: number; roas: number }[]>([]);
+  const [gongguTargets, setGongguTargets] = useState<{ seller: string; target: number; note: string }[]>([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -86,10 +87,12 @@ export default function SalesPage() {
         setGongguSales(dashData.gongguSales || []);
         setGongguSalesTotal(dashData.gongguSalesTotal || 0);
         setSelfSalesTotal(dashData.selfSalesTotal || 0);
+        setGongguTargets(dashData.gongguTargets || []);
       } else {
         setGongguSales([]);
         setGongguSalesTotal(0);
         setSelfSalesTotal(0);
+        setGongguTargets([]);
       }
       if (adsRes && adsRes.ok) {
         const adsData = await adsRes.json();
@@ -324,17 +327,39 @@ export default function SalesPage() {
                               <th className="text-right py-2.5 px-2 text-gray-500 dark:text-zinc-400">매출</th>
                               <th className="text-right py-2.5 px-2 text-gray-500 dark:text-zinc-400">주문수</th>
                               <th className="text-right py-2.5 px-2 text-gray-500 dark:text-zinc-400">비중(%)</th>
+                              {gongguTargets.length > 0 && (
+                                <th className="text-right py-2.5 px-2 text-gray-500 dark:text-zinc-400">목표 달성</th>
+                              )}
                             </tr>
                           </thead>
                           <tbody>
                             {gongguSales.map((row) => {
                               const pct = gongguSalesTotal > 0 ? (row.revenue / gongguSalesTotal * 100).toFixed(1) : "0";
+                              const target = gongguTargets.find(t => t.seller === row.seller);
+                              const targetPct = target && target.target > 0 ? (row.revenue / target.target * 100) : null;
                               return (
                                 <tr key={row.seller} className="border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50">
                                   <td className="py-2 px-2 text-gray-800 dark:text-zinc-200 font-medium">{row.seller}</td>
                                   <td className="py-2 px-2 text-right text-gray-900 dark:text-zinc-100">₩{formatCompact(row.revenue)}</td>
                                   <td className="py-2 px-2 text-right text-gray-600 dark:text-zinc-300">{row.orders.toLocaleString()}</td>
                                   <td className="py-2 px-2 text-right text-gray-500 dark:text-zinc-400">{pct}%</td>
+                                  {gongguTargets.length > 0 && (
+                                    <td className="py-2 px-2 text-right">
+                                      {targetPct !== null ? (
+                                        <div className="flex items-center justify-end gap-2">
+                                          <div className="w-16 h-1.5 bg-gray-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                            <div className={`h-full rounded-full transition-all ${targetPct >= 100 ? "bg-green-500" : targetPct >= 70 ? "bg-yellow-500" : "bg-red-500"}`}
+                                              style={{ width: `${Math.min(targetPct, 100)}%` }} />
+                                          </div>
+                                          <span className={`text-xs font-medium ${targetPct >= 100 ? "text-green-500" : targetPct >= 70 ? "text-yellow-500" : "text-red-500"}`}>
+                                            {Math.round(targetPct)}%
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <span className="text-xs text-gray-300 dark:text-zinc-600">-</span>
+                                      )}
+                                    </td>
+                                  )}
                                 </tr>
                               );
                             })}
@@ -345,6 +370,7 @@ export default function SalesPage() {
                               <td className="py-2 px-2 text-right text-gray-900 dark:text-zinc-100">₩{formatCompact(gongguSalesTotal)}</td>
                               <td className="py-2 px-2 text-right text-gray-600 dark:text-zinc-300">{gongguSales.reduce((s, r) => s + r.orders, 0).toLocaleString()}</td>
                               <td className="py-2 px-2 text-right text-gray-500 dark:text-zinc-400">100%</td>
+                              {gongguTargets.length > 0 && <td />}
                             </tr>
                           </tfoot>
                         </table>

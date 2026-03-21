@@ -24,6 +24,7 @@ export default function InsightsPage() {
   const { filters } = useFilters();
   const [from, setFrom] = useState(filters.from);
   const [to, setTo] = useState(filters.to);
+  const [brand, setBrand] = useState("all");
   const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
@@ -31,13 +32,13 @@ export default function InsightsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ from, to });
+      const params = new URLSearchParams({ from, to, brand });
       const res = await fetch(`/api/insights?${params}`);
       if (!res.ok) throw new Error("fetch failed");
       const data = await res.json();
       setInsights(data.insights || []);
     } catch { /* error handled silently */ } finally { setLoading(false); }
-  }, [from, to]);
+  }, [from, to, brand]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -50,13 +51,21 @@ export default function InsightsPage() {
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
         <PageHeader title="💡 Insights" subtitle="실데이터 기반 마케팅 인사이트" />
 
-        {/* Date Range */}
-        <div className="flex gap-2 items-center">
+        {/* Date Range + Brand Filter */}
+        <div className="flex gap-2 items-center flex-wrap">
           <input type="date" value={from} onChange={e => setFrom(e.target.value)}
             className="bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-gray-800 dark:text-zinc-200" />
           <span className="text-gray-400 dark:text-zinc-500">~</span>
           <input type="date" value={to} onChange={e => setTo(e.target.value)}
             className="bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-gray-800 dark:text-zinc-200" />
+          <select value={brand} onChange={e => setBrand(e.target.value)}
+            className="bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-gray-800 dark:text-zinc-200">
+            <option value="all">전체 브랜드</option>
+            <option value="nutty">너티</option>
+            <option value="ironpet">아이언펫</option>
+            <option value="saip">사입</option>
+            <option value="balancelab">밸런스랩</option>
+          </select>
         </div>
 
         {/* Filter Tabs */}
