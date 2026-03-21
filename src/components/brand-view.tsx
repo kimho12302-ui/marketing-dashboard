@@ -191,23 +191,19 @@ export default function BrandView() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>📢 채널별 광고비 + ROAS</CardTitle></CardHeader>
+          <CardHeader><CardTitle>📢 채널별 광고비</CardTitle></CardHeader>
           <CardContent>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={adByChannel.map(c => ({ name: CH_LABELS[c.channel] || c.channel, spend: c.spend, roas: c.roas, channel: c.channel }))}>
+                <BarChart data={adByChannel.map(c => ({ name: CH_LABELS[c.channel] || c.channel, spend: c.spend, channel: c.channel }))} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
-                  <XAxis dataKey="name" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} angle={-15} textAnchor="end" height={50} />
-                  <YAxis yAxisId="spend" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={v => formatCompact(v)} />
-                  <YAxis yAxisId="roas" orientation="right" tick={{ fill: "#22c55e", fontSize: 11 }} tickFormatter={v => `${v.toFixed(1)}x`} />
-                  <Tooltip contentStyle={chartTheme.tooltipStyle}
-                    formatter={(v: any, name: any) => [name === "ROAS" ? `${v.toFixed(2)}x` : `₩${formatCompact(v)}`, name]} />
-                  <Legend />
-                  <Bar yAxisId="spend" dataKey="spend" name="광고비" radius={[4, 4, 0, 0]}>
+                  <XAxis type="number" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={v => formatCompact(v)} />
+                  <YAxis type="category" dataKey="name" width={90} tick={{ fill: chartTheme.labelColor, fontSize: 11 }} />
+                  <Tooltip contentStyle={chartTheme.tooltipStyle} formatter={(v: any) => [`₩${formatCompact(v)}`, "광고비"]} />
+                  <Bar dataKey="spend" radius={[0, 6, 6, 0]}>
                     {adByChannel.map((c, i) => <Cell key={i} fill={CHANNEL_COLORS[c.channel] || PALETTE[i % PALETTE.length]} />)}
                   </Bar>
-                  <Line yAxisId="roas" type="monotone" dataKey="roas" name="ROAS" stroke="#22c55e" strokeWidth={2} dot={{ r: 4 }} />
-                </ComposedChart>
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
