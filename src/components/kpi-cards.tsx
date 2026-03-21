@@ -37,8 +37,8 @@ const GLOSSARY: Record<string, string> = {
 
 export default function KPICards({ data, periodLabel, onCardClick, selectedCard, targets }: KPICardsProps) {
   const [tooltip, setTooltip] = useState<string | null>(null);
-  const cac = data.orders > 0 ? data.adSpend / data.orders : 0;
-  const prevCac = data.ordersPrev > 0 ? data.adSpendPrev / data.ordersPrev : 0;
+  const cac = data.orders > 0 ? Math.round(data.adSpend / data.orders) : 0;
+  const prevCac = data.ordersPrev > 0 ? Math.round(data.adSpendPrev / data.ordersPrev) : 0;
 
   const cards = [
     { key: "revenue", title: "매출", value: data.revenue, prev: data.revenuePrev, prefix: "₩", icon: DollarSign, invertColor: false, target: targets?.revenue },
