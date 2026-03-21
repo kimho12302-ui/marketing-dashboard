@@ -72,6 +72,7 @@ export default function AdsPage() {
   const [crLoading, setCrLoading] = useState(true);
   const [crPage, setCrPage] = useState(1);
   const [crFilter, setCrFilter] = useState<"all" | "active" | "paused">("all");
+  const [gmActualCogs, setGmActualCogs] = useState<number>(0);
   const CR_PER_PAGE = 20;
 
   const fetchData = useCallback(async () => {
@@ -82,6 +83,12 @@ export default function AdsPage() {
     // Parallel: ads data + creatives
     const adsPromise = fetch(`/api/ads?${params}`).then(r => r.ok ? r.json() : null).catch(() => null);
     const crPromise = fetch(`/api/creatives?${params}`).then(r => r.ok ? r.json() : null).catch(() => null);
+    // Fetch actual COGS from dashboard API for GM-ROAS
+    const dashParams = new URLSearchParams({ brand: filters.brand, from: filters.from, to: filters.to, period: "daily" });
+    fetch(`/api/dashboard?${dashParams}`).then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.kpi?.cogs) setGmActualCogs(d.kpi.cogs);
+      else setGmActualCogs(0);
+    }).catch(() => {});
 
     // Ads data first (fast)
     const data = await adsPromise;
@@ -195,11 +202,11 @@ export default function AdsPage() {
                           <td className="py-2.5 px-2 text-right">₩{formatCompact(ch.spend)}</td>
                           <td className="py-2.5 px-2 text-right">{ch.impressions.toLocaleString()}</td>
                           <td className="py-2.5 px-2 text-right">{ch.clicks.toLocaleString()}</td>
-                          <td className="py-2.5 px-2 text-right">{(ch.ctr * 100).toFixed(2)}%</td>
-                          <td className="py-2.5 px-2 text-right">₩{Math.round(ch.cpc).toLocaleString()}</td>
+                          <td className="py-2.5 px-2 text-right">{isFinite(ch.ctr) ? (ch.ctr * 100).toFixed(2) : "0.00"}%</td>
+                          <td className="py-2.5 px-2 text-right">₩{isFinite(ch.cpc) ? Math.round(ch.cpc).toLocaleString() : "0"}</td>
                           <td className="py-2.5 px-2 text-right">₩{formatCompact(ch.conversionValue || 0)}</td>
                           <td className="py-2.5 px-2 text-right">{ch.conversions.toLocaleString()}</td>
-                          <td className="py-2.5 px-2 text-right font-medium">{ch.roas.toFixed(2)}x</td>
+                          <td className="py-2.5 px-2 text-right font-medium">{isFinite(ch.roas) ? ch.roas.toFixed(2) : "0.00"}x</td>
                         </tr>
                       ))}
                     </tbody>
@@ -260,21 +267,25 @@ export default function AdsPage() {
                 {(() => {
                   const totalRevenue = channels.reduce((s, c) => s + c.conversionValue, 0);
                   const totalSpend = channels.reduce((s, c) => s + c.spend, 0);
-                  const cogs = totalRevenue * 0.4;
+                  // Use actual COGS if available from misc cost data (fetched separately)
+                  const hasActualCogs = (gmActualCogs || 0) > 0;
+                  const cogs = hasActualCogs ? gmActualCogs : totalRevenue * 0.4;
                   const grossMarginRoas = totalSpend > 0 ? (totalRevenue - cogs) / totalSpend : 0;
+                  const cogsLabel = hasActualCogs ? "실제 원가" : "추정 40%";
                   return (
                     <div className="flex flex-wrap items-center gap-6">
                       <div>
-                        <p className="text-sm text-gray-500 dark:text-zinc-400">GM-ROAS (매출원가 40% 가정)</p>
+                        <p className="text-sm text-gray-500 dark:text-zinc-400">GM-ROAS ({cogsLabel})</p>
                         <p className={`text-3xl font-bold ${grossMarginRoas >= 2.0 ? "text-green-400" : grossMarginRoas >= 1.0 ? "text-yellow-400" : "text-red-400"}`}>
                           {grossMarginRoas.toFixed(2)}x
                         </p>
                       </div>
                       <div className="text-xs text-gray-400 dark:text-zinc-500 space-y-1">
                         <p>매출: ₩{formatCompact(totalRevenue)}</p>
-                        <p>COGS: ₩{formatCompact(cogs)} (40%)</p>
+                        <p>COGS: ₩{formatCompact(cogs)} ({cogsLabel})</p>
                         <p>매출총이익: ₩{formatCompact(totalRevenue - cogs)}</p>
                         <p>광고비: ₩{formatCompact(totalSpend)}</p>
+                        {!hasActualCogs && <p className="text-yellow-500">⚠️ 실제 원가 미등록 (설정 &gt; 제품 원가)</p>}
                       </div>
                     </div>
                   );
