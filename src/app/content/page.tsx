@@ -101,9 +101,9 @@ export default function ContentPage() {
                     <LineChart data={followerTrend}>
                       <CartesianGrid strokeDasharray="3 3" stroke={chart.gridColor} />
                       <XAxis dataKey="date" tick={{ fill: chart.tickColor, fontSize: 12 }} tickFormatter={(v: string) => v.slice(5)} />
-                      <YAxis tick={{ fill: chart.tickColor, fontSize: 12 }} />
+                      <YAxis tick={{ fill: chart.tickColor, fontSize: 12 }} domain={['dataMin - 10', 'dataMax + 10']} />
                       <Tooltip contentStyle={chart.tooltipStyle} labelStyle={chart.tooltipLabelStyle} itemStyle={chart.tooltipItemStyle} />
-                      <Line type="monotone" dataKey="followers" stroke="#6366f1" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="followers" stroke="#6366f1" strokeWidth={2} dot={{ r: 4 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
