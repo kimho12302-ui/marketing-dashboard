@@ -347,7 +347,7 @@ export default function KeywordsPage() {
                               <p className="text-xs text-gray-400">{PLATFORM_LABELS[d.platform] || d.platform}</p>
                               <div className="mt-2 space-y-0.5 text-xs">
                                 <p>CTR: <span className="font-medium">{d.ctr}%</span></p>
-                                <p>CPC: <span className="font-medium">₩{formatCompact(d.cpc)}</span></p>
+                                <p>CPC: <span className="font-medium">₩{formatCompact(Math.round(d.cpc))}</span></p>
                                 <p>클릭: <span className="font-medium">{d.clicks.toLocaleString()}</span></p>
                                 <p>노출: <span className="font-medium">{d.impressions.toLocaleString()}</span></p>
                                 <p>비용: <span className="font-medium">₩{formatCompact(d.cost)}</span></p>
@@ -420,8 +420,8 @@ export default function KeywordsPage() {
                             <td className="py-2.5 px-2 text-right">{kw.impressions.toLocaleString()}</td>
                             <td className="py-2.5 px-2 text-right">{kw.clicks.toLocaleString()}</td>
                             <td className="py-2.5 px-2 text-right">{(kw.ctr * 100).toFixed(2)}%</td>
-                            <td className="py-2.5 px-2 text-right">₩{formatCompact(kw.cpc)}</td>
-                            <td className="py-2.5 px-2 text-right">₩{formatCompact(kw.cost)}</td>
+                            <td className="py-2.5 px-2 text-right">₩{formatCompact(Math.round(kw.cpc))}</td>
+                            <td className="py-2.5 px-2 text-right">₩{formatCompact(Math.round(kw.cost))}</td>
                             <td className="py-2.5 px-2 text-right">{kw.conversions.toLocaleString()}</td>
                           </tr>
                         );
