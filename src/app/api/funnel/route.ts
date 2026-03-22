@@ -9,39 +9,36 @@ export async function GET(request: NextRequest) {
   const to = searchParams.get("to") || "";
 
   try {
-    // brand filter: "all" = total funnel (brand="all" in DB)
-    // specific brand like "nutty" → filter by brand column
-    // Channel-level breakdown: brand = "cafe24"/"smartstore"/"coupang"
-    let query = supabase
+    // Brand → funnel channel mapping
+    // 밸런스랩 = 별도 스마트스토어 (추후 brand="balancelab_smartstore"로 구분)
+    // 나머지(너티/아이언펫/사입) = ironpet 스마트스토어 + cafe24 + coupang
+    const brandChannelMap: Record<string, string[]> = {
+      nutty: ["cafe24", "smartstore", "coupang"],
+      ironpet: ["cafe24", "smartstore"],
+      saip: ["cafe24", "smartstore"],
+      balancelab: [], // 별도 스마트스토어 — 추후 데이터 추가 시 여기에 매핑
+    };
+
+    // Fetch all funnel rows for date range
+    const { data, error } = await supabase
       .from("daily_funnel")
       .select("*")
       .gte("date", from)
       .lte("date", to)
+      .neq("brand", "all")
       .order("date", { ascending: true });
-
-    if (brand !== "all") {
-      // For specific brand, filter by brand
-      query = query.eq("brand", brand);
-    } else {
-      // "all" = aggregate all channels (cafe24/smartstore/coupang)
-      query = query.neq("brand", "all");
-    }
-
-    const { data, error } = await query;
     if (error) throw error;
 
-    const rows = data || [];
+    const allRows = data || [];
 
-    // Also get channel-level funnel data for comparison
-    const channelBrands = ["cafe24", "smartstore", "coupang"];
-    const { data: channelData } = await supabase
-      .from("daily_funnel")
-      .select("*")
-      .gte("date", from)
-      .lte("date", to)
-      .in("brand", channelBrands)
-      .order("date", { ascending: true });
-    const channelRows = channelData || [];
+    // Filter by brand if specified
+    let rows = allRows;
+    if (brand !== "all" && brandChannelMap[brand]) {
+      const channels = brandChannelMap[brand];
+      rows = allRows.filter((r) => channels.includes(r.brand));
+    }
+    // channelRows = all rows (for channel breakdown)
+    const channelRows = allRows;
 
     const totals = {
       impressions: rows.reduce((s, r) => s + Number(r.impressions), 0),
@@ -76,13 +73,18 @@ export async function GET(request: NextRequest) {
       },
     ];
 
-    // Daily trend for each step
-    const dailyTrend = new Map<string, { sessions: number; cart_adds: number; purchases: number }>();
+    // Daily trend for each step — with channel breakdown (stacked)
+    const dailyTrend = new Map<string, Record<string, number>>();
     for (const r of rows) {
       const existing = dailyTrend.get(r.date) || { sessions: 0, cart_adds: 0, purchases: 0 };
-      existing.sessions += Number(r.sessions);
-      existing.cart_adds += Number(r.cart_adds);
-      existing.purchases += Number(r.purchases);
+      existing.sessions = (existing.sessions || 0) + Number(r.sessions);
+      existing.cart_adds = (existing.cart_adds || 0) + Number(r.cart_adds);
+      existing.purchases = (existing.purchases || 0) + Number(r.purchases);
+      // Channel-level breakdown for stacked chart
+      const ch = r.brand; // cafe24/smartstore/coupang
+      existing[`sessions_${ch}`] = (existing[`sessions_${ch}`] || 0) + Number(r.sessions);
+      existing[`purchases_${ch}`] = (existing[`purchases_${ch}`] || 0) + Number(r.purchases);
+      existing[`cart_adds_${ch}`] = (existing[`cart_adds_${ch}`] || 0) + Number(r.cart_adds);
       dailyTrend.set(r.date, existing);
     }
     const trend = Array.from(dailyTrend.entries())

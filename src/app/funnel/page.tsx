@@ -14,8 +14,10 @@ import {
 } from "recharts";
 
 const FUNNEL_COLORS = ["#6366f1", "#818cf8", "#a78bfa", "#22c55e", "#14b8a6"];
+const CHANNEL_COLORS: Record<string, string> = { smartstore: "#14b8a6", cafe24: "#8b5cf6", coupang: "#f97316" };
+const CHANNEL_LABELS: Record<string, string> = { smartstore: "스마트스토어", cafe24: "카페24", coupang: "쿠팡" };
 
-interface TrendPoint { date: string; sessions: number; cart_adds: number; purchases: number; }
+interface TrendPoint { date: string; sessions: number; cart_adds: number; purchases: number; [key: string]: string | number; }
 
 export default function FunnelPage() {
   const chartTheme = useChartTheme();
@@ -242,25 +244,49 @@ export default function FunnelPage() {
             </Card>
 
             {trend.length > 0 && (
-              <Card>
-                <CardHeader><CardTitle>퍼널 일별 트렌드</CardTitle></CardHeader>
-                <CardContent>
-                  <div className="h-72">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={trend}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
-                        <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
-                        <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} />
-                        <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} />
-                        <Legend />
-                        <Area type="monotone" dataKey="sessions" name="세션" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} />
-                        <Area type="monotone" dataKey="cart_adds" name="장바구니" stroke="#a78bfa" fill="#a78bfa" fillOpacity={0.2} />
-                        <Area type="monotone" dataKey="purchases" name="구매" stroke="#22c55e" fill="#22c55e" fillOpacity={0.2} />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
+              <>
+                <Card>
+                  <CardHeader><CardTitle>세션 일별 트렌드 (채널별)</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="h-72">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={trend}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                          <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
+                          <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} />
+                          <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} />
+                          <Legend />
+                          {["smartstore", "cafe24", "coupang"].map((ch) => (
+                            <Area key={ch} type="monotone" dataKey={`sessions_${ch}`} name={CHANNEL_LABELS[ch]} stackId="sessions"
+                              stroke={CHANNEL_COLORS[ch]} fill={CHANNEL_COLORS[ch]} fillOpacity={0.6} />
+                          ))}
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader><CardTitle>구매 일별 트렌드 (채널별)</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="h-72">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={trend}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                          <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
+                          <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} />
+                          <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} />
+                          <Legend />
+                          {["smartstore", "cafe24", "coupang"].map((ch) => (
+                            <Area key={ch} type="monotone" dataKey={`purchases_${ch}`} name={CHANNEL_LABELS[ch]} stackId="purchases"
+                              stroke={CHANNEL_COLORS[ch]} fill={CHANNEL_COLORS[ch]} fillOpacity={0.6} />
+                          ))}
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
             )}
 
             {prevFunnel.length > 0 && (
