@@ -165,16 +165,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    if (type === "cafe24_funnel" || type === "smartstore_funnel") {
+    if (type === "cafe24_funnel" || type === "smartstore_funnel" || type === "balancelab_smartstore_funnel") {
+      const brandMap: Record<string, string> = { cafe24_funnel: "cafe24", smartstore_funnel: "smartstore", balancelab_smartstore_funnel: "balancelab_smartstore" };
       const row = {
         date: data.date,
-        brand: type === "cafe24_funnel" ? "cafe24" : "smartstore",
+        brand: brandMap[type] || "smartstore",
         sessions: Number(data.sessions || 0),
         impressions: Number(data.impressions || 0),
         cart_adds: Number(data.cart_adds || 0),
         signups: Number(data.signups || 0),
         purchases: Number(data.purchases || 0),
         repurchases: Number(data.repurchases || 0),
+        subscribers: Number(data.subscribers || 0),
+        avg_duration: Number(data.avg_duration || 0),
       };
       const { error } = await supabase.from("daily_funnel").upsert(row, { onConflict: "date,brand" });
       if (error) throw error;
