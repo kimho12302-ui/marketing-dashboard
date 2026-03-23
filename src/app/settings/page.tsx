@@ -215,20 +215,18 @@ function DailyInputGuide({ onSwitchTab }: { onSwitchTab: (tab: string) => void }
   );
 }
 
-function TargetsTab() {
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [brand, setBrand] = useState("all");
-  const [targets, setTargets] = useState({
-    revenue: 0, roas: 0, orders: 0, cac: 0, convRate: 0,
-  });
-  const [saving, setSaving] = useState(false);
-  const [loadMsg, setLoadMsg] = useState("");
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+const TARGET_BRANDS = [
+  { value: "all", label: "전체", color: "indigo" },
+  { value: "nutty", label: "너티", color: "indigo" },
+  { value: "ironpet", label: "아이언펫", color: "green" },
+  { value: "saip", label: "사입", color: "orange" },
+  { value: "balancelab", label: "밸런스랩", color: "pink" },
+];
 
-  const showToast = (message: string, type: "success" | "error" = "success") => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
+function BrandTargetCard({ brand, label, month, color }: { brand: string; label: string; month: string; color: string }) {
+  const [targets, setTargets] = useState({ revenue: 0, roas: 0, orders: 0, cac: 0, convRate: 0 });
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState("");
 
   const fetchTargets = useCallback(async () => {
     try {
@@ -237,169 +235,103 @@ function TargetsTab() {
         const data = await res.json();
         if (data.targets) {
           setTargets({
-            revenue: data.targets.revenue || 0,
-            roas: data.targets.roas || 0,
-            orders: data.targets.orders || 0,
-            cac: data.targets.cac || 0,
-            convRate: data.targets.convRate || 0,
+            revenue: data.targets.revenue || 0, roas: data.targets.roas || 0,
+            orders: data.targets.orders || 0, cac: data.targets.cac || 0, convRate: data.targets.convRate || 0,
           });
-          setLoadMsg("기존 목표 불러옴");
+          setStatus("저장됨");
         } else {
           setTargets({ revenue: 0, roas: 0, orders: 0, cac: 0, convRate: 0 });
-          setLoadMsg("설정된 목표 없음");
+          setStatus("미설정");
         }
       }
-    } catch { setLoadMsg("불러오기 실패"); }
+    } catch { setStatus("불러오기 실패"); }
   }, [month, brand]);
 
   useEffect(() => { fetchTargets(); }, [fetchTargets]);
-
-  const autoFill = async () => {
-    setLoadMsg("직전 3개월 데이터 계산 중...");
-    try {
-      const months: string[] = [];
-      const d = new Date(month + "-01");
-      for (let i = 1; i <= 3; i++) {
-        const prev = new Date(d);
-        prev.setMonth(prev.getMonth() - i);
-        months.push(prev.toISOString().slice(0, 7));
-      }
-      let totalRevenue = 0, totalOrders = 0, totalAdSpend = 0, totalConvRate = 0, count = 0;
-      for (const m of months) {
-        const from = m + "-01";
-        const toDate = new Date(from);
-        toDate.setMonth(toDate.getMonth() + 1);
-        toDate.setDate(toDate.getDate() - 1);
-        const to = toDate.toISOString().slice(0, 10);
-        const res = await fetch(`/api/dashboard?period=monthly&brand=${brand}&from=${from}&to=${to}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.kpi) {
-            totalRevenue += data.kpi.revenue || 0;
-            totalOrders += data.kpi.orders || 0;
-            totalAdSpend += data.kpi.adSpend || 0;
-            if (data.funnelSummary?.convRate) totalConvRate += data.funnelSummary.convRate;
-            count++;
-          }
-        }
-      }
-      if (count > 0) {
-        const avgRevenue = totalRevenue / count;
-        const avgOrders = totalOrders / count;
-        const avgAdSpend = totalAdSpend / count;
-        const avgConvRate = totalConvRate / count;
-        const avgRoas = avgAdSpend > 0 ? avgRevenue / avgAdSpend : 0;
-        const avgCac = avgOrders > 0 ? avgAdSpend / avgOrders : 0;
-        setTargets({
-          revenue: Math.round(avgRevenue * 1.1),
-          roas: Math.round(avgRoas * 1.1 * 100) / 100,
-          orders: Math.round(avgOrders * 1.1),
-          cac: Math.round(avgCac * 0.9),
-          convRate: Math.round(avgConvRate * 1.1 * 100) / 100,
-        });
-        setLoadMsg(`직전 ${count}개월 평균 × 1.1 적용`);
-      } else {
-        setLoadMsg("직전 3개월 데이터가 없습니다");
-      }
-    } catch { setLoadMsg("추천 목표 계산 실패"); }
-  };
 
   const saveTargets = async () => {
     setSaving(true);
     try {
       const res = await fetch("/api/targets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ month, brand, targets }),
       });
-      if (res.ok) showToast("✅ 목표 저장 완료");
-      else showToast("❌ 저장 실패", "error");
-    } catch { showToast("❌ 오류 발생", "error"); }
+      setStatus(res.ok ? "✅ 저장됨" : "❌ 실패");
+    } catch { setStatus("❌ 오류"); }
     setSaving(false);
   };
 
-  const inputClass = "bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-zinc-100 focus:border-indigo-500 focus:outline-none w-full";
-  const selectClass = inputClass;
+  const inputClass = "bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg px-2 py-1.5 text-sm text-gray-900 dark:text-zinc-100 focus:border-indigo-500 focus:outline-none w-full";
+  const borderColor: Record<string, string> = { indigo: "border-l-indigo-500", green: "border-l-green-500", orange: "border-l-orange-500", pink: "border-l-pink-500" };
+
+  const hasValues = targets.revenue > 0 || targets.roas > 0 || targets.orders > 0;
 
   return (
-    <div className="space-y-6">
-      {toast && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium ${toast.type === "success" ? "bg-green-500 text-white" : "bg-red-500 text-white"}`}>
-          {toast.message}
-        </div>
-      )}
-      <Card>
-        <CardHeader>
-          <CardTitle>🎯 월별 목표 설정</CardTitle>
-          <p className="text-xs text-gray-500 dark:text-zinc-500 mt-1">
-            KPI 카드에 목표 대비 진행률이 표시됩니다. 브랜드별 또는 전체로 설정할 수 있습니다.
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-            <div>
-              <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">월</label>
-              <input type="month" className={inputClass} value={month}
-                onChange={e => setMonth(e.target.value)} />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">브랜드</label>
-              <select className={selectClass} value={brand}
-                onChange={e => setBrand(e.target.value)}>
-                <option value="all">전체</option>
-                {BRANDS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
-              </select>
-            </div>
-            <div className="flex items-end">
-              <button onClick={autoFill}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg text-sm font-medium text-white transition-colors w-full">
-                ✨ 추천 목표 자동채우기
-              </button>
-            </div>
+    <Card className={`border-l-4 ${borderColor[color] || "border-l-gray-500"}`}>
+      <CardContent className="py-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <h4 className="font-semibold text-sm text-gray-800 dark:text-zinc-200">{label}</h4>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded ${hasValues ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-400"}`}>
+              {status}
+            </span>
           </div>
-          {loadMsg && <p className="text-xs text-gray-400 dark:text-zinc-500 mb-3">{loadMsg}</p>}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-              <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">목표 매출 (₩)</label>
-              <input type="number" className={inputClass} value={targets.revenue || ""}
-                onChange={e => setTargets(prev => ({ ...prev, revenue: Number(e.target.value) }))}
-                placeholder="3,000,000" />
-              {targets.revenue > 0 && <p className="text-[10px] text-gray-400 dark:text-zinc-600 mt-1">₩{formatCompact(targets.revenue)}</p>}
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">목표 ROAS</label>
-              <input type="number" step="0.1" className={inputClass} value={targets.roas || ""}
-                onChange={e => setTargets(prev => ({ ...prev, roas: Number(e.target.value) }))}
-                placeholder="2.0" />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">목표 주문수 (건)</label>
-              <input type="number" className={inputClass} value={targets.orders || ""}
-                onChange={e => setTargets(prev => ({ ...prev, orders: Number(e.target.value) }))}
-                placeholder="100" />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">목표 CAC (₩)</label>
-              <input type="number" className={inputClass} value={targets.cac || ""}
-                onChange={e => setTargets(prev => ({ ...prev, cac: Number(e.target.value) }))}
-                placeholder="30,000" />
-              {targets.cac > 0 && <p className="text-[10px] text-gray-400 dark:text-zinc-600 mt-1">₩{formatCompact(targets.cac)}</p>}
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">목표 전환율 (%)</label>
-              <input type="number" step="0.1" className={inputClass} value={targets.convRate || ""}
-                onChange={e => setTargets(prev => ({ ...prev, convRate: Number(e.target.value) }))}
-                placeholder="1.5" />
-            </div>
-          </div>
-
           <button onClick={saveTargets} disabled={saving}
-            className="mt-4 px-6 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50">
-            {saving ? "저장 중..." : "💾 목표 저장"}
+            className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 rounded text-xs font-medium text-white transition-colors disabled:opacity-50">
+            {saving ? "..." : "저장"}
           </button>
+        </div>
+        <div className="grid grid-cols-5 gap-2">
+          <div>
+            <label className="text-[10px] text-gray-400 block mb-0.5">매출 (₩)</label>
+            <input type="number" className={inputClass} value={targets.revenue || ""}
+              onChange={e => setTargets(prev => ({ ...prev, revenue: Number(e.target.value) }))} placeholder="0" />
+            {targets.revenue > 0 && <p className="text-[9px] text-gray-400 mt-0.5">₩{formatCompact(targets.revenue)}</p>}
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-400 block mb-0.5">ROAS</label>
+            <input type="number" step="0.1" className={inputClass} value={targets.roas || ""}
+              onChange={e => setTargets(prev => ({ ...prev, roas: Number(e.target.value) }))} placeholder="0" />
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-400 block mb-0.5">주문수</label>
+            <input type="number" className={inputClass} value={targets.orders || ""}
+              onChange={e => setTargets(prev => ({ ...prev, orders: Number(e.target.value) }))} placeholder="0" />
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-400 block mb-0.5">CAC (₩)</label>
+            <input type="number" className={inputClass} value={targets.cac || ""}
+              onChange={e => setTargets(prev => ({ ...prev, cac: Number(e.target.value) }))} placeholder="0" />
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-400 block mb-0.5">전환율 (%)</label>
+            <input type="number" step="0.1" className={inputClass} value={targets.convRate || ""}
+              onChange={e => setTargets(prev => ({ ...prev, convRate: Number(e.target.value) }))} placeholder="0" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TargetsTab() {
+  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="py-4">
+          <div className="flex items-center gap-3">
+            <h3 className="font-semibold text-gray-800 dark:text-zinc-200">🎯 월별 목표 설정</h3>
+            <input type="month" value={month} onChange={e => setMonth(e.target.value)}
+              className="text-sm border border-gray-200 dark:border-zinc-600 rounded-lg px-2 py-1 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-200" />
+            <p className="text-xs text-gray-400">각 브랜드별 목표를 한눈에 설정</p>
+          </div>
         </CardContent>
       </Card>
+      {TARGET_BRANDS.map(b => (
+        <BrandTargetCard key={b.value} brand={b.value} label={b.label} month={month} color={b.color} />
+      ))}
     </div>
   );
 }
