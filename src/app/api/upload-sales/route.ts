@@ -235,19 +235,7 @@ export async function POST(request: NextRequest) {
         dailyAgg.set(key, { date: r.date, brand: r.brand, channel: r.channel, revenue: r.revenue, orders: r.quantity });
       }
     }
-    // Add "all" brand aggregation
-    const allAgg = new Map<string, any>();
-    for (const r of dailyAgg.values()) {
-      const key = `${r.date}|all|${r.channel}`;
-      const ex = allAgg.get(key);
-      if (ex) {
-        ex.revenue += r.revenue;
-        ex.orders += r.orders;
-      } else {
-        allAgg.set(key, { date: r.date, brand: "all", channel: r.channel, revenue: r.revenue, orders: r.orders });
-      }
-    }
-    const dailySalesRows = [...Array.from(dailyAgg.values()), ...Array.from(allAgg.values())];
+    const dailySalesRows = Array.from(dailyAgg.values());
 
     // Upsert to Supabase
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
