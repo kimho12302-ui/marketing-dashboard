@@ -552,7 +552,7 @@ function GongguTargetsTab() {
 }
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<"daily" | "targets" | "gonggu_targets" | "costs" | "manual_ads" | "misc_costs" | "shipping" | "sales_upload" | "coupang_ads" | "info">("daily");
+  const [activeTab, setActiveTab] = useState<"daily" | "targets" | "costs" | "manual_ads" | "misc_costs" | "shipping" | "sales_upload" | "coupang_ads" | "info">("daily");
   // Note: sales_upload and coupang_ads tabs kept for backward compat but hidden from UI
   const [productCosts, setProductCosts] = useState<ProductCost[]>([]);
   const [productList, setProductList] = useState<{ product: string; brand: string; category: string; revenue: number; hasCost: boolean }[]>([]);
@@ -833,10 +833,7 @@ export default function SettingsPage() {
           {[
             { key: "daily" as const, label: "📋 일일 입력" },
             { key: "targets" as const, label: "🎯 목표 설정" },
-            { key: "gonggu_targets" as const, label: "🤝 공구 목표" },
             { key: "costs" as const, label: "💰 제품 원가" },
-            // 수동 광고비 + 건별 비용은 일일입력에 통합
-            
             { key: "shipping" as const, label: "📦 배송비" },
             // 판매 업로드 + 쿠팡 광고는 일일입력에 통합
             { key: "info" as const, label: "ℹ️ 데이터 소스" },
@@ -863,11 +860,13 @@ export default function SettingsPage() {
         {/* Daily Input Tab — all-in-one */}
         {activeTab === "daily" && <DailyInput />}
 
-        {/* Targets Tab */}
-        {activeTab === "targets" && <TargetsTab />}
-
-        {/* Gonggu Targets Tab */}
-        {activeTab === "gonggu_targets" && <GongguTargetsTab />}
+        {/* Targets Tab (일반 + 공구 통합) */}
+        {activeTab === "targets" && (
+          <div className="space-y-6">
+            <TargetsTab />
+            <GongguTargetsTab />
+          </div>
+        )}
 
         {/* Product Costs Tab */}
         {activeTab === "costs" && (
