@@ -874,6 +874,7 @@ export default function DailyInput() {
               { key: "subscribers", label: "알림받기 수", placeholder: "12" },
               { key: "sessions", label: "유입 (토탈)", placeholder: "300" },
               { key: "avg_duration", label: "체류시간 (초)", placeholder: "120" },
+              { key: "repurchases", label: "재구매", placeholder: "3" },
             ]} onSave={async (data) => {
               const res = await fetch("/api/settings", {
                 method: "POST",
@@ -891,6 +892,7 @@ export default function DailyInput() {
               { key: "subscribers", label: "알림받기 수", placeholder: "5" },
               { key: "sessions", label: "유입 (토탈)", placeholder: "100" },
               { key: "avg_duration", label: "체류시간 (초)", placeholder: "90" },
+              { key: "repurchases", label: "재구매", placeholder: "1" },
             ]} onSave={async (data) => {
               const res = await fetch("/api/settings", {
                 method: "POST",
