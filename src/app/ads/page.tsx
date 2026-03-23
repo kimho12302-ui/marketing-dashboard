@@ -51,9 +51,20 @@ function getPerformanceBg(roas: number): string {
 }
 
 const CH_LABELS: Record<string, string> = {
-  meta: "Meta", naver_search: "네이버검색", naver_shopping: "네이버쇼핑",
-  google_search: "구글검색", "ga4_Performance Max": "P-Max", "ga4_Search": "Google(GA4)",
-  coupang: "쿠팡광고", gdn: "GDN",
+  meta: "메타",
+  naver_search: "네이버검색",
+  naver_shopping: "네이버쇼핑",
+  google_search: "구글검색",
+  google_ads: "구글광고",
+  "ga4_Performance Max": "퍼포먼스 맥스",
+  "ga4_Search": "구글검색(GA4)",
+  coupang: "쿠팡광고",
+  coupang_ads: "쿠팡광고",
+  smartstore: "스마트스토어",
+  cafe24: "카페24",
+  gdn: "GDN",
+  gfa: "GFA",
+  influencer: "인플루언서",
 };
 
 export default function AdsPage() {
@@ -71,6 +82,7 @@ export default function AdsPage() {
   const [selectedCreative, setSelectedCreative] = useState<string | null>(null);
   const [creativeTrend, setCreativeTrend] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showUtm, setShowUtm] = useState(false);
   const [crLoading, setCrLoading] = useState(true);
   const [crPage, setCrPage] = useState(1);
   const [crFilter, setCrFilter] = useState<"all" | "active" | "paused">("all");
@@ -360,7 +372,8 @@ export default function AdsPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            {/* Meta 크리에이티브 — 데이터 없어서 숨김 */}
+            {false && <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>🎨 Meta 크리에이티브 성과 (퍼널별)</CardTitle>
@@ -498,18 +511,23 @@ export default function AdsPage() {
                   </>
               )}
               </CardContent>
-            </Card>
+            </Card>}
 
-            {/* UTM 유입 분석 */}
+            {/* UTM 유입 분석 — 접기 */}
             {utmData.length > 0 && (
               <Card>
-                <CardHeader><CardTitle>🔗 UTM 유입 분석 (GA4)</CardTitle></CardHeader>
-                <CardContent>
+                <CardHeader>
+                  <button onClick={() => setShowUtm(!showUtm)} className="flex items-center gap-2 w-full text-left">
+                    <CardTitle>🔗 UTM 유입 분석 (GA4)</CardTitle>
+                    <span className="text-xs text-gray-400">{showUtm ? "▲" : "▼"}</span>
+                  </button>
+                </CardHeader>
+                {showUtm && <CardContent>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="text-left text-xs text-gray-500 dark:text-zinc-400 border-b border-gray-100 dark:border-zinc-800">
-                          <th className="pb-2 pr-4">Source / Medium</th>
+                          <th className="pb-2 pr-4">소스 / 매체</th>
                           <th className="pb-2 pr-4 text-right">세션</th>
                           <th className="pb-2 pr-4 text-right">사용자</th>
                           <th className="pb-2 pr-4 text-right">신규 사용자</th>
@@ -542,7 +560,7 @@ export default function AdsPage() {
                       </tbody>
                     </table>
                   </div>
-                </CardContent>
+                </CardContent>}
               </Card>
             )}
           </>
