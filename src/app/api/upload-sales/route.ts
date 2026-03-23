@@ -244,7 +244,7 @@ export async function POST(request: NextRequest) {
     // product_sales
     for (let i = 0; i < productSalesRows.length; i += 500) {
       const chunk = productSalesRows.slice(i, i + 500);
-      const { error } = await supabase.from("product_sales").upsert(chunk, { onConflict: "date,channel,product" });
+      const { error } = await supabase.from("product_sales").upsert(chunk, { onConflict: "date,brand,product,channel" });
       if (error) dbResults.productSalesError = error.message;
     }
 
