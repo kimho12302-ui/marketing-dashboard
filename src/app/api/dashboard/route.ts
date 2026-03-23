@@ -89,17 +89,21 @@ export async function GET(request: NextRequest) {
     let totalManufacturing = 0;
     let totalShipping = 0;
     let matchedProducts = 0;
+    let totalProducts = 0;
     for (const ps of cogsProdData || []) {
+      totalProducts++;
       const key = `${ps.product}__${ps.brand}`;
       const costs = costMap.get(key);
       if (costs) {
         const qty = Number(ps.quantity || 0);
-        totalCOGS += (costs.cost_price + costs.manufacturing_cost + costs.shipping_cost) * qty;
+        // COGS = cost_price only (manufacturing_cost and shipping_cost are reference only)
+        totalCOGS += costs.cost_price * qty;
         totalManufacturing += costs.manufacturing_cost * qty;
         totalShipping += costs.shipping_cost * qty;
         matchedProducts++;
       }
     }
+    const matchedRate = totalProducts > 0 ? matchedProducts / totalProducts : 0;
 
     // Aggregate KPIs
     const totalRevenue = (sales || []).reduce((s, r) => s + Number(r.revenue), 0);
@@ -107,7 +111,7 @@ export async function GET(request: NextRequest) {
     const totalAdSpendOnly = (adSpend || []).reduce((s, r) => s + Number(r.spend), 0);
     const totalAdSpend = totalAdSpendOnly + totalMiscCost;
     const roas = totalAdSpend > 0 ? totalRevenue / totalAdSpend : 0;
-    const profit = totalRevenue - totalAdSpend - totalCOGS - totalShippingCost;
+    const profit = totalRevenue - totalAdSpend - totalCOGS;
     const mer = totalAdSpend > 0 ? totalRevenue / totalAdSpend : 0;
     const aov = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
@@ -455,6 +459,7 @@ export async function GET(request: NextRequest) {
         cogs: totalCOGS, manufacturing: totalManufacturing, productShipping: totalShipping,
         miscCost: totalMiscCost,
         shippingCost: totalShippingCost, shippingOrders: totalShippingOrders,
+        matchedRate, // Percentage of products with cost data (0-1)
       },
       trend: trendWithMA, channels, channelRoasTrend, brandRevenue, brandRevenueTrend, brandAdSpend, brandRoasTrend,
       funnelSummary: { ...funnelSummary, convRate, cartToOrderRate },

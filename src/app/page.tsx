@@ -305,11 +305,8 @@ export default function OverviewPage() {
         ]},
         { label: "광고비", value: kpi.adSpend - (kpi.miscCost || 0), color: "text-red-400", icon: "📢" },
         { label: "건별 마케팅비", value: kpi.miscCost || 0, color: "text-pink-400", icon: "🧾" },
-        { label: "배송비", value: kpi.shippingCost || 0, color: "text-blue-400", icon: "📦", sub: kpi.shippingOrders ? [
-          { label: `${kpi.shippingOrders.toLocaleString()}건`, value: kpi.shippingOrders > 0 ? (kpi.shippingCost || 0) / kpi.shippingOrders : 0 },
-        ] : undefined },
       ];
-      const totalCost = (kpi.cogs || 0) + kpi.adSpend + (kpi.shippingCost || 0);
+      const totalCost = (kpi.cogs || 0) + kpi.adSpend;
       return (
         <Card className="border-yellow-500/30 animate-in slide-in-from-top-2 duration-200">
           <CardContent className="pt-4">
@@ -351,6 +348,11 @@ export default function OverviewPage() {
               </div>
               {!hasCogs && (
                 <p className="text-xs text-yellow-500 mt-2">⚠️ 제품 원가가 미입력 상태입니다. 설정 → 제품 원가에서 입력하면 정확한 영업이익이 계산됩니다.</p>
+              )}
+              {hasCogs && (kpi.matchedRate !== undefined && kpi.matchedRate < 0.5) && (
+                <p className="text-xs text-orange-500 mt-2">
+                  ⚠️ 원가 데이터 부족 ({((kpi.matchedRate || 0) * 100).toFixed(0)}% 매칭) — 일부 제품의 원가가 누락되어 영업이익이 부정확할 수 있습니다.
+                </p>
               )}
             </div>
           </CardContent>

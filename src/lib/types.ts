@@ -66,6 +66,7 @@ export interface KPIData {
   miscCost?: number;
   shippingCost?: number;
   shippingOrders?: number;
+  matchedRate?: number; // Percentage of products with cost data (0-1)
 }
 
 export interface TrendDataPoint {

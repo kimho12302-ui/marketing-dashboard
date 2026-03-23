@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
+// Channel name mapping (English → Korean)
+const CHANNEL_LABELS: Record<string, string> = {
+  meta: "메타",
+  naver_search: "네이버 검색",
+  naver_shopping: "네이버 쇼핑",
+  google_search: "구글 검색",
+  google_ads: "구글 광고",
+  "ga4_Performance Max": "퍼포먼스 맥스",
+  "ga4_Search": "구글 검색(GA4)",
+  coupang: "쿠팡",
+  coupang_ads: "쿠팡 광고",
+  smartstore: "스마트스토어",
+  cafe24: "카페24",
+  gfa: "GFA",
+  gdn: "GDN",
+  influencer: "인플루언서",
+};
+
 export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams;
   const from = sp.get("from") || "";
@@ -53,10 +71,11 @@ export async function GET(request: NextRequest) {
 
     for (const [channel, d] of channelSpend.entries()) {
       const chRoas = d.spend > 0 ? d.convValue / d.spend : 0;
+      const chLabel = CHANNEL_LABELS[channel] || channel;
       if (d.spend > 100000 && chRoas < 1.0) {
-        insights.push({ type: "critical", text: `${channel} ROAS ${chRoas.toFixed(2)}x — 적자 채널`, detail: `광고비 ₩${(d.spend/10000).toFixed(0)}만 투입 대비 전환매출 ₩${(d.convValue/10000).toFixed(0)}만`, actions: [`${channel} 일 예산 50% 감축`, "전환 추적 코드 재확인 (conversion_value=0이면 추적 문제)", "2주간 모니터링 후 중단 여부 결정"] });
+        insights.push({ type: "critical", text: `${chLabel} ROAS ${chRoas.toFixed(2)}x — 적자 채널`, detail: `광고비 ₩${(d.spend/10000).toFixed(0)}만 투입 대비 전환매출 ₩${(d.convValue/10000).toFixed(0)}만`, actions: [`${chLabel} 일 예산 50% 감축`, "전환 추적 코드 재확인 (conversion_value=0이면 추적 문제)", "2주간 모니터링 후 중단 여부 결정"] });
       } else if (d.spend > 100000 && chRoas < 2.0) {
-        insights.push({ type: "warning", text: `${channel} ROAS ${chRoas.toFixed(2)}x — 효율 저조`, detail: `크리에이티브 교체 또는 타겟팅 재설정 권장`, actions: ["하위 20% 소재 OFF", "새 크리에이티브 2-3개 테스트", "타겟 연령/관심사 재설정"] });
+        insights.push({ type: "warning", text: `${chLabel} ROAS ${chRoas.toFixed(2)}x — 효율 저조`, detail: `크리에이티브 교체 또는 타겟팅 재설정 권장`, actions: ["하위 20% 소재 OFF", "새 크리에이티브 2-3개 테스트", "타겟 연령/관심사 재설정"] });
       }
     }
 
@@ -125,8 +144,9 @@ export async function GET(request: NextRequest) {
     }
     for (const [ch, rev] of salesChannelMap.entries()) {
       const share = totalRevenue > 0 ? (rev / totalRevenue) * 100 : 0;
+      const chLabel = CHANNEL_LABELS[ch] || ch;
       if (share > 40) {
-        insights.push({ type: "warning", text: `${ch} 매출 비중 ${share.toFixed(0)}% — 채널 집중 리스크`, detail: `특정 채널 의존도가 높습니다. 자사몰 비중 확대 전략 필요` });
+        insights.push({ type: "warning", text: `${chLabel} 매출 비중 ${share.toFixed(0)}% — 채널 집중 리스크`, detail: `특정 채널 의존도가 높습니다. 자사몰 비중 확대 전략 필요` });
       }
     }
 
@@ -173,10 +193,11 @@ export async function GET(request: NextRequest) {
       const channelChanges: string[] = [];
       for (const [ch, rev] of salesChannelMap.entries()) {
         const prevChRev = prevChannelSales.get(ch) || 0;
+        const chLabel = CHANNEL_LABELS[ch] || ch;
         if (prevChRev > 0) {
           const changePct = ((rev / prevChRev - 1) * 100);
           if (changePct < -10) {
-            channelChanges.push(`${ch} ${changePct.toFixed(0)}%`);
+            channelChanges.push(`${chLabel} ${changePct.toFixed(0)}%`);
           }
         }
       }
