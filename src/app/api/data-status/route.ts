@@ -104,23 +104,7 @@ export async function GET() {
       ok: gfaDate >= yesterdayStr,
     });
 
-    // 6. 스마트스토어 광고비 (manual)
-    const { data: ssAdsLatest } = await supabase
-      .from("daily_ad_spend")
-      .select("date")
-      .eq("channel", "smartstore_ads")
-      .order("date", { ascending: false })
-      .limit(1);
-    const ssAdsDate = ssAdsLatest?.[0]?.date || null;
-    sources.push({
-      id: "smartstore_ads",
-      label: "스마트스토어 광고비",
-      type: "manual",
-      latestDate: ssAdsDate,
-      ok: ssAdsDate >= yesterdayStr,
-    });
-
-    // 7. 매출 데이터 (manual - excel upload)
+    // 6. 판매실적 (manual - excel upload)
     const { data: salesLatest } = await supabase
       .from("daily_sales")
       .select("date")
@@ -129,25 +113,10 @@ export async function GET() {
     const salesDate = salesLatest?.[0]?.date || null;
     sources.push({
       id: "sales",
-      label: "매출 데이터",
+      label: "판매실적",
       type: "manual",
       latestDate: salesDate,
       ok: salesDate >= yesterdayStr,
-    });
-
-    // 8. 상품별 매출 (manual - excel upload)
-    const { data: psLatest } = await supabase
-      .from("product_sales")
-      .select("date")
-      .order("date", { ascending: false })
-      .limit(1);
-    const psDate = psLatest?.[0]?.date || null;
-    sources.push({
-      id: "product_sales",
-      label: "상품별 매출",
-      type: "manual",
-      latestDate: psDate,
-      ok: psDate >= yesterdayStr,
     });
 
     // 9. GA4 퍼널 (auto - API)

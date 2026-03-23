@@ -10,6 +10,7 @@ function fmtKST(d: Date): string {
 
 function getDefaultDates() {
   const to = new Date();
+  to.setDate(to.getDate() - 1); // 디폴트 종료일 = 어제
   const from = new Date();
   from.setDate(from.getDate() - 7);
   return { from: fmtKST(from), to: fmtKST(to) };
