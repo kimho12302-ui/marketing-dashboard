@@ -16,6 +16,8 @@ import {
 const FUNNEL_COLORS = ["#6366f1", "#818cf8", "#a78bfa", "#22c55e", "#14b8a6"];
 const CHANNEL_COLORS: Record<string, string> = { smartstore: "#14b8a6", cafe24: "#8b5cf6", coupang: "#f97316" };
 const CHANNEL_LABELS: Record<string, string> = { smartstore: "스마트스토어", cafe24: "카페24", coupang: "쿠팡" };
+const IMP_COLORS: Record<string, string> = { meta: "#3b82f6", naver: "#22c55e", google: "#f59e0b", coupang: "#f97316" };
+const IMP_LABELS: Record<string, string> = { meta: "Meta", naver: "네이버", google: "구글", coupang: "쿠팡" };
 
 interface TrendPoint { date: string; sessions: number; cart_adds: number; purchases: number; [key: string]: string | number; }
 
@@ -246,7 +248,28 @@ export default function FunnelPage() {
             {trend.length > 0 && (
               <>
                 <Card>
-                  <CardHeader><CardTitle>세션 일별 트렌드 (채널별)</CardTitle></CardHeader>
+                  <CardHeader><CardTitle>노출 일별 트렌드 (소스별)</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="h-72">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={trend}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                          <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
+                          <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} />
+                          <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} />
+                          <Legend />
+                          {["meta", "naver", "google", "coupang"].map((src) => (
+                            <Area key={src} type="monotone" dataKey={`imp_${src}`} name={IMP_LABELS[src]} stackId="imp"
+                              stroke={IMP_COLORS[src]} fill={IMP_COLORS[src]} fillOpacity={0.6} />
+                          ))}
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader><CardTitle>유입 일별 트렌드 (채널별)</CardTitle></CardHeader>
                   <CardContent>
                     <div className="h-72">
                       <ResponsiveContainer width="100%" height="100%">
