@@ -75,6 +75,7 @@ export default function AdsPage() {
   const [crPage, setCrPage] = useState(1);
   const [crFilter, setCrFilter] = useState<"all" | "active" | "paused">("all");
   const [gmActualCogs, setGmActualCogs] = useState<number>(0);
+  const [utmData, setUtmData] = useState<{ source: string; medium: string; sessions: number; users: number; new_users: number }[]>([]);
   const CR_PER_PAGE = 20;
 
   const fetchData = useCallback(async () => {
@@ -103,6 +104,12 @@ export default function AdsPage() {
       setCac(Math.round(data.cac || 0));
     }
     setLoading(false);
+
+    // UTM data
+    fetch(`/api/utm?from=${filters.from}&to=${filters.to}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.data) setUtmData(d.data); })
+      .catch(() => {});
 
     // Creatives (slow — Meta API)
     const crData = await crPromise;
@@ -492,6 +499,52 @@ export default function AdsPage() {
               )}
               </CardContent>
             </Card>
+
+            {/* UTM 유입 분석 */}
+            {utmData.length > 0 && (
+              <Card>
+                <CardHeader><CardTitle>🔗 UTM 유입 분석 (GA4)</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-xs text-gray-500 dark:text-zinc-400 border-b border-gray-100 dark:border-zinc-800">
+                          <th className="pb-2 pr-4">Source / Medium</th>
+                          <th className="pb-2 pr-4 text-right">세션</th>
+                          <th className="pb-2 pr-4 text-right">사용자</th>
+                          <th className="pb-2 pr-4 text-right">신규 사용자</th>
+                          <th className="pb-2 text-right">비율</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          const totalSess = utmData.reduce((s, r) => s + r.sessions, 0);
+                          return utmData.slice(0, 15).map((r, i) => (
+                            <tr key={i} className="border-b border-gray-50 dark:border-zinc-800/50">
+                              <td className="py-2 pr-4">
+                                <span className="font-medium text-gray-800 dark:text-zinc-200">{r.source}</span>
+                                <span className="text-gray-400 dark:text-zinc-500"> / {r.medium}</span>
+                              </td>
+                              <td className="py-2 pr-4 text-right font-medium">{r.sessions.toLocaleString()}</td>
+                              <td className="py-2 pr-4 text-right text-gray-500 dark:text-zinc-400">{r.users.toLocaleString()}</td>
+                              <td className="py-2 pr-4 text-right text-gray-500 dark:text-zinc-400">{r.new_users.toLocaleString()}</td>
+                              <td className="py-2 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <div className="w-16 h-1.5 bg-gray-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                    <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${totalSess > 0 ? (r.sessions / totalSess * 100) : 0}%` }} />
+                                  </div>
+                                  <span className="text-xs text-gray-400 w-10 text-right">{totalSess > 0 ? (r.sessions / totalSess * 100).toFixed(1) : 0}%</span>
+                                </div>
+                              </td>
+                            </tr>
+                          ));
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
       </div>
