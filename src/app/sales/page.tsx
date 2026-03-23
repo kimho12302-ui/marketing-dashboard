@@ -412,55 +412,29 @@ export default function SalesPage() {
               </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader><CardTitle>🏷️ 브랜드별 매출 트렌드</CardTitle></CardHeader>
-                <CardContent>
-                  <div className="h-72">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={brandTrend}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
-                        <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
-                        <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
-                        <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} formatter={(v: any) => [`₩${formatCompact(v)}`, ""]} />
-                        <Legend />
-                        {trendBrands.map((b, i) => (
-                          <Line key={b} type="monotone" dataKey={b} name={b} stroke={BRAND_COLORS[b] || TREND_COLORS[i % TREND_COLORS.length]} dot={false} strokeWidth={2} />
-                        ))}
-                        {events.map((e) => (
-                          <ReferenceLine key={e.id} x={e.date} stroke={e.color} strokeDasharray="4 4" strokeWidth={1.5}
-                            label={{ value: `▼ ${e.title}`, position: "insideBottomLeft", fill: e.color || "#6366f1", fontSize: 10, fontWeight: 700, offset: 5 }} />
-                        ))}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader><CardTitle>🛒 브랜드별 주문수 트렌드</CardTitle></CardHeader>
-                <CardContent>
-                  <div className="h-72">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={ordersTrend}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
-                        <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
-                        <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} />
-                        <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} formatter={(v: any) => [`${Number(v).toLocaleString()}건`, ""]} />
-                        <Legend />
-                        {ordersBrands.map((b, i) => (
-                          <Line key={b} type="monotone" dataKey={b} name={b} stroke={BRAND_COLORS[b] || TREND_COLORS[i % TREND_COLORS.length]} dot={false} strokeWidth={2} />
-                        ))}
-                        {events.map((e) => (
-                          <ReferenceLine key={e.id} x={e.date} stroke={e.color} strokeDasharray="4 4" strokeWidth={1.5}
-                            label={{ value: `▼ ${e.title}`, position: "insideBottomLeft", fill: e.color || "#6366f1", fontSize: 10, fontWeight: 700, offset: 5 }} />
-                        ))}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <Card>
+              <CardHeader><CardTitle>🏷️ 브랜드별 매출 트렌드</CardTitle></CardHeader>
+              <CardContent>
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={brandTrend}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                      <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
+                      <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
+                      <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} formatter={(v: any) => [`₩${formatCompact(v)}`, ""]} />
+                      <Legend />
+                      {trendBrands.map((b, i) => (
+                        <Line key={b} type="monotone" dataKey={b} name={b} stroke={BRAND_COLORS[b] || TREND_COLORS[i % TREND_COLORS.length]} dot={false} strokeWidth={2} />
+                      ))}
+                      {events.map((e) => (
+                        <ReferenceLine key={e.id} x={e.date} stroke={e.color} strokeDasharray="4 4" strokeWidth={1.5}
+                          label={{ value: `▼ ${e.title}`, position: "insideBottomLeft", fill: e.color || "#6366f1", fontSize: 10, fontWeight: 700, offset: 5 }} />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
@@ -487,75 +461,6 @@ export default function SalesPage() {
                 </CardContent>
               </Card>
             </div>
-
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>📊 CAC vs ROAS 4분면 분석</CardTitle>
-                  {scatterData.length === 0 && (
-                    <span className="text-xs text-gray-400 dark:text-zinc-500">광고 데이터가 있으면 채널별 CAC/ROAS가 표시됩니다</span>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-96">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
-                      <XAxis type="number" dataKey="cacIndex" name="CAC Index" domain={[0, 100]}
-                        tick={{ fill: chartTheme.tickColor, fontSize: 12 }}
-                        label={{ value: "CAC Index →", position: "bottom", fill: chartTheme.axisColor, fontSize: 11 }} />
-                      <YAxis type="number" dataKey="roasIndex" name="ROAS Index" domain={[0, 100]}
-                        tick={{ fill: chartTheme.tickColor, fontSize: 12 }}
-                        label={{ value: "ROAS Index →", angle: -90, position: "left", fill: chartTheme.axisColor, fontSize: 11 }} />
-                      <ZAxis type="number" dataKey="spend" range={[100, 1000]} name="광고비" />
-                      <ReferenceLine x={50} stroke={chartTheme.referenceLine} strokeDasharray="5 5" />
-                      <ReferenceLine y={50} stroke={chartTheme.referenceLine} strokeDasharray="5 5" />
-                      <Tooltip
-                        contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle}
-                        formatter={(value: any, name: any) => {
-                          if (name === "광고비") return [`₩${formatCompact(value as number)}`, name];
-                          return [value, name];
-                        }}
-                        labelFormatter={(_, payload) => {
-                          if (payload && payload[0]) return (payload[0].payload as any).name;
-                          return "";
-                        }}
-                      />
-                      <Scatter data={filteredScatter}>
-                        {filteredScatter.map((entry, i) => (
-                          <Cell key={i} fill={getQuadrantColor(entry.cacIndex, entry.roasIndex)} fillOpacity={0.8} />
-                        ))}
-                      </Scatter>
-                    </ScatterChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="flex items-center justify-center gap-4 mt-2 text-[10px] text-gray-400 dark:text-zinc-500">
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" /> Low CAC + High ROAS</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500" /> High CAC + High ROAS</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" /> Low CAC + Low ROAS</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> High CAC + Low ROAS</span>
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
-                  <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800/30 rounded-lg p-3">
-                    <p className="font-semibold text-green-600 dark:text-green-400 mb-1">🟢 좌상단: 최적 (Low CAC + High ROAS)</p>
-                    <p className="text-gray-500 dark:text-zinc-400">고객 획득 비용이 낮고 수익률이 높은 최고 효율 영역. 예산 확대를 권장합니다.</p>
-                  </div>
-                  <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800/30 rounded-lg p-3">
-                    <p className="font-semibold text-yellow-600 dark:text-yellow-400 mb-1">🟡 우상단: 성장 (High CAC + High ROAS)</p>
-                    <p className="text-gray-500 dark:text-zinc-400">수익률은 좋지만 획득 비용이 높습니다. CAC를 낮출 수 있는 최적화 여지가 있습니다.</p>
-                  </div>
-                  <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/30 rounded-lg p-3">
-                    <p className="font-semibold text-blue-600 dark:text-blue-400 mb-1">🔵 좌하단: 관찰 (Low CAC + Low ROAS)</p>
-                    <p className="text-gray-500 dark:text-zinc-400">비용은 낮지만 수익도 낮습니다. 전환율 개선이나 타겟 최적화가 필요합니다.</p>
-                  </div>
-                  <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/30 rounded-lg p-3">
-                    <p className="font-semibold text-red-600 dark:text-red-400 mb-1">🔴 우하단: 위험 (High CAC + Low ROAS)</p>
-                    <p className="text-gray-500 dark:text-zinc-400">비용 대비 효율이 가장 나쁜 영역. 예산 축소 또는 전략 재검토가 시급합니다.</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
 
             <Card>
               <CardHeader><CardTitle>Top 10 상품</CardTitle></CardHeader>

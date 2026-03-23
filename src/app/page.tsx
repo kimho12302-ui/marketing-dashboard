@@ -10,8 +10,7 @@ import ExportReport from "@/components/export-report";
 import SyncButton from "@/components/sync-button";
 import TrendChart from "@/components/trend-chart";
 import { useEvents, type MarketingEvent } from "@/components/event-markers";
-import ChannelChart from "@/components/channel-chart";
-import BrandCompareChart from "@/components/brand-compare-chart";
+// ChannelChart, BrandCompareChart removed — integrated into overview
 import BrandView from "@/components/brand-view";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -442,6 +441,7 @@ export default function OverviewPage() {
           </div>
         ) : (
           <>
+            {/* 1. 핵심 KPI */}
             <section>
               <KPICards data={kpi} periodLabel={`${filters.from} ~ ${filters.to}`}
                 onCardClick={(key) => setSelectedKpi(selectedKpi === key ? null : key)}
@@ -450,211 +450,61 @@ export default function OverviewPage() {
               {renderDrilldown()}
             </section>
 
+            {/* 2. 매출 vs 광고비 트렌드 */}
             <section>
               <h2 className="text-sm font-medium text-gray-500 dark:text-zinc-400 mb-3">📈 매출 vs 광고비 트렌드</h2>
-              <div className="mb-6">
-                <TrendChart data={trend} events={events} />
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <Card>
-                  <CardHeader><CardTitle>🏷️ 브랜드별 광고비</CardTitle></CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {brandAdSpend.map((b) => {
-                        const label = BRAND_LABELS[b.brand] || b.brand;
-                        const maxSpend = brandAdSpend[0]?.spend || 1;
-                        return (
-                          <div key={b.brand}>
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-sm text-gray-700 dark:text-zinc-300">{label}</span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium text-gray-900 dark:text-zinc-100">₩{formatCompact(b.spend)}</span>
-                                <span className="text-xs text-gray-400 dark:text-zinc-500 bg-gray-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">{(b.share * 100).toFixed(1)}%</span>
-                              </div>
-                            </div>
-                            <div className="h-2 bg-gray-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                              <div className="h-full rounded-full transition-all" style={{ width: `${(b.spend / maxSpend) * 100}%`, backgroundColor: BRAND_COLORS[b.brand] || "#888" }} />
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {brandAdSpend.length === 0 && <p className="text-sm text-gray-400 dark:text-zinc-500">데이터 없음</p>}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-              {/* ChannelChart removed — 채널별 광고비는 하단 광고 성과 요약에서 표시 */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader><CardTitle>📊 채널별 ROAS 추이</CardTitle></CardHeader>
-                <CardContent>
-                  <div className="h-72">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={channelRoasTrend}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
-                        <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
-                        <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}x`} />
-                        <Tooltip
-                          contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle}
-                          formatter={(value: any, name: any) => [`${Number(value).toFixed(2)}x`, CH_LABELS[name as string] || name]}
-                          labelFormatter={(label: any) => String(label)}
-                        />
-                        <Legend formatter={(value: string) => CH_LABELS[value] || value} />
-                        {channels.map((ch) => (
-                          <Line
-                            key={ch.channel}
-                            type="monotone"
-                            dataKey={ch.channel}
-                            name={ch.channel}
-                            stroke={CHANNEL_COLORS[ch.channel] || "#888"}
-                            dot={false}
-                            strokeWidth={2}
-                            connectNulls
-                          />
-                        ))}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader><CardTitle>🏷️ 브랜드별 ROAS 추이</CardTitle></CardHeader>
-                <CardContent>
-                  <div className="h-72">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={brandRoasTrend}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
-                        <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
-                        <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}x`} />
-                        <Tooltip
-                          contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle}
-                          formatter={(value: any, name: any) => [`${Number(value).toFixed(2)}x`, BRAND_LABELS[name as string] || name]}
-                          labelFormatter={(label: any) => String(label)}
-                        />
-                        <Legend formatter={(value: string) => BRAND_LABELS[value] || value} />
-                        {brandAdSpend.map((b) => (
-                          <Line
-                            key={b.brand}
-                            type="monotone"
-                            dataKey={b.brand}
-                            name={b.brand}
-                            stroke={BRAND_COLORS[b.brand] || "#888"}
-                            dot={false}
-                            strokeWidth={2}
-                            connectNulls
-                          />
-                        ))}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-              </div>
+              <TrendChart data={trend} events={events} />
             </section>
 
-            {/* 밸런스랩 공동구매 현황 카드 */}
-            {(gongguSales.length > 0 || selfSalesTotal > 0) && (
-              <section>
-                <h2 className="text-sm font-medium text-gray-500 dark:text-zinc-400 mb-3">🤝 밸런스랩 공동구매 현황</h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Card>
-                    <CardHeader><CardTitle>자체판매 vs 공동구매</CardTitle></CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 gap-4 mb-4">
-                        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 text-center">
-                          <p className="text-xs text-gray-500 dark:text-zinc-400">자체판매</p>
-                          <p className="text-xl font-bold text-blue-400">₩{formatCompact(selfSalesTotal)}</p>
-                        </div>
-                        <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 text-center">
-                          <p className="text-xs text-gray-500 dark:text-zinc-400">공동구매</p>
-                          <p className="text-xl font-bold text-purple-400">₩{formatCompact(gongguSalesTotal)}</p>
-                        </div>
-                      </div>
-                      <div className="h-3 bg-gray-100 dark:bg-zinc-800 rounded-full overflow-hidden flex">
-                        {(selfSalesTotal + gongguSalesTotal) > 0 && (
-                          <>
-                            <div className="bg-blue-400 h-full" style={{ width: `${(selfSalesTotal / (selfSalesTotal + gongguSalesTotal)) * 100}%` }} />
-                            <div className="bg-purple-400 h-full" style={{ width: `${(gongguSalesTotal / (selfSalesTotal + gongguSalesTotal)) * 100}%` }} />
-                          </>
-                        )}
-                      </div>
-                      <div className="flex justify-between mt-1">
-                        <span className="text-[10px] text-gray-400">{(selfSalesTotal + gongguSalesTotal) > 0 ? `${((selfSalesTotal / (selfSalesTotal + gongguSalesTotal)) * 100).toFixed(0)}%` : ""}</span>
-                        <span className="text-[10px] text-gray-400">{(selfSalesTotal + gongguSalesTotal) > 0 ? `${((gongguSalesTotal / (selfSalesTotal + gongguSalesTotal)) * 100).toFixed(0)}%` : ""}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader><CardTitle>공구별 매출</CardTitle></CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {gongguSales.map((g, i) => {
-                          const maxRev = gongguSales[0]?.revenue || 1;
-                          const pct = (g.revenue / maxRev) * 100;
-                          const target = gongguTargets.find(t => t.seller === g.seller);
-                          const achievePct = target && target.target > 0 ? (g.revenue / target.target * 100) : null;
-                          return (
-                            <div key={g.seller}>
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-sm text-gray-700 dark:text-zinc-300">{g.seller}</span>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-medium">₩{formatCompact(g.revenue)}</span>
-                                  <span className="text-[10px] text-gray-400">{g.orders}건 {g.quantity}개</span>
-                                  {achievePct !== null && (
-                                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${achievePct >= 100 ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" : "bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400"}`}>
-                                      {achievePct.toFixed(0)}%
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="h-2 bg-gray-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                                <div className="h-full rounded-full bg-purple-400" style={{ width: `${pct}%` }} />
-                              </div>
-                            </div>
-                          );
-                        })}
-                        {gongguSales.length === 0 && <p className="text-sm text-gray-400">공동구매 데이터 없음</p>}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </section>
-            )}
-
+            {/* 3. 브랜드별 성과 카드 */}
             <section>
-              <h2 className="text-sm font-medium text-gray-500 dark:text-zinc-400 mb-3">🏷️ 브랜드 & 상품</h2>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader><CardTitle>브랜드별 매출</CardTitle></CardHeader>
-                  <CardContent>
-                    <div className="h-56">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={fullBrandRevenue.map(b => ({
-                          name: BRAND_LABELS[b.brand] || b.brand,
-                          revenue: b.revenue,
-                          brand: b.brand,
-                        }))} layout="vertical">
-                          <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
-                          <XAxis type="number" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v) => formatCompact(v)} />
-                          <YAxis type="category" dataKey="name" width={70} tick={{ fill: chartTheme.labelColor, fontSize: 12 }} />
-                          <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle}
-                            formatter={(v: any) => [`₩${formatCompact(v)}`, "매출"]} />
-                          <Bar dataKey="revenue" radius={[0, 6, 6, 0]}>
-                            {fullBrandRevenue.map((b, i) => <Cell key={i} fill={BRAND_COLORS[b.brand] || "#888"} />)}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
+              <h2 className="text-sm font-medium text-gray-500 dark:text-zinc-400 mb-3">🏷️ 브랜드별 성과</h2>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {fullBrandRevenue.map((b) => {
+                  const label = BRAND_LABELS[b.brand] || b.brand;
+                  const color = BRAND_COLORS[b.brand] || "#888";
+                  const spend = brandAdSpend.find(a => a.brand === b.brand)?.spend || 0;
+                  const brandRoas = spend > 0 ? b.revenue / spend : 0;
+                  return (
+                    <Card key={b.brand} className="cursor-pointer hover:border-indigo-500/50 transition-colors"
+                      onClick={() => setFilters({ ...filters, brand: b.brand as any })}>
+                      <CardContent className="pt-4 pb-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+                          <span className="text-sm font-medium text-gray-800 dark:text-zinc-200">{label}</span>
+                        </div>
+                        <p className="text-lg font-bold text-gray-900 dark:text-zinc-100">₩{formatCompact(b.revenue)}</p>
+                        <div className="flex items-center justify-between mt-2 text-xs text-gray-400 dark:text-zinc-500">
+                          <span>광고 ₩{formatCompact(spend)}</span>
+                          <span className={`font-medium ${brandRoas >= 2 ? "text-green-400" : brandRoas >= 1 ? "text-yellow-400" : "text-red-400"}`}>
+                            {brandRoas > 0 ? `${brandRoas.toFixed(1)}x` : "-"}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-gray-400 dark:text-zinc-500 mt-1">{b.orders}건</div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+              {/* 브랜드별 매출 비중 바 */}
+              {fullBrandRevenue.some(b => b.revenue > 0) && (() => {
+                const pieData = fullBrandRevenue.filter(b => b.revenue > 0);
+                const total = pieData.reduce((s, b) => s + b.revenue, 0);
+                return (
+                  <div className="mt-3">
+                    <div className="flex h-3 rounded-full overflow-hidden">
+                      {pieData.map((b, i) => (
+                        <div key={i} style={{ width: `${(b.revenue / total * 100).toFixed(1)}%`, backgroundColor: BRAND_COLORS[b.brand] || PRODUCT_COLORS[i % PRODUCT_COLORS.length] }} className="transition-all" title={`${BRAND_LABELS[b.brand] || b.brand}: ${(b.revenue / total * 100).toFixed(0)}%`} />
+                      ))}
                     </div>
-                    {fullBrandRevenue.filter(b => b.revenue === 0).map(b => (
-                      <p key={b.brand} className="text-xs text-gray-400 dark:text-zinc-500 mt-2">
-                        {BRAND_LABELS[b.brand]}: ₩0 — <span className="text-gray-300 dark:text-zinc-600 italic">데이터 없음</span>
-                      </p>
-                    ))}
-                  </CardContent>
-                </Card>
+                  </div>
+                );
+              })()}
+            </section>
 
+            {/* 4. 브랜드별 매출 트렌드 + TOP 5 상품 */}
+            <section>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader><CardTitle>📈 브랜드별 매출 트렌드</CardTitle></CardHeader>
                   <CardContent>
@@ -675,9 +525,7 @@ export default function OverviewPage() {
                     </div>
                   </CardContent>
                 </Card>
-              </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
                 {topProducts.length > 0 && (
                   <Card>
                     <CardHeader><CardTitle>🏆 매출 TOP 5 제품</CardTitle></CardHeader>
@@ -707,159 +555,35 @@ export default function OverviewPage() {
                   </Card>
                 )}
               </div>
-
-              {fullBrandRevenue.some(b => b.revenue > 0) && (() => {
-                const pieData = fullBrandRevenue.filter(b => b.revenue > 0);
-                const total = pieData.reduce((s, b) => s + b.revenue, 0);
-                return (
-                  <div className="mt-6">
-                    <Card>
-                      <CardHeader><CardTitle>🏷️ 브랜드별 매출 비중</CardTitle></CardHeader>
-                      <CardContent>
-                        <div className="flex h-8 rounded-full overflow-hidden mb-4">
-                          {pieData.map((b, i) => (
-                            <div key={i} style={{ width: `${(b.revenue / total * 100).toFixed(1)}%`, backgroundColor: BRAND_COLORS[b.brand] || PRODUCT_COLORS[i % PRODUCT_COLORS.length] }} className="transition-all" />
-                          ))}
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                          {pieData.map((b, i) => {
-                            const pct = (b.revenue / total * 100).toFixed(1);
-                            const color = BRAND_COLORS[b.brand] || PRODUCT_COLORS[i % PRODUCT_COLORS.length];
-                            return (
-                              <div key={i} className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                                <div>
-                                  <p className="text-sm font-medium text-gray-800 dark:text-zinc-200">{BRAND_LABELS[b.brand] || b.brand}</p>
-                                  <p className="text-xs text-gray-500 dark:text-zinc-400">₩{formatCompact(b.revenue)} ({pct}%)</p>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                );
-              })()}
             </section>
 
+            {/* 5. 채널별 광고비 요약 (간결) */}
             <section>
-              <h2 className="text-sm font-medium text-gray-500 dark:text-zinc-400 mb-3">🔄 퍼널 & 광고 성과</h2>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader><CardTitle>전환 퍼널</CardTitle></CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        {[
-                          { label: "노출", value: funnelSummary.impressions, color: FUNNEL_COLORS[0] },
-                          { label: "세션", value: funnelSummary.sessions, color: FUNNEL_COLORS[1] },
-                          { label: "장바구니", value: funnelSummary.cartAdds, color: FUNNEL_COLORS[2] },
-                          { label: "구매", value: funnelSummary.purchases, color: FUNNEL_COLORS[3] },
-                          { label: "재구매", value: funnelSummary.repurchases, color: FUNNEL_COLORS[4] },
-                        ].map((step, _, steps) => {
-                          const maxVal = Math.max(...steps.map(s => s.value), 1);
-                          const pct = maxVal > 0 ? (step.value / maxVal) * 100 : 0;
-                          return (
-                            <div key={step.label} className="flex items-center gap-2">
-                              <span className="text-xs text-gray-500 dark:text-zinc-400 w-14">{step.label}</span>
-                              <div className="flex-1 bg-gray-100 dark:bg-zinc-800 rounded h-6 relative overflow-hidden">
-                                <div className="absolute inset-y-0 left-0 rounded transition-all flex items-center" style={{ width: `${Math.max(pct, 2)}%`, backgroundColor: step.color }}>
-                                  <span className="text-[10px] font-medium text-white ml-2 whitespace-nowrap">{formatCompact(step.value)}</span>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-200 dark:border-zinc-800">
-                        <div className="text-center">
-                          <p className="text-xl font-bold text-green-400">{isFinite(funnelSummary.convRate) ? funnelSummary.convRate.toFixed(2) : "0.00"}%</p>
-                          <p className="text-[10px] text-gray-400 dark:text-zinc-500">전환율 (세션→구매)</p>
+              <Card>
+                <CardHeader><CardTitle>📢 채널별 광고 성과</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {[...channels].sort((a, b) => b.spend - a.spend).map((ch) => {
+                      const maxSpend = channels.length > 0 ? Math.max(...channels.map(c => c.spend)) : 1;
+                      const pct = (ch.spend / maxSpend) * 100;
+                      const color = CHANNEL_COLORS[ch.channel] || "#6366f1";
+                      return (
+                        <div key={ch.channel} className="flex items-center gap-2">
+                          <span className="text-[11px] text-gray-500 dark:text-zinc-400 w-24 truncate">{CH_LABELS[ch.channel] || ch.channel}</span>
+                          <div className="flex-1 bg-gray-100 dark:bg-zinc-800 rounded-full h-4 relative overflow-hidden">
+                            <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
+                          </div>
+                          <span className="text-[10px] text-gray-500 dark:text-zinc-400 w-16 text-right">₩{formatCompact(ch.spend)}</span>
+                          <span className={`text-[10px] font-medium w-12 text-right ${ch.roas >= 2 ? "text-green-400" : ch.roas >= 1 ? "text-yellow-400" : "text-red-400"}`}>
+                            {ch.roas.toFixed(1)}x
+                          </span>
                         </div>
-                        <div className="text-center">
-                          <p className="text-xl font-bold text-orange-400">{isFinite(funnelSummary.cartToOrderRate) ? funnelSummary.cartToOrderRate.toFixed(1) : "0.0"}%</p>
-                          <p className="text-[10px] text-gray-400 dark:text-zinc-500">장바구니→구매율</p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader><CardTitle>광고 성과 요약</CardTitle></CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="bg-gray-50 dark:bg-zinc-800/50 rounded-lg p-3 text-center">
-                          <p className="text-xl font-bold text-blue-400">₩{formatCompact(kpi.adSpend)}</p>
-                          <p className="text-[10px] text-gray-400 dark:text-zinc-500">총 광고비</p>
-                        </div>
-                        <div className="bg-gray-50 dark:bg-zinc-800/50 rounded-lg p-3 text-center">
-                          <p className={`text-xl font-bold ${kpi.roas >= 3 ? "text-green-400" : kpi.roas >= 1.5 ? "text-yellow-400" : "text-red-400"}`}>
-                            {kpi.roas.toFixed(2)}x
-                          </p>
-                          <p className="text-[10px] text-gray-400 dark:text-zinc-500">MER (ROAS)</p>
-                        </div>
-                        <div className="bg-gray-50 dark:bg-zinc-800/50 rounded-lg p-3 text-center">
-                          <p className="text-xl font-bold text-orange-400">
-                            ₩{kpi.orders > 0 ? formatCompact(Math.round(kpi.adSpend / kpi.orders)) : "0"}
-                          </p>
-                          <p className="text-[10px] text-gray-400 dark:text-zinc-500">CAC</p>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-xs text-gray-500 dark:text-zinc-400">채널별 광고비</p>
-                        {channels.sort((a, b) => b.spend - a.spend).slice(0, 5).map((ch) => {
-                          const maxSpend = channels[0]?.spend || 1;
-                          const pct = (ch.spend / maxSpend) * 100;
-                          const color = CHANNEL_COLORS[ch.channel] || "#6366f1";
-                          return (
-                            <div key={ch.channel} className="flex items-center gap-2">
-                              <span className="text-[11px] text-gray-500 dark:text-zinc-400 w-20 truncate">{CH_LABELS[ch.channel] || ch.channel}</span>
-                              <div className="flex-1 bg-gray-100 dark:bg-zinc-800 rounded-full h-4 relative overflow-hidden">
-                                <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
-                              </div>
-                              <span className="text-[10px] text-gray-500 dark:text-zinc-400 w-16 text-right">₩{formatCompact(ch.spend)}</span>
-                              <span className={`text-[10px] font-medium w-10 text-right ${ch.roas >= 2 ? "text-green-400" : ch.roas >= 1 ? "text-yellow-400" : "text-red-400"}`}>
-                                {ch.roas.toFixed(1)}x
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {gmTotalSpend > 0 && (
-                <div className="mt-6">
-                  <Card className="border-emerald-500/20">
-                    <CardHeader><CardTitle>📊 Gross Margin ROAS</CardTitle></CardHeader>
-                    <CardContent>
-                      <div className="flex flex-wrap items-center gap-6">
-                        <div>
-                          <p className="text-sm text-gray-500 dark:text-zinc-400">GM-ROAS ({hasActualCogs ? "실제 원가 기준" : "매출원가 40% 가정"})</p>
-                          <p className={`text-4xl font-bold ${grossMarginRoas >= 2.0 ? "text-green-400" : grossMarginRoas >= 1.0 ? "text-yellow-400" : "text-red-400"}`}>
-                            {grossMarginRoas.toFixed(2)}x
-                          </p>
-                        </div>
-                        <div className="text-xs text-gray-400 dark:text-zinc-500 space-y-1">
-                          <p>매출: ₩{formatCompact(gmTotalRevenue)}</p>
-                          <p>COGS: ₩{formatCompact(gmCogs)} ({hasActualCogs ? "실제" : "40%"})</p>
-                          <p>매출총이익: ₩{formatCompact(gmTotalRevenue - gmCogs)}</p>
-                          <p>광고비: ₩{formatCompact(gmTotalSpend)}</p>
-                        </div>
-                        <div className="text-xs text-gray-300 dark:text-zinc-600 border-l border-gray-200 dark:border-zinc-800 pl-4">
-                          <p>GM-ROAS = (매출 - 매출원가) ÷ 광고비</p>
-                          <p>일반 ROAS보다 실질 수익성을 더 정확히 반영합니다.</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
+                      );
+                    })}
+                    {channels.length === 0 && <p className="text-sm text-gray-400 dark:text-zinc-500">데이터 없음</p>}
+                  </div>
+                </CardContent>
+              </Card>
             </section>
           </>
         )}
