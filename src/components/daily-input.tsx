@@ -752,22 +752,46 @@ export default function DailyInput() {
       </Section>
 
       {/* 3. 스마트스토어 지표 */}
-      <Section num={3} emoji="🟩" title="스마트스토어 지표" desc="스마트스토어 → 알림받기 / 체류시간 / 유입"
+      <Section num={3} emoji="🟩" title="스마트스토어 지표" desc="아이언펫 + 밸런스랩(큐모발검사) 스마트스토어 지표"
         done={completed.has(3)} onToggleDone={() => toggle(3)}>
-        <ManualAdInput channel="smartstore_funnel" label="스마트스토어" date={selectedDate} fields={[
-          { key: "subscribers", label: "알림받기 수", placeholder: "12" },
-          { key: "sessions", label: "유입 (토탈)", placeholder: "300" },
-          { key: "avg_duration", label: "체류시간 (초)", placeholder: "120" },
-        ]} onSave={async (data) => {
-          const res = await fetch("/api/settings", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ type: "smartstore_funnel", data: { date: selectedDate, ...data } }),
-          });
-          const result = await res.json();
-          if (res.ok) { refreshStatus(); toggle(3); return { message: `✅ 스마트스토어 ${selectedDate} 저장 완료` }; }
-          return { error: result.error || "저장 실패" };
-        }} />
+        <div className="space-y-4">
+          <div>
+            <p className="text-xs font-medium text-gray-500 dark:text-zinc-400 mb-2">🐾 아이언펫 스마트스토어</p>
+            <ManualAdInput channel="smartstore_funnel" label="아이언펫 스마트스토어" date={selectedDate} fields={[
+              { key: "subscribers", label: "알림받기 수", placeholder: "12" },
+              { key: "sessions", label: "유입 (토탈)", placeholder: "300" },
+              { key: "avg_duration", label: "체류시간 (초)", placeholder: "120" },
+            ]} onSave={async (data) => {
+              const res = await fetch("/api/settings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ type: "smartstore_funnel", data: { date: selectedDate, brand: "ironpet", ...data } }),
+              });
+              const result = await res.json();
+              if (res.ok) { return { message: `✅ 아이언펫 스마트스토어 ${selectedDate} 저장 완료` }; }
+              return { error: result.error || "저장 실패" };
+            }} />
+          </div>
+          <div className="border-t border-gray-200 dark:border-zinc-700 pt-4">
+            <p className="text-xs font-medium text-gray-500 dark:text-zinc-400 mb-2">🧬 밸런스랩(큐모발검사) 스마트스토어</p>
+            <ManualAdInput channel="balancelab_smartstore_funnel" label="밸런스랩 스마트스토어" date={selectedDate} fields={[
+              { key: "subscribers", label: "알림받기 수", placeholder: "5" },
+              { key: "sessions", label: "유입 (토탈)", placeholder: "100" },
+              { key: "avg_duration", label: "체류시간 (초)", placeholder: "90" },
+              { key: "cart_adds", label: "장바구니", placeholder: "10" },
+              { key: "purchases", label: "구매건수", placeholder: "3" },
+            ]} onSave={async (data) => {
+              const res = await fetch("/api/settings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ type: "smartstore_funnel", data: { date: selectedDate, brand: "balancelab", ...data } }),
+              });
+              const result = await res.json();
+              if (res.ok) { refreshStatus(); toggle(3); return { message: `✅ 밸런스랩 스마트스토어 ${selectedDate} 저장 완료` }; }
+              return { error: result.error || "저장 실패" };
+            }} />
+          </div>
+        </div>
       </Section>
 
       {/* 4. 카페24 퍼널 지표 */}
