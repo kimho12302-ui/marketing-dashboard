@@ -9,92 +9,191 @@ export async function GET(request: NextRequest) {
   const to = searchParams.get("to") || "";
 
   try {
-    // Brand → funnel channel mapping
-    // 밸런스랩 = 별도 스마트스토어 (추후 brand="balancelab_smartstore"로 구분)
-    // 나머지(너티/아이언펫/사입) = ironpet 스마트스토어 + cafe24 + coupang
-    const brandChannelMap: Record<string, string[]> = {
+    // Brand → ad channels mapping (for impressions from daily_ad_spend)
+    const brandAdChannels: Record<string, string[] | null> = {
+      nutty: null,    // null = filter by brand in ad_spend
+      ironpet: null,
+      saip: null,
+      balancelab: null,
+    };
+
+    // Brand → funnel channels mapping (for sessions/cart from daily_funnel)
+    const brandFunnelChannels: Record<string, string[]> = {
       nutty: ["cafe24", "smartstore", "coupang"],
       ironpet: ["cafe24", "smartstore"],
       saip: ["cafe24", "smartstore"],
-      balancelab: [], // 별도 스마트스토어 — 추후 데이터 추가 시 여기에 매핑
+      balancelab: [], // no GA4 funnel data — sessions come from manual input
     };
 
-    // Fetch all funnel rows for date range
-    const { data, error } = await supabase
+    // ── 1. Impressions from daily_ad_spend ──
+    let adQuery = supabase
+      .from("daily_ad_spend")
+      .select("date, brand, channel, impressions, clicks")
+      .gte("date", from)
+      .lte("date", to);
+    if (brand !== "all") {
+      adQuery = adQuery.eq("brand", brand);
+    }
+    const { data: adData } = await adQuery;
+    const adRows = adData || [];
+
+    // ── 2. Sessions/cart from daily_funnel ──
+    let funnelQuery = supabase
       .from("daily_funnel")
       .select("*")
       .gte("date", from)
       .lte("date", to)
       .neq("brand", "all")
       .order("date", { ascending: true });
-    if (error) throw error;
+    const { data: funnelData } = await funnelQuery;
+    const allFunnelRows = funnelData || [];
 
-    const allRows = data || [];
-
-    // Filter by brand if specified
-    let rows = allRows;
-    if (brand !== "all" && brandChannelMap[brand]) {
-      const channels = brandChannelMap[brand];
-      rows = allRows.filter((r) => channels.includes(r.brand));
+    // Filter funnel rows by brand
+    let funnelRows = allFunnelRows;
+    if (brand !== "all" && brandFunnelChannels[brand]) {
+      const channels = brandFunnelChannels[brand];
+      if (channels.length > 0) {
+        funnelRows = allFunnelRows.filter((r) => channels.includes(r.brand));
+      } else {
+        funnelRows = []; // balancelab: no GA4 funnel
+      }
     }
-    // channelRows = all rows (for channel breakdown)
-    const channelRows = allRows;
 
-    const totals = {
-      impressions: rows.reduce((s, r) => s + Number(r.impressions), 0),
-      sessions: rows.reduce((s, r) => s + Number(r.sessions), 0),
-      cart_adds: rows.reduce((s, r) => s + Number(r.cart_adds), 0),
-      purchases: rows.reduce((s, r) => s + Number(r.purchases), 0),
-      repurchases: rows.reduce((s, r) => s + Number(r.repurchases), 0),
+    // ── 3. Purchases from daily_sales ──
+    let salesQuery = supabase
+      .from("daily_sales")
+      .select("date, brand, channel, orders, revenue")
+      .gte("date", from)
+      .lte("date", to);
+    if (brand !== "all") {
+      salesQuery = salesQuery.eq("brand", brand);
+    }
+    const { data: salesData } = await salesQuery;
+    const salesRows = salesData || [];
+
+    // ── Aggregate by date ──
+    const dateMap = new Map<string, {
+      impressions: number; clicks: number; sessions: number;
+      cart_adds: number; purchases: number; orders: number; repurchases: number;
+      // channel breakdown
+      imp_meta: number; imp_naver: number; imp_google: number; imp_coupang: number;
+      sess_smartstore: number; sess_cafe24: number; sess_coupang: number;
+      purch_smartstore: number; purch_cafe24: number; purch_coupang: number;
+    }>();
+
+    const getDay = (date: string) => {
+      if (!dateMap.has(date)) {
+        dateMap.set(date, {
+          impressions: 0, clicks: 0, sessions: 0, cart_adds: 0,
+          purchases: 0, orders: 0, repurchases: 0,
+          imp_meta: 0, imp_naver: 0, imp_google: 0, imp_coupang: 0,
+          sess_smartstore: 0, sess_cafe24: 0, sess_coupang: 0,
+          purch_smartstore: 0, purch_cafe24: 0, purch_coupang: 0,
+        });
+      }
+      return dateMap.get(date)!;
     };
 
-    // 5-step funnel: 노출 → 유입(세션) → 장바구니 → 구매 → 재구매
+    // Impressions from ads
+    for (const r of adRows) {
+      const d = getDay(r.date);
+      const imp = Number(r.impressions) || 0;
+      d.impressions += imp;
+      d.clicks += Number(r.clicks) || 0;
+      if (r.channel === "meta") d.imp_meta += imp;
+      else if (r.channel.startsWith("naver")) d.imp_naver += imp;
+      else if (r.channel === "google_ads") d.imp_google += imp;
+      else if (r.channel.startsWith("coupang")) d.imp_coupang += imp;
+    }
+
+    // Sessions/cart from funnel
+    for (const r of funnelRows) {
+      const d = getDay(r.date);
+      const sess = Number(r.sessions) || 0;
+      d.sessions += sess;
+      d.cart_adds += Number(r.cart_adds) || 0;
+      d.repurchases += Number(r.repurchases) || 0;
+      // Channel breakdown
+      if (r.brand === "smartstore") d.sess_smartstore += sess;
+      else if (r.brand === "cafe24") d.sess_cafe24 += sess;
+      else if (r.brand === "coupang") d.sess_coupang += sess;
+    }
+
+    // Purchases from sales (orders count)
+    for (const r of salesRows) {
+      const d = getDay(r.date);
+      const orders = Number(r.orders) || 0;
+      d.orders += orders;
+      // Map sales channel to funnel channel
+      const ch = r.channel || "";
+      if (ch.includes("smartstore") || ch.includes("공구")) d.purch_smartstore += orders;
+      else if (ch === "cafe24") d.purch_cafe24 += orders;
+      else if (ch === "coupang") d.purch_coupang += orders;
+      else d.purch_smartstore += orders; // default
+    }
+
+    // Use max(funnel purchases, sales orders) for purchase count
+    // Because funnel may have its own purchase data
+    const dates = Array.from(dateMap.entries()).sort(([a], [b]) => a.localeCompare(b));
+
+    // Totals
+    const totals = { impressions: 0, clicks: 0, sessions: 0, cart_adds: 0, purchases: 0, repurchases: 0 };
+    for (const [, d] of dates) {
+      totals.impressions += d.impressions;
+      totals.clicks += d.clicks;
+      totals.sessions += d.sessions;
+      totals.cart_adds += d.cart_adds;
+      // Use funnel purchases if available, otherwise sales orders
+      const funnelPurch = d.purch_smartstore + d.purch_cafe24 + d.purch_coupang;
+      totals.purchases += Math.max(funnelPurch, d.orders);
+      totals.repurchases += d.repurchases;
+    }
+
+    // If no sessions from funnel but we have clicks, use clicks as proxy for sessions
+    if (totals.sessions === 0 && totals.clicks > 0) {
+      totals.sessions = totals.clicks;
+      for (const [, d] of dates) {
+        d.sessions = d.clicks;
+      }
+    }
+
+    // 5-step funnel
     const funnel = [
       { name: "노출", value: totals.impressions },
-      {
-        name: "유입",
-        value: totals.sessions,
-        rate: totals.impressions > 0 ? (totals.sessions / totals.impressions) * 100 : 0,
-      },
-      {
-        name: "장바구니",
-        value: totals.cart_adds,
-        rate: totals.sessions > 0 ? (totals.cart_adds / totals.sessions) * 100 : 0,
-      },
-      {
-        name: "구매",
-        value: totals.purchases,
-        rate: totals.cart_adds > 0 ? (totals.purchases / totals.cart_adds) * 100 : 0,
-      },
-      {
-        name: "재구매",
-        value: totals.repurchases,
-        rate: totals.purchases > 0 ? (totals.repurchases / totals.purchases) * 100 : 0,
-      },
+      { name: "유입", value: totals.sessions,
+        rate: totals.impressions > 0 ? (totals.sessions / totals.impressions) * 100 : 0 },
+      { name: "장바구니", value: totals.cart_adds,
+        rate: totals.sessions > 0 ? (totals.cart_adds / totals.sessions) * 100 : 0 },
+      { name: "구매", value: totals.purchases,
+        rate: totals.cart_adds > 0 ? (totals.purchases / totals.cart_adds) * 100 : 0 },
+      { name: "재구매", value: totals.repurchases,
+        rate: totals.purchases > 0 ? (totals.repurchases / totals.purchases) * 100 : 0 },
     ];
 
-    // Daily trend for each step — with channel breakdown (stacked)
-    const dailyTrend = new Map<string, Record<string, number>>();
-    for (const r of rows) {
-      const existing = dailyTrend.get(r.date) || { sessions: 0, cart_adds: 0, purchases: 0 };
-      existing.sessions = (existing.sessions || 0) + Number(r.sessions);
-      existing.cart_adds = (existing.cart_adds || 0) + Number(r.cart_adds);
-      existing.purchases = (existing.purchases || 0) + Number(r.purchases);
-      // Channel-level breakdown for stacked chart
-      const ch = r.brand; // cafe24/smartstore/coupang
-      existing[`sessions_${ch}`] = (existing[`sessions_${ch}`] || 0) + Number(r.sessions);
-      existing[`purchases_${ch}`] = (existing[`purchases_${ch}`] || 0) + Number(r.purchases);
-      existing[`cart_adds_${ch}`] = (existing[`cart_adds_${ch}`] || 0) + Number(r.cart_adds);
-      dailyTrend.set(r.date, existing);
-    }
-    const trend = Array.from(dailyTrend.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, d]) => ({ date, ...d }));
+    // Daily trend with channel breakdown
+    const trend = dates.map(([date, d]) => ({
+      date,
+      sessions: d.sessions,
+      cart_adds: d.cart_adds,
+      purchases: Math.max(d.purch_smartstore + d.purch_cafe24 + d.purch_coupang, d.orders),
+      impressions: d.impressions,
+      // Channel breakdowns
+      sessions_smartstore: d.sess_smartstore,
+      sessions_cafe24: d.sess_cafe24,
+      sessions_coupang: d.sess_coupang,
+      purchases_smartstore: d.purch_smartstore,
+      purchases_cafe24: d.purch_cafe24,
+      purchases_coupang: d.purch_coupang,
+      imp_meta: d.imp_meta,
+      imp_naver: d.imp_naver,
+      imp_google: d.imp_google,
+      imp_coupang: d.imp_coupang,
+    }));
 
-    // Channel-level funnel summaries
+    // Channel-level funnel summaries (from original funnel data)
     const channelMap = new Map<string, { sessions: number; cart_adds: number; purchases: number; repurchases: number }>();
-    for (const r of channelRows) {
-      const ch = r.brand; // cafe24, smartstore, coupang
+    for (const r of allFunnelRows) {
+      const ch = r.brand;
       const existing = channelMap.get(ch) || { sessions: 0, cart_adds: 0, purchases: 0, repurchases: 0 };
       existing.sessions += Number(r.sessions);
       existing.cart_adds += Number(r.cart_adds);
@@ -112,7 +211,7 @@ export async function GET(request: NextRequest) {
       convRate: d.sessions > 0 ? (d.purchases / d.sessions * 100) : 0,
     }));
 
-    return NextResponse.json({ funnel, daily: rows, trend, channelFunnel });
+    return NextResponse.json({ funnel, trend, channelFunnel });
   } catch (error) {
     console.error("Funnel API error:", error);
     return NextResponse.json({ error: "Failed to fetch funnel data" }, { status: 500 });
