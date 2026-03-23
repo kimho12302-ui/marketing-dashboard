@@ -133,7 +133,14 @@ export default function TrendChart({ data, events = [] }: TrendChartProps) {
                   stroke={e.color || "#6366f1"}
                   strokeDasharray="4 4"
                   strokeWidth={1.5}
-                  label={{ value: e.title, position: "top", fill: e.color || "#6366f1", fontSize: 10, fontWeight: 600 }}
+                  label={{
+                    value: `▼ ${e.title}`,
+                    position: "insideBottomLeft",
+                    fill: e.color || "#6366f1",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    offset: 5,
+                  }}
                 />
               ))}
             </ComposedChart>
