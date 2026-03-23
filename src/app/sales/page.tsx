@@ -327,7 +327,7 @@ export default function SalesPage() {
                             <tr className="border-b border-gray-200 dark:border-zinc-700">
                               <th className="text-left py-2.5 px-2 text-gray-500 dark:text-zinc-400">셀러명</th>
                               <th className="text-right py-2.5 px-2 text-gray-500 dark:text-zinc-400">매출</th>
-                              <th className="text-right py-2.5 px-2 text-gray-500 dark:text-zinc-400">주문수</th>
+                              <th className="text-right py-2.5 px-2 text-gray-500 dark:text-zinc-400">수량</th>
                               <th className="text-right py-2.5 px-2 text-gray-500 dark:text-zinc-400">비중(%)</th>
                               {gongguTargets.length > 0 && (
                                 <th className="text-right py-2.5 px-2 text-gray-500 dark:text-zinc-400">목표 달성</th>

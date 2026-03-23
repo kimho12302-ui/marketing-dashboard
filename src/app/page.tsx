@@ -601,7 +601,7 @@ export default function OverviewPage() {
                                 <span className="text-sm text-gray-700 dark:text-zinc-300">{g.seller}</span>
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs font-medium">₩{formatCompact(g.revenue)}</span>
-                                  <span className="text-[10px] text-gray-400">{g.orders}건</span>
+                                  <span className="text-[10px] text-gray-400">{g.orders}개</span>
                                   {achievePct !== null && (
                                     <span className={`text-[10px] px-1.5 py-0.5 rounded ${achievePct >= 100 ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" : "bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400"}`}>
                                       {achievePct.toFixed(0)}%

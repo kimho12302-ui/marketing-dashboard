@@ -766,7 +766,6 @@ export default function SettingsPage() {
             { key: "daily" as const, label: "📋 일일 입력" },
             { key: "targets" as const, label: "🎯 목표 설정" },
             { key: "costs" as const, label: "💰 제품 원가" },
-            { key: "shipping" as const, label: "📦 배송비" },
             // 판매 업로드 + 쿠팡 광고는 일일입력에 통합
             { key: "info" as const, label: "ℹ️ 데이터 소스" },
           ].map(tab => (
