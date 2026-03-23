@@ -256,10 +256,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Write to Stats sheet Sales tab
+    const DAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
     const salesSheetRows = rows.map(r => {
-      // A열, B열: 날짜를 시트 날짜 값으로 (Google Sheets는 =DATE() 또는 날짜 문자열)
-      const d = new Date(r.date);
-      const dateSerial = r.date; // USER_ENTERED로 yyyy-mm-dd 넣으면 날짜로 인식됨
+      const d = new Date(r.date + "T00:00:00");
+      const month = d.getMonth() + 1;
+      const day = d.getDate();
+      const dayName = DAY_NAMES[d.getDay()];
+      // A열: 26년3월 형식, B열: 3월 21일 (토) 형식
+      const yearMonth = `${String(d.getFullYear()).slice(2)}년${month}월`;
+      const dateText = `${month}월 ${day}일 (${dayName})`;
 
       const plInfo = productListMap.get(r.productCode) || {};
       const brandKor: Record<string, string> = {
@@ -269,7 +274,7 @@ export async function POST(request: NextRequest) {
         "cafe24": "카페24", "smartstore": "스마트스토어", "coupang": "쿠팡", "pp": "피피", "ably": "에이블리", "petfriends": "펫프렌즈",
       };
       return [
-        dateSerial, dateSerial,
+        yearMonth, dateText,
         channelKor[r.channel] || r.channel,
         r.category, brandKor[r.brand] || plInfo.brand || r.brand,
         r.lineup, r.product, r.quantity, 1, r.revenue, r.revenue,
@@ -303,7 +308,7 @@ export async function POST(request: NextRequest) {
         await sheets.spreadsheets.values.update({
           spreadsheetId: STATS_SHEET_ID,
           range: `Sales!A3:K${2 + rowCount}`,
-          valueInputOption: "USER_ENTERED",
+          valueInputOption: "RAW",
           requestBody: { values: salesSheetRows },
         });
 
