@@ -10,7 +10,9 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  ReferenceLine,
 } from "recharts";
+import { type MarketingEvent, EventBadges } from "@/components/event-markers";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompact } from "@/lib/utils";
 import { useChartTheme } from "@/hooks/use-chart-theme";
@@ -27,6 +29,7 @@ const BRAND_KEYS = ["너티", "아이언펫", "사입", "밸런스랩"];
 
 interface TrendChartProps {
   data: TrendDataPoint[];
+  events?: MarketingEvent[];
 }
 
 function CustomTooltip({
@@ -53,7 +56,7 @@ function CustomTooltip({
   );
 }
 
-export default function TrendChart({ data }: TrendChartProps) {
+export default function TrendChart({ data, events = [] }: TrendChartProps) {
   const chartTheme = useChartTheme();
 
   const activeBrands = BRAND_KEYS.filter(b =>
@@ -122,9 +125,21 @@ export default function TrendChart({ data }: TrendChartProps) {
                 dot={false}
                 connectNulls
               />
+              {events.map((e) => (
+                <ReferenceLine
+                  key={e.id}
+                  x={e.date}
+                  yAxisId="left"
+                  stroke={e.color || "#6366f1"}
+                  strokeDasharray="4 4"
+                  strokeWidth={1.5}
+                  label={{ value: e.title, position: "top", fill: e.color || "#6366f1", fontSize: 10, fontWeight: 600 }}
+                />
+              ))}
             </ComposedChart>
           </ResponsiveContainer>
         </div>
+        <EventBadges events={events} />
       </CardContent>
     </Card>
   );

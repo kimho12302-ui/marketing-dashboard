@@ -13,6 +13,7 @@ import {
   LineChart, Line,
   ScatterChart, Scatter, ZAxis, Legend, ReferenceLine,
 } from "recharts";
+import { useEvents } from "@/components/event-markers";
 
 const CHANNEL_COLORS: Record<string, string> = {
   카페24: "#8b5cf6", 스마트스토어: "#14b8a6", 쿠팡: "#f97316",
@@ -39,6 +40,7 @@ interface GongguSeller { seller: string; revenue: number; orders: number; }
 
 export default function SalesPage() {
   const chartTheme = useChartTheme();
+  const events = useEvents();
   const { filters, setFilters } = useFilters();
   const [channelPie, setChannelPie] = useState<{ name: string; value: number }[]>([]);
   const [brandPie, setBrandPie] = useState<{ name: string; value: number }[]>([]);
@@ -397,6 +399,10 @@ export default function SalesPage() {
                       {trendChannels.map((ch, i) => (
                         <Line key={ch} type="monotone" dataKey={ch} name={ch} stroke={CHANNEL_COLORS[ch] || TREND_COLORS[i % TREND_COLORS.length]} dot={false} strokeWidth={2} />
                       ))}
+                      {events.map((e) => (
+                        <ReferenceLine key={e.id} x={e.date} stroke={e.color} strokeDasharray="4 4" strokeWidth={1.5}
+                          label={{ value: e.title, position: "top", fill: e.color, fontSize: 9 }} />
+                      ))}
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -418,6 +424,10 @@ export default function SalesPage() {
                         {trendBrands.map((b, i) => (
                           <Line key={b} type="monotone" dataKey={b} name={b} stroke={BRAND_COLORS[b] || TREND_COLORS[i % TREND_COLORS.length]} dot={false} strokeWidth={2} />
                         ))}
+                        {events.map((e) => (
+                          <ReferenceLine key={e.id} x={e.date} stroke={e.color} strokeDasharray="4 4" strokeWidth={1.5}
+                            label={{ value: e.title, position: "top", fill: e.color, fontSize: 9 }} />
+                        ))}
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
@@ -437,6 +447,10 @@ export default function SalesPage() {
                         <Legend />
                         {ordersBrands.map((b, i) => (
                           <Line key={b} type="monotone" dataKey={b} name={b} stroke={BRAND_COLORS[b] || TREND_COLORS[i % TREND_COLORS.length]} dot={false} strokeWidth={2} />
+                        ))}
+                        {events.map((e) => (
+                          <ReferenceLine key={e.id} x={e.date} stroke={e.color} strokeDasharray="4 4" strokeWidth={1.5}
+                            label={{ value: e.title, position: "top", fill: e.color, fontSize: 9 }} />
                         ))}
                       </LineChart>
                     </ResponsiveContainer>
@@ -459,6 +473,10 @@ export default function SalesPage() {
                         <Legend formatter={(value: string) => value.length > 12 ? value.slice(0, 12) + "…" : value} />
                         {trendProducts.map((p, i) => (
                           <Line key={p} type="monotone" dataKey={p} name={p} stroke={TREND_COLORS[i % TREND_COLORS.length]} dot={false} strokeWidth={2} />
+                        ))}
+                        {events.map((e) => (
+                          <ReferenceLine key={e.id} x={e.date} stroke={e.color} strokeDasharray="4 4" strokeWidth={1.5}
+                            label={{ value: e.title, position: "top", fill: e.color, fontSize: 9 }} />
                         ))}
                       </LineChart>
                     </ResponsiveContainer>

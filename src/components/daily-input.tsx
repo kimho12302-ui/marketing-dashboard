@@ -78,6 +78,119 @@ function ResultBox({ result }: { result: any }) {
   );
 }
 
+// ─── Event Input ───
+const EVENT_COLORS = [
+  { label: "보라", value: "#6366f1" }, { label: "파랑", value: "#3b82f6" },
+  { label: "초록", value: "#22c55e" }, { label: "주황", value: "#f97316" },
+  { label: "빨강", value: "#ef4444" }, { label: "핑크", value: "#ec4899" },
+];
+
+function EventInput({ date }: { date: string }) {
+  const [events, setEvents] = useState<any[]>([]);
+  const [title, setTitle] = useState("");
+  const [brand, setBrand] = useState("all");
+  const [desc, setDesc] = useState("");
+  const [color, setColor] = useState("#6366f1");
+  const [saving, setSaving] = useState(false);
+  const [evDate, setEvDate] = useState(date);
+
+  useEffect(() => { setEvDate(date); }, [date]);
+
+  // Load existing events for this date
+  useEffect(() => {
+    fetch(`/api/events?from=${evDate}&to=${evDate}`)
+      .then(r => r.json())
+      .then(d => setEvents(d.events || []))
+      .catch(() => {});
+  }, [evDate]);
+
+  const save = async () => {
+    if (!title.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: evDate, brand, title: title.trim(), description: desc.trim() || null, color }),
+      });
+      const d = await res.json();
+      if (d.ok) {
+        setEvents(prev => [...prev, d.event]);
+        setTitle(""); setDesc("");
+      }
+    } catch {}
+    setSaving(false);
+  };
+
+  const remove = async (id: number) => {
+    await fetch(`/api/events?id=${id}`, { method: "DELETE" });
+    setEvents(prev => prev.filter(e => e.id !== id));
+  };
+
+  const brandLabels: Record<string, string> = { all: "전체", nutty: "너티", ironpet: "아이언펫", saip: "사입", balancelab: "밸런스랩" };
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="text-[10px] text-gray-500">날짜</label>
+          <input type="date" value={evDate} onChange={e => setEvDate(e.target.value)}
+            className="w-full text-xs border rounded px-2 py-1.5 bg-white dark:bg-zinc-800 dark:border-zinc-600" />
+        </div>
+        <div>
+          <label className="text-[10px] text-gray-500">브랜드</label>
+          <select value={brand} onChange={e => setBrand(e.target.value)}
+            className="w-full text-xs border rounded px-2 py-1.5 bg-white dark:bg-zinc-800 dark:border-zinc-600">
+            <option value="all">전체</option>
+            <option value="nutty">너티</option>
+            <option value="ironpet">아이언펫</option>
+            <option value="saip">사입</option>
+            <option value="balancelab">밸런스랩</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label className="text-[10px] text-gray-500">이벤트명 *</label>
+        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="프로모션 시작, 신제품 출시 등"
+          className="w-full text-xs border rounded px-2 py-1.5 bg-white dark:bg-zinc-800 dark:border-zinc-600" />
+      </div>
+      <div>
+        <label className="text-[10px] text-gray-500">설명 (선택)</label>
+        <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="상세 내용"
+          className="w-full text-xs border rounded px-2 py-1.5 bg-white dark:bg-zinc-800 dark:border-zinc-600" />
+      </div>
+      <div className="flex items-center gap-2">
+        <label className="text-[10px] text-gray-500">색상</label>
+        {EVENT_COLORS.map(c => (
+          <button key={c.value} onClick={() => setColor(c.value)}
+            className={`w-5 h-5 rounded-full border-2 transition-all ${color === c.value ? "border-gray-800 dark:border-white scale-110" : "border-transparent"}`}
+            style={{ background: c.value }} title={c.label} />
+        ))}
+      </div>
+      <button onClick={save} disabled={saving || !title.trim()}
+        className="text-xs px-4 py-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50">
+        {saving ? "저장 중..." : "📌 이벤트 추가"}
+      </button>
+
+      {events.length > 0 && (
+        <div className="mt-3 space-y-1.5">
+          <p className="text-[10px] text-gray-400">등록된 이벤트</p>
+          {events.map(e => (
+            <div key={e.id} className="flex items-center gap-2 text-xs bg-gray-50 dark:bg-zinc-800/50 rounded px-2 py-1.5">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: e.color }} />
+              <span className="text-gray-500">{e.date.slice(5)}</span>
+              <span className="text-gray-400">[{brandLabels[e.brand] || e.brand}]</span>
+              <span className="font-medium flex-1">{e.title}</span>
+              {e.description && <span className="text-gray-400 truncate max-w-32">{e.description}</span>}
+              <button onClick={() => remove(e.id)} className="text-gray-400 hover:text-red-500 px-1">✕</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Manual ad spend input (batch style) ───
 let _manualRowId = 0;
 type ManualRow = { id: number; date: string; values: Record<string, string>; status: "pending" | "saving" | "done" | "error"; result?: string };
@@ -849,6 +962,12 @@ export default function DailyInput() {
             </div>
           )}
         </div>
+      </Section>
+
+      {/* 5.5 마케팅 이벤트 */}
+      <Section num={7} emoji="📌" title="마케팅 이벤트" desc="캠페인, 프로모션, 신제품 출시 등 — 차트에 표시됩니다"
+        done={completed.has(7)} onToggleDone={() => toggle(7)}>
+        <EventInput date={selectedDate} />
       </Section>
 
       {/* 6. 건별 비용 */}

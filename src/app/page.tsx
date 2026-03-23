@@ -10,6 +10,7 @@ import MissingDataAlert from "@/components/missing-data-alert";
 import ExportReport from "@/components/export-report";
 import SyncButton from "@/components/sync-button";
 import TrendChart from "@/components/trend-chart";
+import { useEvents, type MarketingEvent } from "@/components/event-markers";
 import ChannelChart from "@/components/channel-chart";
 import BrandCompareChart from "@/components/brand-compare-chart";
 import BrandView from "@/components/brand-view";
@@ -65,6 +66,7 @@ const FUNNEL_COLORS = ["#3b82f6", "#6366f1", "#a78bfa", "#22c55e", "#14b8a6"];
 export default function OverviewPage() {
   const chartTheme = useChartTheme();
   const { filters, setFilters } = useFilters();
+  const events = useEvents();
   const [kpi, setKpi] = useState<KPIData>(defaultKPI);
   const [trend, setTrend] = useState<TrendDataPoint[]>([]);
   const [channels, setChannels] = useState<ChannelData[]>([]);
@@ -453,8 +455,10 @@ export default function OverviewPage() {
 
             <section>
               <h2 className="text-sm font-medium text-gray-500 dark:text-zinc-400 mb-3">📈 매출 vs 광고비 트렌드</h2>
+              <div className="mb-6">
+                <TrendChart data={trend} events={events} />
+              </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <TrendChart data={trend} />
                 <Card>
                   <CardHeader><CardTitle>🏷️ 브랜드별 광고비</CardTitle></CardHeader>
                   <CardContent>

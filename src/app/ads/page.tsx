@@ -11,8 +11,9 @@ import { formatCompact } from "@/lib/utils";
 import { useChartTheme } from "@/hooks/use-chart-theme";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  AreaChart, Area, Legend, Cell, LineChart, Line,
+  AreaChart, Area, Legend, Cell, LineChart, Line, ReferenceLine,
 } from "recharts";
+import { useEvents, EventBadges } from "@/components/event-markers";
 
 const CHANNEL_COLORS: Record<string, string> = {
   meta: "#3b82f6",
@@ -58,6 +59,7 @@ const CH_LABELS: Record<string, string> = {
 export default function AdsPage() {
   const chartTheme = useChartTheme();
   const { filters, setFilters } = useFilters();
+  const events = useEvents();
   const [channels, setChannels] = useState<AdsChannelSummary[]>([]);
   const [spendTrend, setSpendTrend] = useState<Record<string, any>[]>([]);
   const [dailySpend, setDailySpend] = useState<Record<string, any>[]>([]);
@@ -255,6 +257,10 @@ export default function AdsPage() {
                           />
                         );
                       })}
+                      {events.map((e) => (
+                        <ReferenceLine key={e.id} x={e.date} stroke={e.color || "#6366f1"} strokeDasharray="4 4" strokeWidth={1.5}
+                          label={{ value: e.title, position: "top", fill: e.color || "#6366f1", fontSize: 10, fontWeight: 600 }} />
+                      ))}
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>

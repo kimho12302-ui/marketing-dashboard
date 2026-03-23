@@ -10,8 +10,9 @@ import { formatCompact } from "@/lib/utils";
 import { useChartTheme } from "@/hooks/use-chart-theme";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
-  AreaChart, Area, Legend,
+  AreaChart, Area, Legend, ReferenceLine,
 } from "recharts";
+import { useEvents } from "@/components/event-markers";
 
 const FUNNEL_COLORS = ["#6366f1", "#818cf8", "#a78bfa", "#22c55e", "#14b8a6"];
 const CHANNEL_COLORS: Record<string, string> = { smartstore: "#14b8a6", cafe24: "#8b5cf6", coupang: "#f97316" };
@@ -23,6 +24,7 @@ interface TrendPoint { date: string; sessions: number; cart_adds: number; purcha
 
 export default function FunnelPage() {
   const chartTheme = useChartTheme();
+  const events = useEvents();
   const { filters, setFilters } = useFilters();
   const [funnel, setFunnel] = useState<FunnelStep[]>([]);
   const [prevFunnel, setPrevFunnel] = useState<FunnelStep[]>([]);
@@ -262,6 +264,10 @@ export default function FunnelPage() {
                             <Area key={src} type="monotone" dataKey={`imp_${src}`} name={IMP_LABELS[src]} stackId="imp"
                               stroke={IMP_COLORS[src]} fill={IMP_COLORS[src]} fillOpacity={0.6} />
                           ))}
+                          {events.map((e) => (
+                            <ReferenceLine key={e.id} x={e.date} stroke={e.color} strokeDasharray="4 4" strokeWidth={1.5}
+                              label={{ value: e.title, position: "top", fill: e.color, fontSize: 9 }} />
+                          ))}
                         </AreaChart>
                       </ResponsiveContainer>
                     </div>
@@ -283,6 +289,10 @@ export default function FunnelPage() {
                             <Area key={ch} type="monotone" dataKey={`sessions_${ch}`} name={CHANNEL_LABELS[ch]} stackId="sessions"
                               stroke={CHANNEL_COLORS[ch]} fill={CHANNEL_COLORS[ch]} fillOpacity={0.6} />
                           ))}
+                          {events.map((e) => (
+                            <ReferenceLine key={e.id} x={e.date} stroke={e.color} strokeDasharray="4 4" strokeWidth={1.5}
+                              label={{ value: e.title, position: "top", fill: e.color, fontSize: 9 }} />
+                          ))}
                         </AreaChart>
                       </ResponsiveContainer>
                     </div>
@@ -303,6 +313,10 @@ export default function FunnelPage() {
                           {["smartstore", "cafe24", "coupang"].map((ch) => (
                             <Area key={ch} type="monotone" dataKey={`purchases_${ch}`} name={CHANNEL_LABELS[ch]} stackId="purchases"
                               stroke={CHANNEL_COLORS[ch]} fill={CHANNEL_COLORS[ch]} fillOpacity={0.6} />
+                          ))}
+                          {events.map((e) => (
+                            <ReferenceLine key={e.id} x={e.date} stroke={e.color} strokeDasharray="4 4" strokeWidth={1.5}
+                              label={{ value: e.title, position: "top", fill: e.color, fontSize: 9 }} />
                           ))}
                         </AreaChart>
                       </ResponsiveContainer>
