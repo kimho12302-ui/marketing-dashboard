@@ -106,6 +106,16 @@ export default function TrendChart({ data, events = [] }: TrendChartProps) {
                 />
               ))}
               <Line
+                yAxisId="left"
+                type="monotone"
+                dataKey="revenue"
+                name="총매출"
+                stroke="#10b981"
+                strokeWidth={2.5}
+                dot={{ r: 3, fill: "#10b981" }}
+                activeDot={{ r: 5 }}
+              />
+              <Line
                 yAxisId="right"
                 type="monotone"
                 dataKey="adSpend"
