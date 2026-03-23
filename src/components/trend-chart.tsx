@@ -11,6 +11,7 @@ import {
   Tooltip,
   Legend,
   ReferenceLine,
+  LabelList,
 } from "recharts";
 import { type MarketingEvent, EventBadges } from "@/components/event-markers";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -93,7 +94,7 @@ export default function TrendChart({ data, events = [] }: TrendChartProps) {
               <Legend
                 wrapperStyle={{ color: chartTheme.legendColor, fontSize: 13, paddingTop: 8 }}
               />
-              {activeBrands.map((brand) => (
+              {activeBrands.map((brand, idx) => (
                 <Bar
                   key={brand}
                   yAxisId="left"
@@ -101,20 +102,19 @@ export default function TrendChart({ data, events = [] }: TrendChartProps) {
                   name={brand}
                   fill={BRAND_COLORS[brand] || "#888"}
                   stackId="revenue"
-                  radius={brand === activeBrands[activeBrands.length - 1] ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                  radius={idx === activeBrands.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
                   opacity={0.85}
-                />
+                >
+                  {idx === activeBrands.length - 1 && (
+                    <LabelList
+                      dataKey="revenue"
+                      position="top"
+                      formatter={(v: number) => v > 0 ? formatCompact(v) : ""}
+                      style={{ fill: chartTheme.tickColor, fontSize: 10, fontWeight: 600 }}
+                    />
+                  )}
+                </Bar>
               ))}
-              <Line
-                yAxisId="left"
-                type="monotone"
-                dataKey="revenue"
-                name="총매출"
-                stroke="#10b981"
-                strokeWidth={2.5}
-                dot={{ r: 3, fill: "#10b981" }}
-                activeDot={{ r: 5 }}
-              />
               <Line
                 yAxisId="right"
                 type="monotone"
