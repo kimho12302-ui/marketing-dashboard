@@ -36,7 +36,7 @@ function getQuadrantColor(cacIndex: number, roasIndex: number): string {
   return "#ef4444";
 }
 
-interface GongguSeller { seller: string; revenue: number; orders: number; }
+interface GongguSeller { seller: string; revenue: number; orders: number; quantity: number; }
 
 export default function SalesPage() {
   const chartTheme = useChartTheme();
@@ -327,6 +327,7 @@ export default function SalesPage() {
                             <tr className="border-b border-gray-200 dark:border-zinc-700">
                               <th className="text-left py-2.5 px-2 text-gray-500 dark:text-zinc-400">셀러명</th>
                               <th className="text-right py-2.5 px-2 text-gray-500 dark:text-zinc-400">매출</th>
+                              <th className="text-right py-2.5 px-2 text-gray-500 dark:text-zinc-400">주문건수</th>
                               <th className="text-right py-2.5 px-2 text-gray-500 dark:text-zinc-400">수량</th>
                               <th className="text-right py-2.5 px-2 text-gray-500 dark:text-zinc-400">비중(%)</th>
                               {gongguTargets.length > 0 && (
@@ -344,6 +345,7 @@ export default function SalesPage() {
                                   <td className="py-2 px-2 text-gray-800 dark:text-zinc-200 font-medium">{row.seller}</td>
                                   <td className="py-2 px-2 text-right text-gray-900 dark:text-zinc-100">₩{formatCompact(row.revenue)}</td>
                                   <td className="py-2 px-2 text-right text-gray-600 dark:text-zinc-300">{row.orders.toLocaleString()}</td>
+                                  <td className="py-2 px-2 text-right text-gray-600 dark:text-zinc-300">{(row.quantity || 0).toLocaleString()}</td>
                                   <td className="py-2 px-2 text-right text-gray-500 dark:text-zinc-400">{pct}%</td>
                                   {gongguTargets.length > 0 && (
                                     <td className="py-2 px-2 text-right">
@@ -371,6 +373,7 @@ export default function SalesPage() {
                               <td className="py-2 px-2 text-gray-700 dark:text-zinc-300">합계</td>
                               <td className="py-2 px-2 text-right text-gray-900 dark:text-zinc-100">₩{formatCompact(gongguSalesTotal)}</td>
                               <td className="py-2 px-2 text-right text-gray-600 dark:text-zinc-300">{gongguSales.reduce((s, r) => s + r.orders, 0).toLocaleString()}</td>
+                              <td className="py-2 px-2 text-right text-gray-600 dark:text-zinc-300">{gongguSales.reduce((s, r) => s + (r.quantity || 0), 0).toLocaleString()}</td>
                               <td className="py-2 px-2 text-right text-gray-500 dark:text-zinc-400">100%</td>
                               {gongguTargets.length > 0 && <td />}
                             </tr>

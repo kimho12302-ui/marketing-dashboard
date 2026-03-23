@@ -327,20 +327,21 @@ export async function GET(request: NextRequest) {
     // 공동구매(공구) 데이터 집계 (balancelab brand)
     // Known gonggu channels without 공구_ prefix
     const GONGGU_CHANNELS_NO_PREFIX = ["더에르고"];
-    let gongguSales: { seller: string; revenue: number; orders: number }[] = [];
+    let gongguSales: { seller: string; revenue: number; orders: number; quantity: number }[] = [];
     let selfSalesTotal = 0;
     let gongguSalesTotal = 0;
     if (brand === "balancelab" || brand === "all") {
-      const gongguQuery = supabase.from("daily_sales").select("channel,revenue,orders").gte("date", from).lte("date", to).eq("brand", "balancelab");
+      const gongguQuery = supabase.from("daily_sales").select("channel,revenue,orders,quantity").gte("date", from).lte("date", to).eq("brand", "balancelab");
       const { data: gongguData } = await gongguQuery;
-      const sellerMap = new Map<string, { revenue: number; orders: number }>();
+      const sellerMap = new Map<string, { revenue: number; orders: number; quantity: number }>();
       for (const row of gongguData || []) {
         const isGonggu = row.channel.startsWith("공구_") || GONGGU_CHANNELS_NO_PREFIX.includes(row.channel);
         if (isGonggu) {
           const seller = row.channel.startsWith("공구_") ? row.channel.replace("공구_", "") : row.channel;
-          const existing = sellerMap.get(seller) || { revenue: 0, orders: 0 };
+          const existing = sellerMap.get(seller) || { revenue: 0, orders: 0, quantity: 0 };
           existing.revenue += Number(row.revenue);
           existing.orders += Number(row.orders);
+          existing.quantity += Number(row.quantity || 0);
           sellerMap.set(seller, existing);
           gongguSalesTotal += Number(row.revenue);
         } else {
@@ -348,7 +349,7 @@ export async function GET(request: NextRequest) {
         }
       }
       gongguSales = Array.from(sellerMap.entries())
-        .map(([seller, d]) => ({ seller, revenue: d.revenue, orders: d.orders }))
+        .map(([seller, d]) => ({ seller, revenue: d.revenue, orders: d.orders, quantity: d.quantity }))
         .sort((a, b) => b.revenue - a.revenue);
     }
 
