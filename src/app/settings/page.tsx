@@ -500,6 +500,8 @@ export default function SettingsPage() {
   const [costSearch, setCostSearch] = useState("");
   const [costBrandFilter, setCostBrandFilter] = useState("all");
   const [inlineCosts, setInlineCosts] = useState<Record<string, { cost_price: number; manufacturing_cost: number; shipping_cost: number }>>({});
+  const [editingCostId, setEditingCostId] = useState<number | null>(null);
+  const [editCostValues, setEditCostValues] = useState({ cost_price: 0, manufacturing_cost: 0, shipping_cost: 0 });
   const [savingProduct, setSavingProduct] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
@@ -958,19 +960,48 @@ export default function SettingsPage() {
                           <th className="text-right py-2 px-2 text-zinc-400">제작원가</th>
                           <th className="text-right py-2 px-2 text-zinc-400">배송비</th>
                           <th className="text-left py-2 px-2 text-zinc-400">카테고리</th>
+                          <th className="text-center py-2 px-2 text-zinc-400"></th>
                         </tr>
                       </thead>
                       <tbody>
-                        {productCosts.map((p: any, i: number) => (
+                        {productCosts.map((p: any, i: number) => {
+                          const isEditing = editingCostId === p.id;
+                          return (
                           <tr key={i} className="border-b border-gray-200 dark:border-zinc-800">
-                            <td className="py-2 px-2">{p.product}</td>
-                            <td className="py-2 px-2">{BRANDS.find(b => b.value === p.brand)?.label || p.brand}</td>
-                            <td className="py-2 px-2 text-right">₩{formatCompact(p.cost_price)}</td>
-                            <td className="py-2 px-2 text-right">₩{formatCompact(p.manufacturing_cost || 0)}</td>
-                            <td className="py-2 px-2 text-right">₩{formatCompact(p.shipping_cost)}</td>
-                            <td className="py-2 px-2">{p.category}</td>
-                          </tr>
-                        ))}
+                            <td className="py-2 px-2 text-xs">{p.product}</td>
+                            <td className="py-2 px-2 text-xs">{BRANDS.find(b => b.value === p.brand)?.label || p.brand}</td>
+                            {isEditing ? (
+                              <>
+                                <td className="py-1 px-1"><input type="number" className="w-20 px-1 py-0.5 text-xs text-right border rounded bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700" value={editCostValues.cost_price} onChange={e => setEditCostValues(v => ({...v, cost_price: Number(e.target.value)}))} /></td>
+                                <td className="py-1 px-1"><input type="number" className="w-20 px-1 py-0.5 text-xs text-right border rounded bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700" value={editCostValues.manufacturing_cost} onChange={e => setEditCostValues(v => ({...v, manufacturing_cost: Number(e.target.value)}))} /></td>
+                                <td className="py-1 px-1"><input type="number" className="w-20 px-1 py-0.5 text-xs text-right border rounded bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700" value={editCostValues.shipping_cost} onChange={e => setEditCostValues(v => ({...v, shipping_cost: Number(e.target.value)}))} /></td>
+                              </>
+                            ) : (
+                              <>
+                                <td className="py-2 px-2 text-right text-xs">₩{formatCompact(p.cost_price)}</td>
+                                <td className="py-2 px-2 text-right text-xs">₩{formatCompact(p.manufacturing_cost || 0)}</td>
+                                <td className="py-2 px-2 text-right text-xs">₩{formatCompact(p.shipping_cost)}</td>
+                              </>
+                            )}
+                            <td className="py-2 px-2 text-xs">{p.category}</td>
+                            <td className="py-1 px-1 text-center">
+                              {isEditing ? (
+                                <div className="flex gap-1">
+                                  <button onClick={async () => {
+                                    const res = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ type: "product_cost", data: { product: p.product, brand: p.brand, ...editCostValues, category: p.category }, forceOverride: true }) });
+                                    if (res.ok) { showToast("✅ 수정 완료"); setEditingCostId(null); fetchCosts(); }
+                                    else showToast("❌ 실패", "error");
+                                  }} className="px-2 py-0.5 text-[10px] bg-indigo-600 text-white rounded hover:bg-indigo-700">저장</button>
+                                  <button onClick={() => setEditingCostId(null)} className="px-2 py-0.5 text-[10px] bg-zinc-600 text-white rounded hover:bg-zinc-700">취소</button>
+                                </div>
+                              ) : (
+                                <button onClick={() => { setEditingCostId(p.id); setEditCostValues({ cost_price: p.cost_price, manufacturing_cost: p.manufacturing_cost || 0, shipping_cost: p.shipping_cost || 0 }); }}
+                                  className="px-2 py-0.5 text-[10px] bg-zinc-700 text-zinc-300 rounded hover:bg-zinc-600">수정</button>
+                              )}
+                            </td>
+                          </tr>);
+                        })}
                       </tbody>
                     </table>
                   </div>
