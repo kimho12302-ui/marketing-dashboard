@@ -181,21 +181,7 @@ export async function GET() {
       ok: coupangFunnelDate >= yesterdayStr,
     });
 
-    // 11. 건별비용 (manual)
-    const { data: miscLatest } = await supabase
-      .from("daily_ad_spend")
-      .select("date")
-      .eq("channel", "misc")
-      .order("date", { ascending: false })
-      .limit(1);
-    const miscDate = miscLatest?.[0]?.date || null;
-    sources.push({
-      id: "misc_cost",
-      label: "건별비용",
-      type: "manual",
-      latestDate: miscDate,
-      ok: miscDate >= yesterdayStr,
-    });
+    // 건별비용은 매일 발생하지 않으므로 경고 대상에서 제외
 
     const okCount = sources.filter(s => s.ok).length;
 
