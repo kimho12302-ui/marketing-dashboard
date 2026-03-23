@@ -499,7 +499,7 @@ export default function SettingsPage() {
   // Product cost search/filter
   const [costSearch, setCostSearch] = useState("");
   const [costBrandFilter, setCostBrandFilter] = useState("all");
-  const [inlineCosts, setInlineCosts] = useState<Record<string, { cost_price: number; manufacturing_cost: number }>>({});
+  const [inlineCosts, setInlineCosts] = useState<Record<string, { cost_price: number; manufacturing_cost: number; shipping_cost: number }>>({});
   const [savingProduct, setSavingProduct] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
@@ -607,7 +607,7 @@ export default function SettingsPage() {
     try {
       const res = await fetch("/api/settings", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "product_cost", data: { product: p.product, brand: p.brand, cost_price: costs.cost_price, manufacturing_cost: costs.manufacturing_cost, shipping_cost: 0, category: p.category }, forceOverride: true }),
+        body: JSON.stringify({ type: "product_cost", data: { product: p.product, brand: p.brand, cost_price: costs.cost_price, manufacturing_cost: costs.manufacturing_cost, shipping_cost: costs.shipping_cost || 0, category: p.category }, forceOverride: true }),
       });
       if (res.ok) {
         showToast(`✅ ${p.product} 저장 완료`);
@@ -895,9 +895,9 @@ export default function SettingsPage() {
                         <tr className="border-b border-gray-200 dark:border-zinc-700">
                           <th className="text-left py-2 px-2 text-zinc-400">제품</th>
                           <th className="text-left py-2 px-2 text-zinc-400">브랜드</th>
-                          <th className="text-right py-2 px-2 text-zinc-400">매출</th>
                           <th className="text-right py-2 px-2 text-zinc-400">판매원가</th>
                           <th className="text-right py-2 px-2 text-zinc-400">제작원가</th>
+                          <th className="text-right py-2 px-2 text-zinc-400">배송비</th>
                           <th className="text-center py-2 px-2 text-zinc-400"></th>
                         </tr>
                       </thead>
@@ -910,16 +910,20 @@ export default function SettingsPage() {
                           <tr key={p.product} className="border-b border-gray-200 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50">
                             <td className="py-1.5 px-2 text-yellow-500 dark:text-yellow-400 text-xs">{p.product}</td>
                             <td className="py-1.5 px-2 text-xs">{BRANDS.find(b => b.value === p.brand)?.label || p.brand}</td>
-                            <td className="py-1.5 px-2 text-right text-xs">₩{formatCompact(p.revenue)}</td>
                             <td className="py-1.5 px-1">
                               <input type="number" placeholder="0" className="w-20 px-1 py-0.5 text-xs text-right border rounded bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700"
                                 value={inlineCosts[p.product]?.cost_price || ""}
-                                onChange={(e) => setInlineCosts(prev => ({ ...prev, [p.product]: { ...prev[p.product] || { cost_price: 0, manufacturing_cost: 0 }, cost_price: Number(e.target.value) } }))} />
+                                onChange={(e) => setInlineCosts(prev => ({ ...prev, [p.product]: { ...prev[p.product] || { cost_price: 0, manufacturing_cost: 0, shipping_cost: 0 }, cost_price: Number(e.target.value) } }))} />
                             </td>
                             <td className="py-1.5 px-1">
                               <input type="number" placeholder="0" className="w-20 px-1 py-0.5 text-xs text-right border rounded bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700"
                                 value={inlineCosts[p.product]?.manufacturing_cost || ""}
-                                onChange={(e) => setInlineCosts(prev => ({ ...prev, [p.product]: { ...prev[p.product] || { cost_price: 0, manufacturing_cost: 0 }, manufacturing_cost: Number(e.target.value) } }))} />
+                                onChange={(e) => setInlineCosts(prev => ({ ...prev, [p.product]: { ...prev[p.product] || { cost_price: 0, manufacturing_cost: 0, shipping_cost: 0 }, manufacturing_cost: Number(e.target.value) } }))} />
+                            </td>
+                            <td className="py-1.5 px-1">
+                              <input type="number" placeholder="0" className="w-20 px-1 py-0.5 text-xs text-right border rounded bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700"
+                                value={inlineCosts[p.product]?.shipping_cost || ""}
+                                onChange={(e) => setInlineCosts(prev => ({ ...prev, [p.product]: { ...prev[p.product] || { cost_price: 0, manufacturing_cost: 0, shipping_cost: 0 }, shipping_cost: Number(e.target.value) } }))} />
                             </td>
                             <td className="py-1.5 px-1 text-center">
                               <button onClick={() => saveInlineCost(p)} disabled={savingProduct === p.product}
