@@ -835,8 +835,8 @@ export default function SettingsPage() {
             { key: "targets" as const, label: "🎯 목표 설정" },
             { key: "gonggu_targets" as const, label: "🤝 공구 목표" },
             { key: "costs" as const, label: "💰 제품 원가" },
-            { key: "manual_ads" as const, label: "📢 수동 광고비" },
-            { key: "misc_costs" as const, label: "🧾 건별 비용" },
+            // 수동 광고비 + 건별 비용은 일일입력에 통합
+            
             { key: "shipping" as const, label: "📦 배송비" },
             // 판매 업로드 + 쿠팡 광고는 일일입력에 통합
             { key: "info" as const, label: "ℹ️ 데이터 소스" },
