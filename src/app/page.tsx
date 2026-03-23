@@ -5,8 +5,7 @@ import type { KPIData, TrendDataPoint } from "@/lib/types";
 import { useFilters } from "@/lib/filter-context";
 import Filters from "@/components/filters";
 import KPICards from "@/components/kpi-cards";
-import AnomalyBanner from "@/components/anomaly-banner";
-import MissingDataAlert from "@/components/missing-data-alert";
+// AnomalyBanner + MissingDataAlert moved to /insights
 import ExportReport from "@/components/export-report";
 import SyncButton from "@/components/sync-button";
 import TrendChart from "@/components/trend-chart";
@@ -442,9 +441,6 @@ export default function OverviewPage() {
           </div>
         ) : (
           <>
-            <MissingDataAlert />
-            <AnomalyBanner data={kpi} brandAnomalies={brandAnomalies} />
-
             <section>
               <KPICards data={kpi} periodLabel={`${filters.from} ~ ${filters.to}`}
                 onCardClick={(key) => setSelectedKpi(selectedKpi === key ? null : key)}

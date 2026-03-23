@@ -6,7 +6,7 @@ import { AlertTriangle, X } from "lucide-react";
 import { formatCompact } from "@/lib/utils";
 
 interface AnomalyBannerProps {
-  data: KPIData;
+  data: KPIData | null;
   brandAnomalies?: { brand: string; metric: string; change: number; current: number; previous: number }[];
 }
 
@@ -16,7 +16,8 @@ interface Anomaly {
   detail: string;
 }
 
-function detectAnomalies(data: KPIData): Anomaly[] {
+function detectAnomalies(data: KPIData | null): Anomaly[] {
+  if (!data) return [];
   const anomalies: Anomaly[] = [];
   const { revenue, revenuePrev, adSpend, adSpendPrev, roas, roasPrev, orders, ordersPrev } = data;
 

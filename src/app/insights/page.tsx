@@ -5,6 +5,8 @@ import { useFilters } from "@/lib/filter-context";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertTriangle, AlertCircle, Zap, Info } from "lucide-react";
+import AnomalyBanner from "@/components/anomaly-banner";
+import MissingDataAlert from "@/components/missing-data-alert";
 
 interface Insight {
   type: "critical" | "warning" | "opportunity" | "info";
@@ -50,6 +52,10 @@ export default function InsightsPage() {
     <main className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-zinc-100">
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
         <PageHeader title="💡 Insights" subtitle="실데이터 기반 마케팅 인사이트" />
+
+        {/* 데이터 상태 알림 */}
+        <MissingDataAlert />
+        <AnomalyBanner data={null} brandAnomalies={[]} />
 
         {/* Date Range + Brand Filter */}
         <div className="flex gap-2 items-center flex-wrap">
