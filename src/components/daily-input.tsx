@@ -176,13 +176,13 @@ function ManualAdInput({ channel, label, fields, onSave, date }: {
           </div>
         </div>
       ))}
-      <div className="flex gap-2">
+      <div className="flex items-center justify-between">
         <button onClick={() => setRows(prev => [...prev, makeRow(date)])}
           className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">+ 날짜 추가</button>
         {rows.some(r => r.status === "pending") && (
           <button onClick={handleSaveAll}
-            className="text-xs px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700">
-            한번에 저장 ({rows.filter(r => r.status === "pending").length}건)
+            className="text-xs px-3 py-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 font-medium">
+            💾 저장 ({rows.filter(r => r.status === "pending").length}건)
           </button>
         )}
       </div>
@@ -761,6 +761,8 @@ export default function DailyInput() {
               { key: "subscribers", label: "알림받기 수", placeholder: "12" },
               { key: "sessions", label: "유입 (토탈)", placeholder: "300" },
               { key: "avg_duration", label: "체류시간 (초)", placeholder: "120" },
+              { key: "cart_adds", label: "장바구니", placeholder: "15" },
+              { key: "purchases", label: "구매건수", placeholder: "10" },
             ]} onSave={async (data) => {
               const res = await fetch("/api/settings", {
                 method: "POST",
