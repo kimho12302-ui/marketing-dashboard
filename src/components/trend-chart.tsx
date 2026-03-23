@@ -109,7 +109,7 @@ export default function TrendChart({ data, events = [] }: TrendChartProps) {
                     <LabelList
                       dataKey="revenue"
                       position="top"
-                      formatter={(v: number) => v > 0 ? formatCompact(v) : ""}
+                      formatter={(v) => typeof v === 'number' && v > 0 ? formatCompact(v) : ""}
                       style={{ fill: chartTheme.tickColor, fontSize: 10, fontWeight: 600 }}
                     />
                   )}
