@@ -1348,12 +1348,13 @@ export default function SettingsPage() {
               <CardContent>
                 <div className="space-y-3 text-sm">
                   {[
-                    { name: "Meta Ads (너티+아이언펫)", status: "✅", desc: "일별 크론, 광고비/ROAS/노출/클릭" },
-                    { name: "Naver 검색광고", status: "✅", desc: "일별 크론, 캠페인+키워드 성과" },
-                    { name: "Google Ads (P-Max)", status: "✅", desc: "GA4 시트 경유" },
-                    { name: "GA4 퍼널", status: "✅", desc: "page_view/add_to_cart/purchase" },
-                    { name: "Cafe24 매출", status: "✅", desc: "API 직접, 주문/제품/매출" },
-                    { name: "통계시트 Funnel", status: "✅", desc: "카페24+스마트스토어+쿠팡 퍼널" },
+                    { name: "Meta Ads (너티+아이언펫+밸런스랩)", status: "✅", desc: "매일 자동, API → 시트 Paid 탭 → DB" },
+                    { name: "Naver 검색광고 (파워링크+쇼핑)", status: "✅", desc: "매일 자동, 아이언펫/너티/사입/밸런스랩 계정" },
+                    { name: "Google Ads (Search+P-Max)", status: "✅", desc: "매일 자동, gRPC → [N]Paid + Funnel" },
+                    { name: "GA4 카페24 퍼널", status: "✅", desc: "매일 자동, 세션/신규/재방문/DAU/체류시간" },
+                    { name: "GA4 UTM 유입분석", status: "✅", desc: "매일 자동, source/medium/campaign별" },
+                    { name: "매출 (이카운트)", status: "✅", desc: "판매입력 엑셀 → 시트 Sales 탭 → DB" },
+                    { name: "쿠팡 광고", status: "✅", desc: "XLSX 업로드 → 시트 + DB" },
                   ].map(item => (
                     <div key={item.name} className="flex items-center gap-3">
                       <span>{item.status}</span>
@@ -1365,15 +1366,15 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle>✍️ 수동 입력 필요</CardTitle></CardHeader>
+              <CardHeader><CardTitle>✍️ 수동 입력 (일일입력에서)</CardTitle></CardHeader>
               <CardContent>
                 <div className="space-y-3 text-sm">
                   {[
-                    { name: "쿠팡 광고비", status: "⚠️", desc: "API 없음 → 수동 광고비 탭에서 입력" },
-                    { name: "인플루언서/체험단 비용", status: "⚠️", desc: "수동 광고비 탭에서 입력" },
-                    { name: "네이버 GFA", status: "⚠️", desc: "API 제한 → 수동 입력" },
-                    { name: "제품 원가", status: "⚠️", desc: "제품 원가 탭에서 입력 → 영업이익 계산" },
-                    { name: "스마트스토어 매출", status: "⚠️", desc: "통합매니저 계정 필요" },
+                    { name: "네이버 GFA", status: "📝", desc: "일일입력 섹션 2 → Paid 탭 + DB 동시 저장" },
+                    { name: "인플루언서/체험단", status: "📝", desc: "일일입력 섹션 3 → Paid 탭 + DB 동시 저장" },
+                    { name: "건별비용", status: "📝", desc: "일일입력 섹션 4 → 건별비용 탭 + DB 동시 저장" },
+                    { name: "스마트스토어 퍼널", status: "📝", desc: "일일입력 섹션 5 → Funnel 탭 + DB 동시 저장" },
+                    { name: "제품 원가", status: "📝", desc: "제품 원가 탭에서 입력 → 영업이익 계산" },
                   ].map(item => (
                     <div key={item.name} className="flex items-center gap-3">
                       <span>{item.status}</span>
@@ -1381,6 +1382,17 @@ export default function SettingsPage() {
                       <span className="text-gray-500 dark:text-zinc-500">{item.desc}</span>
                     </div>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle>📊 데이터 흐름</CardTitle></CardHeader>
+              <CardContent>
+                <div className="space-y-2 text-sm text-gray-600 dark:text-zinc-400">
+                  <p><strong>자동 데이터:</strong> API → 시트(Paid/Funnel/UTM) → DB → 대시보드</p>
+                  <p><strong>수동 데이터:</strong> 일일입력 → 시트 + DB 동시 → 대시보드</p>
+                  <p><strong>매출:</strong> 이카운트 엑셀 → 시트 Sales → DB → 대시보드</p>
+                  <p className="text-xs text-gray-400 dark:text-zinc-500 mt-2">시트가 source of truth. 시트와 DB가 항상 일치하도록 매일 정합성 체크 실행.</p>
                 </div>
               </CardContent>
             </Card>
