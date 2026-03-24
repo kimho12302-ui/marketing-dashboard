@@ -58,7 +58,7 @@ function classifySaipSubBrand(product: string, brand: string): string {
   // product-name based for brand=saip
   if (product.includes("마그네") || product.includes("오메가") || product.includes("바나") || product.includes("베가") || product.includes("프로키온") || product.includes("카놉") || product.includes("판크레") || product.includes("후코이카")) return "닥터레이";
   // Famina products: 오션, 퀴노아, 펌킨, 트로피컬, 프라임, 화이트, 앤세스트럴, 그레인프리, 라이트, 퍼피
-  if (product.includes("오션") || product.includes("퀴노아") || product.includes("펌킨") || product.includes("트로피컬") || product.includes("프라임") || product.includes("화이트") || product.includes("앤세스트럴") || product.includes("엔세스트럴") || product.includes("그레인프리") || product.includes("라이트") || product.includes("퍼피")) return "파미나";
+  if (product.includes("오션") || product.includes("퀴노아") || product.includes("펌킨") || product.includes("트로피컬") || product.includes("프라임") || product.includes("화이트") || product.includes("앤세스트럴") || product.includes("엔세스트럴") || product.includes("그레인프리") || product.includes("라이트") || product.includes("퍼피") || product.includes("스몰브리드")) return "파미나";
   return "기타";
 }
 
