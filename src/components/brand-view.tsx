@@ -235,22 +235,23 @@ export default function BrandView() {
         </Card>
       )}
 
-      {/* Revenue + Ad Spend Trend */}
+      {/* Revenue + Ad Spend + ROAS Trend */}
       <Card>
         <CardHeader><CardTitle>📈 매출 + 광고비 트렌드</CardTitle></CardHeader>
         <CardContent>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={trend}>
+              <ComposedChart data={trend.map(d => ({ ...d, roas: d.adSpend > 0 ? Math.round((d.revenue / d.adSpend) * 100) / 100 : 0 }))}>
                 <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
                 <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={v => v.slice(5)} />
-                <YAxis yAxisId="rev" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={v => formatCompact(v)} />
-                <YAxis yAxisId="ad" orientation="right" tick={{ fill: "#ef4444", fontSize: 11 }} tickFormatter={v => formatCompact(v)} />
+                <YAxis yAxisId="left" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={v => formatCompact(v)} />
+                <YAxis yAxisId="roas" orientation="right" tick={{ fill: "#a78bfa", fontSize: 11 }} tickFormatter={v => `${v}x`} domain={[0, 'auto']} />
                 <Tooltip contentStyle={chartTheme.tooltipStyle}
-                  formatter={(v: any, name: any) => [`₩${formatCompact(v)}`, name]} />
+                  formatter={(v: any, name: any) => [name === "ROAS" ? `${Number(v).toFixed(2)}x` : `₩${formatCompact(v)}`, name]} />
                 <Legend />
-                <Bar yAxisId="rev" dataKey="revenue" name="매출" fill={brandColor} opacity={0.7} radius={[4, 4, 0, 0]} />
-                <Line yAxisId="ad" type="monotone" dataKey="adSpend" name="광고비" stroke="#ef4444" strokeWidth={2} dot={false} />
+                <Bar yAxisId="left" dataKey="revenue" name="매출" fill={brandColor} opacity={0.7} radius={[4, 4, 0, 0]} />
+                <Line yAxisId="left" type="monotone" dataKey="adSpend" name="광고비" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                <Line yAxisId="roas" type="monotone" dataKey="roas" name="ROAS" stroke="#a78bfa" strokeWidth={2.5} dot={{ r: 2, fill: "#a78bfa" }} connectNulls />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
