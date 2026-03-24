@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback } from "react";
 import PageHeader from "@/components/page-header";
@@ -646,7 +646,7 @@ export default function SettingsPage() {
       const header = lines[0].split(",").map(h => h.trim().toLowerCase());
       const productIdx = header.findIndex(h => h.includes("제품") || h.includes("product"));
       const brandIdx = header.findIndex(h => h.includes("브랜드") || h.includes("brand"));
-      const costIdx = header.findIndex(h => h.includes("판매원가") || h.includes("cost_price") || h.includes("원가"));
+      const costIdx = header.findIndex(h => h.includes("판매가") || h.includes("cost_price") || h.includes("원가"));
       const mfgIdx = header.findIndex(h => h.includes("제작") || h.includes("manufacturing"));
       const shipIdx = header.findIndex(h => h.includes("배송") || h.includes("shipping"));
       const catIdx = header.findIndex(h => h.includes("카테고리") || h.includes("category"));
@@ -829,7 +829,7 @@ export default function SettingsPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">판매원가 (₩)</label>
+                    <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">판매가 (₩)</label>
                     <input type="number" className={inputClass} value={costForm.cost_price || ""}
                       onChange={e => setCostForm(prev => ({ ...prev, cost_price: Number(e.target.value) }))}
                       placeholder="0" />
@@ -877,7 +877,7 @@ export default function SettingsPage() {
                       className="px-2 py-1 text-xs bg-indigo-600 text-white rounded disabled:opacity-50">
                       {costCsvUploading ? "업로드 중..." : "업로드"}
                     </button>
-                    <span className="text-[10px] text-gray-400 dark:text-zinc-500">형식: 제품,브랜드,판매원가,제작원가,배송비,카테고리</span>
+                    <span className="text-[10px] text-gray-400 dark:text-zinc-500">형식: 제품,브랜드,판매가,제작원가,배송비,카테고리</span>
                   </div>
 
                   {/* 검색 + 브랜드 필터 */}
@@ -897,7 +897,7 @@ export default function SettingsPage() {
                         <tr className="border-b border-gray-200 dark:border-zinc-700">
                           <th className="text-left py-2 px-2 text-zinc-400">제품</th>
                           <th className="text-left py-2 px-2 text-zinc-400">브랜드</th>
-                          <th className="text-right py-2 px-2 text-zinc-400">판매원가</th>
+                          <th className="text-right py-2 px-2 text-zinc-400">판매가</th>
                           <th className="text-right py-2 px-2 text-zinc-400">제작원가</th>
                           <th className="text-right py-2 px-2 text-zinc-400">배송비</th>
                           <th className="text-center py-2 px-2 text-zinc-400"></th>
@@ -956,7 +956,7 @@ export default function SettingsPage() {
                         <tr className="border-b border-gray-200 dark:border-zinc-700">
                           <th className="text-left py-2 px-2 text-zinc-400">제품</th>
                           <th className="text-left py-2 px-2 text-zinc-400">브랜드</th>
-                          <th className="text-right py-2 px-2 text-zinc-400">판매원가</th>
+                          <th className="text-right py-2 px-2 text-zinc-400">판매가</th>
                           <th className="text-right py-2 px-2 text-zinc-400">제작원가</th>
                           <th className="text-right py-2 px-2 text-zinc-400">배송비</th>
                           <th className="text-left py-2 px-2 text-zinc-400">카테고리</th>
