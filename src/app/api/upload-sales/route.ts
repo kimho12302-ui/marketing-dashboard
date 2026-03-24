@@ -273,10 +273,15 @@ export async function POST(request: NextRequest) {
       const channelKor: Record<string, string> = {
         "cafe24": "카페24", "smartstore": "스마트스토어", "coupang": "쿠팡", "pp": "피피", "ably": "에이블리", "petfriends": "펫프렌즈",
       };
+      // 밸런스랩: 상품목록 C열(brand)이 "자체판매"/"공동구매" → E열에 그대로 사용
+      let brandLabel = brandKor[r.brand] || plInfo.brand || r.brand;
+      if (r.brand === "balancelab" && (plInfo.brand === "자체판매" || plInfo.brand === "공동구매")) {
+        brandLabel = plInfo.brand;
+      }
       return [
         yearMonth, dateText,
         channelKor[r.channel] || r.channel,
-        r.category, brandKor[r.brand] || plInfo.brand || r.brand,
+        r.category, brandLabel,
         r.lineup, r.product, r.quantity, 1, r.revenue, r.revenue,
       ];
     });
