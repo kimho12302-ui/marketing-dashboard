@@ -228,6 +228,39 @@ export async function GET(request: NextRequest) {
     }
     const brandRevenue = Array.from(brandMap.entries()).map(([b, d]) => ({ brand: b, revenue: d.revenue, orders: d.orders }));
 
+    // Brand-level profit calculation
+    const brandAdMap = new Map<string, number>();
+    for (const row of adSpend || []) {
+      const nb = normalizeBrand(row.brand);
+      if (!nb) continue;
+      brandAdMap.set(nb, (brandAdMap.get(nb) || 0) + Number(row.spend));
+    }
+    const brandCogsMap = new Map<string, number>();
+    for (const ps of cogsProdData || []) {
+      const nb = normalizeBrand(ps.brand);
+      if (!nb) continue;
+      const key = `${ps.product}__${ps.brand}`;
+      const costs = costMap.get(key);
+      if (costs) {
+        const qty = Number(ps.quantity || 0);
+        brandCogsMap.set(nb, (brandCogsMap.get(nb) || 0) + costs.manufacturing_cost * qty);
+      }
+    }
+    // Brand misc costs
+    const brandMiscMap = new Map<string, number>();
+    for (const mc of miscCosts || []) {
+      const nb = normalizeBrand(mc.brand);
+      if (!nb) continue;
+      brandMiscMap.set(nb, (brandMiscMap.get(nb) || 0) + Number(mc.value || 0));
+    }
+    const brandProfit = ["nutty", "ironpet", "saip", "balancelab"].map(b => {
+      const rev = brandMap.get(b)?.revenue || 0;
+      const ad = (brandAdMap.get(b) || 0) + (brandMiscMap.get(b) || 0);
+      const cogs = brandCogsMap.get(b) || 0;
+      const profit = rev - ad - cogs;
+      return { brand: b, revenue: rev, adSpend: ad, cogs, profit, margin: rev > 0 ? (profit / rev * 100) : 0 };
+    });
+
     // Brand revenue trend by date
     const brandLabels: Record<string, string> = { nutty: "너티", ironpet: "아이언펫", saip: "사입", balancelab: "밸런스랩" };
     const brandTrendMap = new Map<string, Record<string, number>>();
@@ -461,7 +494,7 @@ export async function GET(request: NextRequest) {
         shippingCost: totalShippingCost, shippingOrders: totalShippingOrders,
         matchedRate, // Percentage of products with cost data (0-1)
       },
-      trend: trendWithMA, channels, channelRoasTrend, brandRevenue, brandRevenueTrend, brandAdSpend, brandRoasTrend,
+      trend: trendWithMA, channels, channelRoasTrend, brandRevenue, brandRevenueTrend, brandAdSpend, brandRoasTrend, brandProfit,
       funnelSummary: { ...funnelSummary, convRate, cartToOrderRate },
       topProducts, salesByChannel, targets,
       gongguSales, gongguSalesTotal, selfSalesTotal, gongguTargets, anomalies,

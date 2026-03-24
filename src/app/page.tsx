@@ -88,6 +88,7 @@ export default function OverviewPage() {
   const [selfSalesTotal, setSelfSalesTotal] = useState(0);
   const [gongguTargets, setGongguTargets] = useState<{ seller: string; target: number; note: string }[]>([]);
   const [brandAnomalies, setBrandAnomalies] = useState<{ brand: string; metric: string; change: number; current: number; previous: number }[]>([]);
+  const [brandProfit, setBrandProfit] = useState<{ brand: string; revenue: number; adSpend: number; cogs: number; profit: number; margin: number }[]>([]);
   const [lastFetched, setLastFetched] = useState<string>("");
 
   const fetchData = useCallback(async () => {
@@ -120,6 +121,7 @@ export default function OverviewPage() {
       setSelfSalesTotal(data.selfSalesTotal || 0);
       setGongguTargets(data.gongguTargets || []);
       setBrandAnomalies(data.anomalies || []);
+      setBrandProfit(data.brandProfit || []);
 
       if (adsRes.ok) {
         const adsData = await adsRes.json();
@@ -464,6 +466,9 @@ export default function OverviewPage() {
                   const color = BRAND_COLORS[b.brand] || "#888";
                   const spend = brandAdSpend.find(a => a.brand === b.brand)?.spend || 0;
                   const brandRoas = spend > 0 ? b.revenue / spend : 0;
+                  const bp = brandProfit.find(p => p.brand === b.brand);
+                  const profit = bp?.profit || 0;
+                  const margin = bp?.margin || 0;
                   return (
                     <Card key={b.brand} className="cursor-pointer hover:border-indigo-500/50 transition-colors"
                       onClick={() => setFilters({ ...filters, brand: b.brand as any })}>
@@ -477,6 +482,12 @@ export default function OverviewPage() {
                           <span>광고 ₩{formatCompact(spend)}</span>
                           <span className={`font-medium ${brandRoas >= 2 ? "text-green-400" : brandRoas >= 1 ? "text-yellow-400" : "text-red-400"}`}>
                             {brandRoas > 0 ? `${brandRoas.toFixed(1)}x` : "-"}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between mt-1 text-xs">
+                          <span className="text-gray-400 dark:text-zinc-500">영업이익</span>
+                          <span className={`font-medium ${profit >= 0 ? "text-green-400" : "text-red-400"}`}>
+                            ₩{formatCompact(profit)} <span className="text-[10px]">({margin.toFixed(0)}%)</span>
                           </span>
                         </div>
                         <div className="text-[10px] text-gray-400 dark:text-zinc-500 mt-1">{b.orders}건</div>

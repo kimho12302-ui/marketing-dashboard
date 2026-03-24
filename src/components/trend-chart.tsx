@@ -50,7 +50,7 @@ function CustomTooltip({
       <p className="text-xs text-gray-400 dark:text-zinc-400 mb-2">{label}</p>
       {payload.map((entry) => (
         <p key={entry.name} className="text-sm" style={{ color: entry.color }}>
-          {entry.name}: ₩{formatCompact(entry.value)}
+          {entry.name}: {entry.dataKey === "roas" ? `${entry.value}x` : `₩${formatCompact(entry.value)}`}
         </p>
       ))}
     </div>
@@ -64,6 +64,12 @@ export default function TrendChart({ data, events = [] }: TrendChartProps) {
     data.some(d => (d as any)[b] > 0)
   );
 
+  // Add ROAS to each data point
+  const dataWithRoas = data.map(d => ({
+    ...d,
+    roas: d.adSpend > 0 ? Math.round((d.revenue / d.adSpend) * 100) / 100 : 0,
+  }));
+
   return (
     <Card>
       <CardHeader>
@@ -72,7 +78,7 @@ export default function TrendChart({ data, events = [] }: TrendChartProps) {
       <CardContent>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data}>
+            <ComposedChart data={dataWithRoas}>
               <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
               <XAxis
                 dataKey="date"
@@ -87,8 +93,9 @@ export default function TrendChart({ data, events = [] }: TrendChartProps) {
               <YAxis
                 yAxisId="right"
                 orientation="right"
-                tick={{ fill: chartTheme.tickColor, fontSize: 12 }}
-                tickFormatter={(v) => formatCompact(v)}
+                tick={{ fill: "#a78bfa", fontSize: 11 }}
+                tickFormatter={(v) => `${v}x`}
+                domain={[0, 'auto']}
               />
               <Tooltip content={<CustomTooltip chartTheme={chartTheme} />} />
               <Legend
@@ -116,13 +123,23 @@ export default function TrendChart({ data, events = [] }: TrendChartProps) {
                 </Bar>
               ))}
               <Line
-                yAxisId="right"
+                yAxisId="left"
                 type="monotone"
                 dataKey="adSpend"
                 name="광고비"
                 stroke="#ef4444"
                 strokeWidth={2}
                 dot={false}
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="roas"
+                name="ROAS"
+                stroke="#a78bfa"
+                strokeWidth={2.5}
+                dot={{ r: 2, fill: "#a78bfa" }}
+                connectNulls
               />
               <Line
                 yAxisId="left"

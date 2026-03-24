@@ -237,6 +237,31 @@ export default function AdsPage() {
                         </tr>
                       ))}
                     </tbody>
+                    <tfoot>
+                      {(() => {
+                        const totSpend = channels.reduce((s, c) => s + c.spend, 0);
+                        const totImp = channels.reduce((s, c) => s + c.impressions, 0);
+                        const totClicks = channels.reduce((s, c) => s + c.clicks, 0);
+                        const totCV = channels.reduce((s, c) => s + (c.conversionValue || 0), 0);
+                        const totConv = channels.reduce((s, c) => s + c.conversions, 0);
+                        const totCtr = totImp > 0 ? totClicks / totImp : 0;
+                        const totCpc = totClicks > 0 ? totSpend / totClicks : 0;
+                        const totRoas = totSpend > 0 ? totCV / totSpend : 0;
+                        return (
+                          <tr className="border-t-2 border-gray-300 dark:border-zinc-600 font-bold text-gray-800 dark:text-zinc-200">
+                            <td className="py-2.5 px-2">합계</td>
+                            <td className="py-2.5 px-2 text-right">₩{formatCompact(totSpend)}</td>
+                            <td className="py-2.5 px-2 text-right">{totImp.toLocaleString()}</td>
+                            <td className="py-2.5 px-2 text-right">{totClicks.toLocaleString()}</td>
+                            <td className="py-2.5 px-2 text-right">{(totCtr * 100).toFixed(2)}%</td>
+                            <td className="py-2.5 px-2 text-right">₩{Math.round(totCpc).toLocaleString()}</td>
+                            <td className="py-2.5 px-2 text-right">₩{formatCompact(totCV)}</td>
+                            <td className="py-2.5 px-2 text-right">{totConv.toLocaleString()}</td>
+                            <td className="py-2.5 px-2 text-right">{totRoas.toFixed(2)}x</td>
+                          </tr>
+                        );
+                      })()}
+                    </tfoot>
                   </table>
                 </div>
               </CardContent>
