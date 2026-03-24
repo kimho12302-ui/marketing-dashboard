@@ -275,7 +275,7 @@ function NuttySection({ data, chartTheme }: { data: BrandViewData; chartTheme: R
               <PieChart>
                 <Pie data={lineup.map(l => ({ name: l.lineup, value: l.revenue }))}
                   dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} innerRadius={35}
-                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                  label={({ name, percent, x, y, textAnchor }: any) => <text x={x} y={y} textAnchor={textAnchor} fill={chartTheme.isDark ? "#e4e4e7" : "#374151"} fontSize={12}>{`${name} ${((percent || 0) * 100).toFixed(0)}%`}</text>}
                   labelLine={{ stroke: chartTheme.isDark ? "#555" : "#9ca3af" }}>
                   {lineup.map((l, i) => <Cell key={i} fill={LINEUP_COLORS[l.lineup] || PALETTE[i % PALETTE.length]} />)}
                 </Pie>
@@ -442,7 +442,7 @@ function SaipSection({ data, chartTheme }: { data: BrandViewData; chartTheme: Re
                   <PieChart>
                     <Pie data={subBrandRevenue.map(s => ({ name: s.subBrand, value: s.revenue }))}
                       dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} innerRadius={35}
-                      label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                      label={({ name, percent, x, y, textAnchor }: any) => <text x={x} y={y} textAnchor={textAnchor} fill={chartTheme.isDark ? "#e4e4e7" : "#374151"} fontSize={12}>{`${name} ${((percent || 0) * 100).toFixed(0)}%`}</text>}
                       labelLine={{ stroke: chartTheme.isDark ? "#555" : "#9ca3af" }}>
                       {subBrandRevenue.map((s, i) => <Cell key={i} fill={SUB_BRAND_COLORS[s.subBrand] || PALETTE[i % PALETTE.length]} />)}
                     </Pie>

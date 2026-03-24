@@ -255,7 +255,7 @@ export default function SalesPage() {
                     {channelPie.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
-                          <Pie data={channelPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={85} label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={{ stroke: chartTheme.isDark ? "#555" : "#9ca3af" }}>
+                          <Pie data={channelPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={85} label={({ name, percent, x, y, textAnchor }: any) => <text x={x} y={y} textAnchor={textAnchor} fill={chartTheme.isDark ? "#e4e4e7" : "#374151"} fontSize={12}>{`${name} ${(percent * 100).toFixed(0)}%`}</text>} labelLine={{ stroke: chartTheme.isDark ? "#555" : "#9ca3af" }}>
                             {channelPie.map((entry, i) => <Cell key={i} fill={CHANNEL_COLORS[entry.name] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]} />)}
                           </Pie>
                           <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} />
@@ -302,7 +302,7 @@ export default function SalesPage() {
                   <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={breakdownPie} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={85} label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={{ stroke: chartTheme.isDark ? "#555" : "#9ca3af" }}>
+                        <Pie data={breakdownPie} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={85} label={({ name, percent, x, y, textAnchor }: any) => <text x={x} y={y} textAnchor={textAnchor} fill={chartTheme.isDark ? "#e4e4e7" : "#374151"} fontSize={12}>{`${name} ${(percent * 100).toFixed(0)}%`}</text>} labelLine={{ stroke: chartTheme.isDark ? "#555" : "#9ca3af" }}>
                           {breakdownPie.map((_, i) => <Cell key={i} fill={FALLBACK_COLORS[i % FALLBACK_COLORS.length]} />)}
                         </Pie>
                         <Tooltip formatter={(value: any) => [`₩${formatCompact(value)}`, "매출"]} contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} />
@@ -335,7 +335,7 @@ export default function SalesPage() {
                             <ResponsiveContainer width="100%" height="100%">
                               <PieChart>
                                 <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={80}
-                                  label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                  label={({ name, percent, x, y, textAnchor }: any) => <text x={x} y={y} textAnchor={textAnchor} fill={chartTheme.isDark ? "#e4e4e7" : "#374151"} fontSize={12}>{`${name} ${(percent * 100).toFixed(0)}%`}</text>}
                                   labelLine={{ stroke: chartTheme.isDark ? "#555" : "#9ca3af" }}>
                                   {pieData.map((_, i) => <Cell key={i} fill={colors[i]} />)}
                                 </Pie>
