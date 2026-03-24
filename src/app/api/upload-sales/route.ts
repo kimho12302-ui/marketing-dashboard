@@ -146,6 +146,7 @@ export async function POST(request: NextRequest) {
     const rows: SalesRow[] = [];
     let skipped = 0;
     let dateFiltered = 0;
+    const unmatchedCodes = new Map<string, { name: string; count: number }>();
 
     for (let i = 1; i < allData.length; i++) {
       const row = allData[i];
@@ -188,6 +189,15 @@ export async function POST(request: NextRequest) {
 
       const brand = detectBrand(productCode, productListMap);
       const plInfo = productListMap.get(productCode) || {};
+
+      // Track unmatched product codes
+      if (!productListMap.has(productCode)) {
+        const prodName = productNameCol >= 0 ? String(row[productNameCol] || "").trim() : productCode;
+        const existing = unmatchedCodes.get(productCode);
+        if (existing) { existing.count++; }
+        else { unmatchedCodes.set(productCode, { name: prodName, count: 1 }); }
+      }
+
       // Revenue = 공급가액(AM열) + 부가세(AN열)
       const revenue = supply + tax;
 
@@ -204,6 +214,19 @@ export async function POST(request: NextRequest) {
         revenue,
         supplyAmount: supply,
       });
+    }
+
+    // Block upload if unmatched product codes exist
+    if (unmatchedCodes.size > 0) {
+      const unmatchedList = Array.from(unmatchedCodes.entries()).map(([code, info]) => ({
+        code, name: info.name, count: info.count,
+      }));
+      return NextResponse.json({
+        error: "미등록 품목코드가 있습니다. 상품 목록 탭에 먼저 등록해주세요.",
+        unmatchedProducts: unmatchedList,
+        totalUnmatched: unmatchedList.length,
+        totalRows: rows.length,
+      }, { status: 400 });
     }
 
     // Aggregate for product_sales (by date + channel + product)

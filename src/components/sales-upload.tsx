@@ -15,6 +15,8 @@ interface UploadResult {
   brandSummary?: Record<string, { count: number; revenue: number }>;
   dates?: { from: string; to: string } | null;
   error?: string;
+  unmatchedProducts?: { code: string; name: string; count: number }[];
+  totalUnmatched?: number;
 }
 
 const BRAND_LABELS: Record<string, string> = {
@@ -83,9 +85,35 @@ export default function SalesUpload() {
         {result && (
           <div className={`mt-4 p-3 rounded-lg text-sm ${result.error ? "bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800" : "bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800"}`}>
             {result.error ? (
-              <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
-                <AlertCircle className="h-4 w-4" />
-                <span>{result.error}</span>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>{result.error}</span>
+                </div>
+                {result.unmatchedProducts && result.unmatchedProducts.length > 0 && (
+                  <div className="mt-2 p-2 bg-red-100 dark:bg-red-900/20 rounded text-xs">
+                    <p className="font-medium text-red-700 dark:text-red-300 mb-1">⚠️ 미등록 품목코드 {result.totalUnmatched}개:</p>
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="text-red-500 dark:text-red-400 border-b border-red-200 dark:border-red-800">
+                          <th className="pb-1 pr-2">품목코드</th>
+                          <th className="pb-1 pr-2">품목명</th>
+                          <th className="pb-1 text-right">건수</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {result.unmatchedProducts.map((p) => (
+                          <tr key={p.code} className="border-b border-red-100 dark:border-red-900/30">
+                            <td className="py-1 pr-2 font-mono">{p.code}</td>
+                            <td className="py-1 pr-2">{p.name}</td>
+                            <td className="py-1 text-right">{p.count}건</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="mt-2 text-red-500 dark:text-red-400">→ 상품 목록 탭에 등록 후 다시 업로드해주세요.</p>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-2">
