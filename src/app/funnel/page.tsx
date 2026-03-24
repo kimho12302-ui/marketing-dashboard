@@ -15,9 +15,9 @@ import {
 import { useEvents } from "@/components/event-markers";
 
 const FUNNEL_COLORS = ["#6366f1", "#818cf8", "#a78bfa", "#22c55e", "#14b8a6"];
-const CHANNEL_COLORS: Record<string, string> = { smartstore: "#14b8a6", cafe24: "#8b5cf6", coupang: "#f97316" };
+const CHANNEL_COLORS: Record<string, string> = { smartstore: "#22c55e", cafe24: "#3b82f6", coupang: "#ef4444" };
 const CHANNEL_LABELS: Record<string, string> = { smartstore: "스마트스토어", cafe24: "카페24", coupang: "쿠팡" };
-const IMP_COLORS: Record<string, string> = { meta: "#3b82f6", naver: "#22c55e", google: "#f59e0b", coupang: "#f97316" };
+const IMP_COLORS: Record<string, string> = { meta: "#8b5cf6", naver: "#22c55e", google: "#eab308", coupang: "#ef4444" };
 const IMP_LABELS: Record<string, string> = { meta: "Meta", naver: "네이버", google: "구글", coupang: "쿠팡" };
 
 interface TrendPoint { date: string; sessions: number; cart_adds: number; purchases: number; [key: string]: string | number; }

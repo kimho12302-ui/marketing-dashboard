@@ -45,7 +45,7 @@ interface FunnelSummary { impressions: number; sessions: number; cartAdds: numbe
 interface TopProduct { product: string; revenue: number; quantity: number; }
 interface SalesChannel { channel: string; revenue: number; }
 
-const BRAND_COLORS: Record<string, string> = { nutty: "#6366f1", ironpet: "#22c55e", saip: "#f97316", balancelab: "#ec4899" };
+const BRAND_COLORS: Record<string, string> = { nutty: "#ef4444", ironpet: "#f97316", balancelab: "#3b82f6", saip: "#38bdf8" };
 const BRAND_LABELS: Record<string, string> = { nutty: "너티", ironpet: "아이언펫", saip: "사입", balancelab: "밸런스랩" };
 const ALL_BRANDS = ["nutty", "ironpet", "saip", "balancelab"];
 const CH_LABELS: Record<string, string> = {
@@ -55,9 +55,10 @@ const CH_LABELS: Record<string, string> = {
   gfa: "GFA", gdn: "GDN", influencer: "인플루언서",
 };
 const CHANNEL_COLORS: Record<string, string> = {
-  meta: "#3b82f6", naver_search: "#22c55e", naver_shopping: "#10b981",
-  google_search: "#ef4444", "ga4_Performance Max": "#eab308", "ga4_Search": "#ef4444",
-  coupang: "#f97316", smartstore: "#14b8a6", cafe24: "#8b5cf6",
+  meta: "#8b5cf6", naver_search: "#22c55e", naver_shopping: "#10b981",
+  google_search: "#eab308", google_ads: "#eab308", "ga4_Performance Max": "#eab308", "ga4_Search": "#eab308",
+  coupang: "#ef4444", coupang_ads: "#f97316", smartstore: "#22c55e", cafe24: "#3b82f6",
+  gfa: "#14b8a6", ably: "#a78bfa",
 };
 const PRODUCT_COLORS = ["#6366f1", "#f97316", "#22c55e", "#eab308", "#ec4899", "#8b5cf6", "#14b8a6", "#f43f5e"];
 const FUNNEL_COLORS = ["#3b82f6", "#6366f1", "#a78bfa", "#22c55e", "#14b8a6"];

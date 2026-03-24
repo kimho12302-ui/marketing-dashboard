@@ -42,19 +42,21 @@ const CHANNEL_LABELS: Record<string, string> = {
 };
 
 const CHANNEL_COLORS: Record<string, string> = {
-  meta: "#3b82f6",
+  meta: "#8b5cf6",
   naver_search: "#22c55e",
   naver_shopping: "#10b981",
-  google_search: "#ef4444",
+  google_search: "#eab308",
+  google_ads: "#eab308",
   "ga4_Performance Max": "#eab308",
-  "ga4_Search": "#ef4444",
-  coupang: "#f97316",
+  "ga4_Search": "#eab308",
+  coupang: "#ef4444",
   coupang_ads: "#f97316",
   gdn: "#f43f5e",
   gfa: "#14b8a6",
   influencer: "#ec4899",
-  smartstore: "#14b8a6",
-  cafe24: "#8b5cf6",
+  smartstore: "#22c55e",
+  cafe24: "#3b82f6",
+  ably: "#a78bfa",
 };
 
 const FALLBACK_COLORS = [

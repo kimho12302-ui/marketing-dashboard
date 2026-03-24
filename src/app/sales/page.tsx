@@ -16,10 +16,10 @@ import {
 import { useEvents } from "@/components/event-markers";
 
 const CHANNEL_COLORS: Record<string, string> = {
-  카페24: "#8b5cf6", 스마트스토어: "#14b8a6", 쿠팡: "#f97316",
-  에이블리: "#ec4899", 펫프렌즈: "#22c55e", 피피: "#6366f1",
+  카페24: "#3b82f6", 스마트스토어: "#22c55e", 쿠팡: "#ef4444",
+  에이블리: "#a78bfa", 펫프렌즈: "#22c55e", 피피: "#6366f1",
 };
-const BRAND_COLORS: Record<string, string> = { "너티": "#6366f1", "아이언펫": "#22c55e", "사입": "#f97316", "밸런스랩": "#ec4899" };
+const BRAND_COLORS: Record<string, string> = { "너티": "#ef4444", "아이언펫": "#f97316", "사입": "#38bdf8", "밸런스랩": "#3b82f6" };
 const FALLBACK_COLORS = ["#6366f1", "#f97316", "#22c55e", "#eab308", "#ec4899", "#14b8a6", "#f43f5e", "#8b5cf6", "#3b82f6", "#10b981"];
 const TREND_COLORS = ["#3b82f6", "#22c55e", "#f97316", "#ec4899", "#eab308", "#8b5cf6", "#14b8a6", "#ef4444", "#6366f1", "#10b981"];
 
@@ -436,31 +436,29 @@ export default function SalesPage() {
               </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader><CardTitle>📦 제품별 매출 트렌드 (TOP 5)</CardTitle></CardHeader>
-                <CardContent>
-                  <div className="h-72">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={productTrend}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
-                        <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
-                        <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
-                        <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} formatter={(v: any) => [`₩${formatCompact(v)}`, ""]} />
-                        <Legend formatter={(value: string) => value.length > 12 ? value.slice(0, 12) + "…" : value} />
-                        {trendProducts.map((p, i) => (
-                          <Line key={p} type="monotone" dataKey={p} name={p} stroke={TREND_COLORS[i % TREND_COLORS.length]} dot={false} strokeWidth={2} />
-                        ))}
-                        {events.map((e) => (
-                          <ReferenceLine key={e.id} x={e.date} stroke={e.color} strokeDasharray="4 4" strokeWidth={1.5}
-                            label={{ value: `▼ ${e.title}`, position: "insideBottomLeft", fill: e.color || "#6366f1", fontSize: 10, fontWeight: 700, offset: 5 }} />
-                        ))}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <Card>
+              <CardHeader><CardTitle>📦 제품별 매출 트렌드 (TOP 5)</CardTitle></CardHeader>
+              <CardContent>
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={productTrend}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                      <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
+                      <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: any) => formatCompact(v)} />
+                      <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} formatter={(v: any) => [`₩${formatCompact(v)}`, ""]} />
+                      <Legend formatter={(value: string) => value.length > 12 ? value.slice(0, 12) + "…" : value} />
+                      {trendProducts.map((p, i) => (
+                        <Line key={p} type="monotone" dataKey={p} name={p} stroke={TREND_COLORS[i % TREND_COLORS.length]} dot={false} strokeWidth={2} />
+                      ))}
+                      {events.map((e) => (
+                        <ReferenceLine key={e.id} x={e.date} stroke={e.color} strokeDasharray="4 4" strokeWidth={1.5}
+                          label={{ value: `▼ ${e.title}`, position: "insideBottomLeft", fill: e.color || "#6366f1", fontSize: 10, fontWeight: 700, offset: 5 }} />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
 
             <Card>
               <CardHeader><CardTitle>Top 10 상품</CardTitle></CardHeader>

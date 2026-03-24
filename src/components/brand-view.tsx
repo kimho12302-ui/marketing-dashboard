@@ -12,7 +12,7 @@ import {
 import { TrendingUp, TrendingDown, HelpCircle } from "lucide-react";
 
 const BRAND_COLORS: Record<string, string> = {
-  nutty: "#6366f1", ironpet: "#22c55e", saip: "#f97316", balancelab: "#ec4899",
+  nutty: "#ef4444", ironpet: "#f97316", balancelab: "#3b82f6", saip: "#38bdf8",
 };
 const BRAND_LABELS: Record<string, string> = {
   nutty: "너티", ironpet: "아이언펫", saip: "사입", balancelab: "밸런스랩",
@@ -24,10 +24,12 @@ const CH_LABELS: Record<string, string> = {
   petfriends: "펫프렌즈", pp: "PP", peepee: "피피",
 };
 const CHANNEL_COLORS: Record<string, string> = {
-  meta: "#3b82f6", naver_search: "#22c55e", naver_shopping: "#10b981",
-  "ga4_Performance Max": "#eab308", coupang: "#f97316",
-  smartstore: "#14b8a6", cafe24: "#8b5cf6", ably: "#ec4899",
+  meta: "#8b5cf6", naver_search: "#22c55e", naver_shopping: "#10b981",
+  google_ads: "#eab308", "ga4_Performance Max": "#eab308", "ga4_Search": "#eab308",
+  coupang: "#ef4444", coupang_ads: "#f97316",
+  smartstore: "#22c55e", cafe24: "#3b82f6", ably: "#a78bfa",
   petfriends: "#f43f5e", pp: "#6366f1", peepee: "#a855f7",
+  gfa: "#14b8a6",
 };
 const LINEUP_COLORS: Record<string, string> = {
   "사운드": "#6366f1", "하루루틴": "#22c55e", "선물세트": "#f97316", "기타": "#888",

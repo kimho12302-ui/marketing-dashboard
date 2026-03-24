@@ -113,11 +113,10 @@ export async function POST(request: NextRequest) {
       const row = {
         month: data.date,
         brand: data.brand,
-        channel: "misc",
+        channel: data.category || "misc",
         category: "misc_cost",
         metric: data.description,
         value: data.amount,
-        note: JSON.stringify({ category: data.category, description: data.description, note: data.note }),
       };
       if (existing && existing.length > 0 && forceOverride) {
         const { error } = await supabase.from("manual_monthly").update(row).eq("id", existing[0].id);

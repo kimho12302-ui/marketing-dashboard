@@ -16,15 +16,20 @@ import {
 import { useEvents, EventBadges } from "@/components/event-markers";
 
 const CHANNEL_COLORS: Record<string, string> = {
-  meta: "#3b82f6",
+  meta: "#8b5cf6",
   naver_search: "#22c55e",
   naver_shopping: "#10b981",
-  google_search: "#ef4444",
+  google_search: "#eab308",
+  google_ads: "#eab308",
   "ga4_Performance Max": "#eab308",
-  "ga4_Search": "#ef4444",
-  coupang: "#f97316",
+  "ga4_Search": "#eab308",
+  coupang: "#ef4444",
+  coupang_ads: "#f97316",
   gdn: "#f43f5e",
   gfa: "#14b8a6",
+  smartstore: "#22c55e",
+  cafe24: "#3b82f6",
+  ably: "#a78bfa",
 };
 const FALLBACK_COLORS = ["#6366f1", "#f97316", "#22c55e", "#eab308", "#ec4899", "#8b5cf6", "#14b8a6", "#f43f5e"];
 

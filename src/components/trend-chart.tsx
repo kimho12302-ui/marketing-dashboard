@@ -20,10 +20,10 @@ import { useChartTheme } from "@/hooks/use-chart-theme";
 import type { TrendDataPoint } from "@/lib/types";
 
 const BRAND_COLORS: Record<string, string> = {
-  "너티": "#6366f1",
-  "아이언펫": "#22c55e",
-  "사입": "#f97316",
-  "밸런스랩": "#ec4899",
+  "너티": "#ef4444",
+  "아이언펫": "#f97316",
+  "사입": "#38bdf8",
+  "밸런스랩": "#3b82f6",
 };
 
 const BRAND_KEYS = ["너티", "아이언펫", "사입", "밸런스랩"];
