@@ -298,11 +298,7 @@ export default function OverviewPage() {
       const hasCogs = (kpi.cogs || 0) > 0;
       const costBreakdown = [
         { label: "매출", value: kpi.revenue, color: "text-green-400", icon: "💰" },
-        { label: "제품원가 (COGS)", value: kpi.cogs || 0, color: "text-orange-400", icon: "📦", sub: [
-          { label: "판매원가", value: (kpi.cogs || 0) - (kpi.manufacturing || 0) - (kpi.productShipping || 0) },
-          { label: "제작원가", value: kpi.manufacturing || 0 },
-          { label: "제품 배송비", value: kpi.productShipping || 0 },
-        ]},
+        { label: "제작원가 (COGS)", value: kpi.cogs || 0, color: "text-orange-400", icon: "📦" },
         { label: "광고비", value: kpi.adSpend - (kpi.miscCost || 0), color: "text-red-400", icon: "📢" },
         { label: "건별 마케팅비", value: kpi.miscCost || 0, color: "text-pink-400", icon: "🧾" },
       ];
@@ -323,9 +319,9 @@ export default function OverviewPage() {
                         {i === 0 ? "+" : "-"}₩{formatCompact(item.value)}
                       </span>
                     </div>
-                    {item.sub && item.value > 0 && (
+                    {"sub" in item && (item as any).sub && item.value > 0 && (
                       <div className="ml-6 space-y-0.5 mt-0.5">
-                        {item.sub.map((s, j) => (
+                        {(item as any).sub.map((s: any, j: number) => (
                           <div key={j} className="flex justify-between text-xs text-gray-400 dark:text-zinc-500 px-2">
                             <span>└ {s.label}</span>
                             <span>₩{formatCompact(s.value)}</span>

@@ -96,8 +96,8 @@ export async function GET(request: NextRequest) {
       const costs = costMap.get(key);
       if (costs) {
         const qty = Number(ps.quantity || 0);
-        // COGS = cost_price only (manufacturing_cost and shipping_cost are reference only)
-        totalCOGS += costs.cost_price * qty;
+        // COGS = manufacturing_cost (실제 원가). cost_price = 판매가(소비자가), shipping_cost = 배송비
+        totalCOGS += costs.manufacturing_cost * qty;
         totalManufacturing += costs.manufacturing_cost * qty;
         totalShipping += costs.shipping_cost * qty;
         matchedProducts++;

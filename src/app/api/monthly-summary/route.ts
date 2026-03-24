@@ -35,7 +35,8 @@ export async function GET(request: NextRequest) {
     const { data: productCostsData } = await supabase.from("product_costs").select("product,brand,cost_price,manufacturing_cost,shipping_cost");
     const costMap = new Map<string, number>();
     for (const pc of productCostsData || []) {
-      costMap.set(`${pc.product}__${pc.brand}`, Number(pc.cost_price || 0) + Number(pc.manufacturing_cost || 0) + Number(pc.shipping_cost || 0));
+      // manufacturing_cost = 실제 원가 (cost_price는 판매가)
+      costMap.set(`${pc.product}__${pc.brand}`, Number(pc.manufacturing_cost || 0));
     }
 
     // Fetch product_sales for COGS matching
