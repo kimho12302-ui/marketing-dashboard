@@ -13,6 +13,20 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   AreaChart, Area, Legend, Cell, LineChart, Line, ReferenceLine,
 } from "recharts";
+
+function VideoPlayer({ videoId, poster }: { videoId: string; poster: string }) {
+  const [src, setSrc] = useState("");
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    fetch(`/api/video-source?video_id=${videoId}`)
+      .then(r => r.json())
+      .then(d => { setSrc(d.source || ""); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [videoId]);
+  if (loading) return <div className="w-80 h-48 flex items-center justify-center bg-black/10 rounded-lg"><p className="text-sm text-gray-400">영상 로딩 중...</p></div>;
+  if (!src) return <div className="text-center"><p className="text-sm text-gray-400 mb-2">영상 직접 재생 불가</p>{/* eslint-disable-next-line @next/next/no-img-element */}<img src={poster} alt="" className="max-w-md max-h-80 rounded-lg object-contain" /></div>;
+  return <video src={src} poster={poster} controls playsInline className="max-w-lg max-h-96 rounded-lg" />;
+}
 import { useEvents, EventBadges } from "@/components/event-markers";
 
 const CHANNEL_COLORS: Record<string, string> = {
@@ -462,15 +476,20 @@ export default function AdsPage() {
                             <td className="py-2 px-2 max-w-[200px]">
                               <div className="flex items-center gap-2">
                                 {(cr.thumbnail_url || cr.image_url) && (
-                                  <div className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-zinc-700 relative group cursor-pointer"
+                                  <div className="flex-shrink-0 w-20 h-20 rounded-lg overflow-visible bg-gray-200 dark:bg-zinc-700 relative group cursor-pointer"
                                     onClick={(e) => { e.stopPropagation(); setPreviewCreative(previewCreative === cr.id ? null : cr.id); }}>
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={cr.thumbnail_url || cr.image_url} alt="" className="w-full h-full object-cover" />
+                                    <img src={cr.thumbnail_url || cr.image_url} alt="" className="w-full h-full object-cover rounded-lg" />
                                     {cr.video_id && (
-                                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-colors">
+                                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-colors rounded-lg">
                                         <span className="text-white text-lg">▶</span>
                                       </div>
                                     )}
+                                    {/* Hover 큰 프리뷰 */}
+                                    <div className="hidden group-hover:block absolute z-50 left-full ml-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img src={cr.image_url || cr.thumbnail_url} alt="" className="w-72 max-h-72 object-contain rounded-xl shadow-2xl border-2 border-white dark:border-zinc-600" />
+                                    </div>
                                   </div>
                                 )}
                                 <div className="min-w-0">
@@ -500,13 +519,7 @@ export default function AdsPage() {
                               <td colSpan={11} className="p-4 bg-gray-50 dark:bg-zinc-800/30">
                                 <div className="flex justify-center">
                                   {cr.video_id ? (
-                                    <video
-                                      src={`https://video.facebook.com/v/${cr.video_id}`}
-                                      poster={cr.thumbnail_url || cr.image_url}
-                                      controls
-                                      className="max-w-md max-h-80 rounded-lg"
-                                      playsInline
-                                    />
+                                    <VideoPlayer videoId={cr.video_id} poster={cr.thumbnail_url || cr.image_url} />
                                   ) : (cr.image_url || cr.thumbnail_url) ? (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img src={cr.image_url || cr.thumbnail_url} alt={cr.name} className="max-w-md max-h-80 rounded-lg object-contain" />
