@@ -23,12 +23,20 @@ function getGroupKey(dateStr: string, period: string): string {
 }
 
 // Nutty lineup classification
+// 시트 F열 기반 제품→라인업 매핑
+const NUTTY_LINEUP_MAP: Record<string, string> = {
+  "냠 단호박": "사운드", "냠 단호박_낱개": "사운드", "바삭 닭가슴살": "사운드", "바삭! 닭가슴살 * 3개": "사운드",
+  "사운드시리즈 냠+바삭": "사운드", "사운드시리즈 냠1+바삭2": "사운드", "사운드시리즈 냠2+바삭1": "사운드", "사운드시리즈 냠2+바삭2": "사운드",
+  "굿모닝퓨레": "하루루틴", "스트레스제로껌": "하루루틴", "스트레스제로껌 2개": "하루루틴", "스트레스제로껌 3개": "하루루틴", "스트레스제로껌 4개": "하루루틴",
+  "에너젯바": "하루루틴", "하루루틴시리즈 3종": "하루루틴",
+  "설날 선물세트": "기타", "크리스마스 선물세트": "기타",
+};
+
 function classifyNuttyLineup(product: string): string {
-  // 하루루틴 라인업: 스트레스제로, 에너젯, 굿모닝, 퓨레, 하루루틴, 바삭, 버디, 통째로, 멀티, 그루밍
-  if (product.includes("스트레스") || product.includes("에너젯") || product.includes("에너겟") || product.includes("굿모닝") || product.includes("퓨레") || product.includes("하루루틴") || product.includes("바삭") || product.includes("버디") || product.includes("통째로") || product.includes("멀티") || product.includes("그루밍")) return "하루루틴";
-  // 사운드 라인업: 사운드, 냠
-  if (product.includes("사운드") || product.includes("냠")) return "사운드";
-  // 기타: 선물세트 등
+  if (NUTTY_LINEUP_MAP[product]) return NUTTY_LINEUP_MAP[product];
+  // fallback: keyword matching
+  if (product.includes("스트레스") || product.includes("에너젯") || product.includes("에너겟") || product.includes("굿모닝") || product.includes("퓨레") || product.includes("하루루틴")) return "하루루틴";
+  if (product.includes("사운드") || product.includes("냠") || product.includes("바삭")) return "사운드";
   return "기타";
 }
 
