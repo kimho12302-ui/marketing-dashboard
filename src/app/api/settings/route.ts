@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { appendToSheet, readFromSheet, writeToSheet } from "@/lib/google-sheets";
 
 // GET: Fetch settings (product costs, manual costs)
 export async function GET(request: NextRequest) {
@@ -125,6 +126,13 @@ export async function POST(request: NextRequest) {
         const { error } = await supabase.from("manual_monthly").insert(row);
         if (error) throw error;
       }
+      // 시트 동시 작성: 건별비용 탭에 append
+      try {
+        const brandLabel: Record<string, string> = { nutty: "너티", ironpet: "아이언펫", saip: "사입", balancelab: "밸런스랩" };
+        await appendToSheet("건별비용!A:F", [[
+          data.date, brandLabel[data.brand] || data.brand, data.category || "", data.description, data.amount, data.note || "",
+        ]]);
+      } catch (sheetErr) { console.error("Sheet write error (misc_cost):", sheetErr); }
       return NextResponse.json({ ok: true });
     }
 
@@ -173,6 +181,27 @@ export async function POST(request: NextRequest) {
       };
       const { error } = await supabase.from("daily_funnel").upsert(row, { onConflict: "date,brand" });
       if (error) throw error;
+
+      // 시트 동시 작성: Funnel 탭
+      try {
+        // Funnel 탭 열 매핑: X=세션수, Y=체류시간, Z=장바구니 (카페24 기준)
+        // 날짜 행 찾기
+        const dateLabel = `${parseInt(data.date.slice(5, 7))}월 ${parseInt(data.date.slice(8, 10))}일`;
+        const funnelData = await readFromSheet("Funnel!A:A");
+        if (funnelData.ok && funnelData.values) {
+          const rowIdx = funnelData.values.findIndex(r => r[0]?.toString().includes(dateLabel));
+          if (rowIdx >= 0) {
+            const sheetRow = rowIdx + 1; // 1-indexed
+            if (type === "cafe24_funnel") {
+              // X=세션, Y=체류시간, Z=장바구니 (col 24, 25, 26)
+              await writeToSheet(`Funnel!X${sheetRow}:Z${sheetRow}`, [[
+                Number(data.sessions || 0), Number(data.avg_duration || 0), Number(data.cart_adds || 0),
+              ]]);
+            }
+          }
+        }
+      } catch (sheetErr) { console.error("Sheet write error (funnel):", sheetErr); }
+
       return NextResponse.json({ ok: true, message: `${row.brand} 퍼널 저장 완료 (${data.date})` });
     }
 
@@ -213,6 +242,37 @@ export async function POST(request: NextRequest) {
       }
       const { error } = await supabase.from("daily_ad_spend").upsert(data, { onConflict: "date,brand,channel" });
       if (error) throw error;
+
+      // 시트 동시 작성: Paid 탭 (브랜드별)
+      try {
+        const paidTabMap: Record<string, string> = {
+          nutty: "[N]Paid", ironpet: "[I]Paid", saip: "[사입]Paid",
+        };
+        const paidTab = paidTabMap[data.brand];
+        // 채널→열 매핑 (COST 열): 검색=G(7), 쇼핑=L(12), 메타=R(18), GFA=AD(30), Google=AK(37), GDN=AS(45), 쿠팡=BA(53)
+        const channelColMap: Record<string, string> = {
+          naver_search: "G", naver_shopping: "L", meta: "R", gfa: "AD", google_ads: "AK", google_pmax: "AS", coupang_ads: "BA",
+        };
+        const col = channelColMap[data.channel];
+        if (paidTab && col) {
+          const dateLabel = `${parseInt(data.date.slice(5, 7))}월 ${parseInt(data.date.slice(8, 10))}일`;
+          const paidData = await readFromSheet(`${paidTab}!A:A`);
+          if (paidData.ok && paidData.values) {
+            const rowIdx = paidData.values.findIndex(r => r[0]?.toString().includes(dateLabel));
+            if (rowIdx >= 0) {
+              const sheetRow = rowIdx + 1;
+              await writeToSheet(`${paidTab}!${col}${sheetRow}`, [[data.spend]]);
+              // imp + clicks if available
+              if (data.impressions) {
+                const nextCol = String.fromCharCode(col.charCodeAt(col.length - 1) + 1);
+                const colPrefix = col.length > 1 ? col.slice(0, -1) : "";
+                await writeToSheet(`${paidTab}!${colPrefix}${nextCol}${sheetRow}`, [[data.impressions]]);
+              }
+            }
+          }
+        }
+      } catch (sheetErr) { console.error("Sheet write error (ad_spend):", sheetErr); }
+
       return NextResponse.json({ ok: true });
     }
 
