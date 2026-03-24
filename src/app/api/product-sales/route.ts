@@ -2,14 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import type { Brand } from "@/lib/types";
 
-// 시트 F열 기반 제품→라인업 매핑 (source of truth)
-const NUTTY_LINEUP_MAP: Record<string, string> = {
-  "냠 단호박": "사운드", "냠 단호박_낱개": "사운드", "바삭 닭가슴살": "사운드", "바삭! 닭가슴살 * 3개": "사운드",
-  "사운드시리즈 냠+바삭": "사운드", "사운드시리즈 냠1+바삭2": "사운드", "사운드시리즈 냠2+바삭1": "사운드", "사운드시리즈 냠2+바삭2": "사운드",
-  "굿모닝퓨레": "하루루틴", "스트레스제로껌": "하루루틴", "스트레스제로껌 2개": "하루루틴", "스트레스제로껌 3개": "하루루틴", "스트레스제로껌 4개": "하루루틴",
-  "에너젯바": "하루루틴", "하루루틴시리즈 3종": "하루루틴",
-  "설날 선물세트": "기타", "크리스마스 선물세트": "기타",
-};
 
 export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams;
@@ -114,22 +106,17 @@ export async function GET(request: NextRequest) {
     let breakdownPie: { name: string; value: number }[] = [];
     let breakdownTitle = "카테고리별 매출";
 
-    if (brand === "nutty") {
-      // Lineup: extract from product name patterns
+    if (brand === "nutty" || brand === "saip") {
+      // DB lineup 컬럼 직접 사용 (source of truth = 시트 F열 → SQL UPDATE)
       const lineupMap = new Map<string, number>();
       for (const r of rows) {
-        // Extract lineup: first word or known patterns
-        const name = r.product;
-        // 시트 F열 기반 제품→라인업 매핑 (source of truth)
-        const lineup = NUTTY_LINEUP_MAP[name]
-          || (name.includes("스트레스") || name.includes("에너젯") || name.includes("에너겟") || name.includes("굿모닝") || name.includes("퓨레") || name.includes("하루루틴") ? "하루루틴"
-          : (name.includes("사운드") || name.includes("냠") || name.includes("바삭") ? "사운드" : "기타"));
+        const lineup = r.lineup || "기타";
         lineupMap.set(lineup, (lineupMap.get(lineup) || 0) + Number(r.revenue));
       }
       breakdownPie = Array.from(lineupMap.entries())
         .map(([name, value]) => ({ name, value }))
         .sort((a, b) => b.value - a.value);
-      breakdownTitle = "라인업별 매출";
+      breakdownTitle = brand === "nutty" ? "라인업별 매출" : "하위 브랜드별 매출";
     } else if (brand === "ironpet" || brand === "balancelab") {
       // Product-level
       const prodBreakdown = new Map<string, number>();
@@ -142,22 +129,6 @@ export async function GET(request: NextRequest) {
         .sort((a, b) => b.value - a.value)
         .slice(0, 10);
       breakdownTitle = "제품별 매출";
-    } else if (brand === "saip") {
-      // Saip sub-brand classification
-      const subMap = new Map<string, number>();
-      for (const r of rows) {
-        const p = r.product;
-        let sub = "기타";
-        if (p.includes("고네이티브")) sub = "고네이티브";
-        else if (p.includes("테라카니스")) sub = "테라카니스";
-        else if (["마그네","오메가","바나","베가","프로키온","카놉","판크레","후코이카"].some(kw => p.includes(kw))) sub = "닥터레이";
-        else if (["오션","퀴노아","펌킨","트로피컬","프라임","화이트","앤세스트럴","엔세스트럴","그레인프리","라이트","퍼피","스몰브리드"].some(kw => p.includes(kw))) sub = "파미나";
-        subMap.set(sub, (subMap.get(sub) || 0) + Number(r.revenue));
-      }
-      breakdownPie = Array.from(subMap.entries())
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value);
-      breakdownTitle = "하위 브랜드별 매출";
     } else {
       // all: category
       breakdownPie = categoryPie;
