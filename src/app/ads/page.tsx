@@ -85,6 +85,7 @@ export default function AdsPage() {
   const [cac, setCac] = useState<number>(0);
   const [creatives, setCreatives] = useState<MetaCreative[]>([]);
   const [selectedCreative, setSelectedCreative] = useState<string | null>(null);
+  const [previewCreative, setPreviewCreative] = useState<string | null>(null);
   const [creativeTrend, setCreativeTrend] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUtm, setShowUtm] = useState(false);
@@ -461,9 +462,15 @@ export default function AdsPage() {
                             <td className="py-2 px-2 max-w-[200px]">
                               <div className="flex items-center gap-2">
                                 {(cr.thumbnail_url || cr.image_url) && (
-                                  <div className="flex-shrink-0 w-8 h-8 rounded overflow-hidden bg-gray-200 dark:bg-zinc-700">
+                                  <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-gray-200 dark:bg-zinc-700 relative group cursor-pointer"
+                                    onClick={(e) => { e.stopPropagation(); setPreviewCreative(previewCreative === cr.id ? null : cr.id); }}>
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={cr.thumbnail_url || cr.image_url} alt="" className="w-full h-full object-cover" />
+                                    {cr.video_id && (
+                                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-colors">
+                                        <span className="text-white text-lg">▶</span>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                                 <div className="min-w-0">
@@ -488,6 +495,28 @@ export default function AdsPage() {
                             <td className={`py-2 px-2 text-right font-bold ${getPerformanceColor(cr.roas, { good: 3.0, mid: 2.0 })}`}>{cr.roas.toFixed(2)}x</td>
                             <td className="py-2 px-2 text-right">{cr.cac > 0 ? `₩${formatCompact(Math.round(cr.cac))}` : "-"}</td>
                           </tr>
+                          {previewCreative === cr.id && (
+                            <tr key={`${cr.id}-preview`}>
+                              <td colSpan={11} className="p-4 bg-gray-50 dark:bg-zinc-800/30">
+                                <div className="flex justify-center">
+                                  {cr.video_id ? (
+                                    <video
+                                      src={`https://video.facebook.com/v/${cr.video_id}`}
+                                      poster={cr.thumbnail_url || cr.image_url}
+                                      controls
+                                      className="max-w-md max-h-80 rounded-lg"
+                                      playsInline
+                                    />
+                                  ) : (cr.image_url || cr.thumbnail_url) ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={cr.image_url || cr.thumbnail_url} alt={cr.name} className="max-w-md max-h-80 rounded-lg object-contain" />
+                                  ) : (
+                                    <p className="text-sm text-gray-400">미리보기 없음</p>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
                           {selectedCreative === cr.id && creativeTrend.length > 0 && (
                             <tr key={`${cr.id}-trend`}>
                               <td colSpan={11} className="p-3 bg-gray-50 dark:bg-zinc-800/30">
