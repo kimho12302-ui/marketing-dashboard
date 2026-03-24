@@ -183,6 +183,19 @@ export default function SalesPage() {
     return Array.from(keys);
   }, [brandTrend]);
 
+  const salesSummary = useMemo(() => {
+    let totalRevenue = 0;
+    let totalCogs = 0;
+    for (const row of brandTrend) {
+      for (const key of Object.keys(row)) {
+        if (key === "date") continue;
+        if (key.endsWith("_cogs")) totalCogs += Number(row[key] || 0);
+        else totalRevenue += Number(row[key] || 0);
+      }
+    }
+    return { totalRevenue, totalCogs, grossProfit: totalRevenue - totalCogs, margin: totalRevenue > 0 ? ((totalRevenue - totalCogs) / totalRevenue * 100) : 0 };
+  }, [brandTrend]);
+
   const trendProducts = useMemo(() => {
     if (productTrend.length === 0) return [];
     const keys = new Set<string>();
@@ -214,6 +227,26 @@ export default function SalesPage() {
           </div>
         ) : (
           <>
+            {/* 매출/원가 요약 */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-4">
+                <p className="text-xs text-gray-500 dark:text-zinc-400">총 매출</p>
+                <p className="text-xl font-bold text-gray-800 dark:text-zinc-100">₩{formatCompact(salesSummary.totalRevenue)}</p>
+              </div>
+              <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-4">
+                <p className="text-xs text-gray-500 dark:text-zinc-400">총 원가 (COGS)</p>
+                <p className="text-xl font-bold text-orange-500">₩{formatCompact(salesSummary.totalCogs)}</p>
+              </div>
+              <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-4">
+                <p className="text-xs text-gray-500 dark:text-zinc-400">매출총이익</p>
+                <p className={`text-xl font-bold ${salesSummary.grossProfit >= 0 ? "text-green-500" : "text-red-500"}`}>₩{formatCompact(salesSummary.grossProfit)}</p>
+              </div>
+              <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-4">
+                <p className="text-xs text-gray-500 dark:text-zinc-400">매출총이익률</p>
+                <p className={`text-xl font-bold ${salesSummary.margin >= 30 ? "text-green-500" : salesSummary.margin >= 15 ? "text-yellow-500" : "text-red-500"}`}>{salesSummary.margin.toFixed(1)}%</p>
+              </div>
+            </div>
+
             <div className={`grid grid-cols-1 ${filters.brand === "all" ? "lg:grid-cols-3" : "lg:grid-cols-2"} gap-6`}>
               <Card>
                 <CardHeader><CardTitle>📦 채널별 매출</CardTitle></CardHeader>
