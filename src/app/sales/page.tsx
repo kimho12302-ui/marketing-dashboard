@@ -166,7 +166,18 @@ export default function SalesPage() {
     const keys = new Set<string>();
     for (const row of brandTrend) {
       for (const key of Object.keys(row)) {
-        if (key !== "date") keys.add(key);
+        if (key !== "date" && !key.endsWith("_cogs")) keys.add(key);
+      }
+    }
+    return Array.from(keys);
+  }, [brandTrend]);
+
+  const cogsBrands = useMemo(() => {
+    if (brandTrend.length === 0) return [];
+    const keys = new Set<string>();
+    for (const row of brandTrend) {
+      for (const key of Object.keys(row)) {
+        if (key.endsWith("_cogs") && brandTrend.some(r => (r[key] || 0) > 0)) keys.add(key);
       }
     }
     return Array.from(keys);
@@ -424,8 +435,15 @@ export default function SalesPage() {
                       <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} formatter={(v: any) => [`₩${formatCompact(v)}`, ""]} />
                       <Legend />
                       {trendBrands.map((b, i) => (
-                        <Line key={b} type="monotone" dataKey={b} name={b} stroke={BRAND_COLORS[b] || TREND_COLORS[i % TREND_COLORS.length]} dot={false} strokeWidth={2} />
+                        <Line key={b} type="monotone" dataKey={b} name={`${b} 매출`} stroke={BRAND_COLORS[b] || TREND_COLORS[i % TREND_COLORS.length]} dot={false} strokeWidth={2} />
                       ))}
+                      {cogsBrands.map((key) => {
+                        const brandName = key.replace("_cogs", "");
+                        return (
+                          <Line key={key} type="monotone" dataKey={key} name={`${brandName} 원가`}
+                            stroke={BRAND_COLORS[brandName] || "#9ca3af"} dot={false} strokeWidth={1.5} strokeDasharray="5 5" />
+                        );
+                      })}
                       {events.map((e) => (
                         <ReferenceLine key={e.id} x={e.date} stroke={e.color} strokeDasharray="4 4" strokeWidth={1.5}
                           label={{ value: `▼ ${e.title}`, position: "insideBottomLeft", fill: e.color || "#6366f1", fontSize: 10, fontWeight: 700, offset: 5 }} />

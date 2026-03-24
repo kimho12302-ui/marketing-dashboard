@@ -62,12 +62,23 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10);
 
-    // Brand trend by date
+    // Fetch product costs for COGS
+    const { data: costsData } = await supabase.from("product_costs").select("product,brand,manufacturing_cost");
+    const costMap = new Map<string, number>();
+    for (const pc of costsData || []) {
+      costMap.set(`${pc.product}__${pc.brand}`, Number(pc.manufacturing_cost || 0));
+    }
+
+    // Brand trend by date (revenue + COGS)
     const brandTrendMap = new Map<string, Record<string, number>>();
     for (const r of rows) {
       const existing = brandTrendMap.get(r.date) || {};
       const bl = brandLabels[r.brand] || r.brand;
       existing[bl] = (existing[bl] || 0) + Number(r.revenue);
+      // Accumulate COGS per date
+      const mfgCost = costMap.get(`${r.product}__${r.brand}`) || 0;
+      const qty = Number(r.quantity || 0);
+      existing[`${bl}_cogs`] = (existing[`${bl}_cogs`] || 0) + mfgCost * qty;
       brandTrendMap.set(r.date, existing);
     }
     const brandTrend = Array.from(brandTrendMap.entries())
