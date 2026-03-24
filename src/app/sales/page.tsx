@@ -115,7 +115,7 @@ export default function SalesPage() {
     if (channelAds.length === 0) return [];
     const CH_LABELS: Record<string, string> = {
       meta: "Meta", naver_search: "네이버검색", naver_shopping: "네이버쇼핑",
-      google_search: "구글검색", "ga4_Performance Max": "P-Max", "ga4_Search": "Google검색(GA4)",
+      google_search: "구글검색", google_pmax: "P-Max", "ga4_Performance Max": "P-Max", "ga4_Search": "Google검색(GA4)",
       coupang: "쿠팡광고", gfa: "GFA",
     };
     // Normalize: CAC index (0-100) and ROAS index (0-100)

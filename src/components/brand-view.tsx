@@ -19,13 +19,13 @@ const BRAND_LABELS: Record<string, string> = {
 };
 const CH_LABELS: Record<string, string> = {
   meta: "Meta", naver_search: "네이버검색", naver_shopping: "네이버쇼핑",
-  "ga4_Performance Max": "P-Max", coupang: "쿠팡", coupang_ads: "쿠팡광고",
+  google_pmax: "P-Max", "ga4_Performance Max": "P-Max", coupang: "쿠팡", coupang_ads: "쿠팡광고",
   smartstore: "스마트스토어", cafe24: "카페24", ably: "에이블리",
   petfriends: "펫프렌즈", pp: "PP", peepee: "피피",
 };
 const CHANNEL_COLORS: Record<string, string> = {
   meta: "#8b5cf6", naver_search: "#22c55e", naver_shopping: "#10b981",
-  google_ads: "#eab308", "ga4_Performance Max": "#eab308", "ga4_Search": "#eab308",
+  google_ads: "#eab308", google_pmax: "#eab308", "ga4_Performance Max": "#eab308", "ga4_Search": "#eab308",
   coupang: "#ef4444", coupang_ads: "#f97316",
   smartstore: "#22c55e", cafe24: "#3b82f6", ably: "#a78bfa",
   petfriends: "#f43f5e", pp: "#6366f1", peepee: "#a855f7",

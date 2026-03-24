@@ -50,13 +50,13 @@ const BRAND_LABELS: Record<string, string> = { nutty: "너티", ironpet: "아이
 const ALL_BRANDS = ["nutty", "ironpet", "saip", "balancelab"];
 const CH_LABELS: Record<string, string> = {
   meta: "메타", naver_search: "네이버검색", naver_shopping: "네이버쇼핑",
-  google_search: "구글검색", google_ads: "구글광고", "ga4_Performance Max": "P-Max", "ga4_Search": "구글검색(GA4)",
+  google_search: "구글검색", google_ads: "구글광고", google_pmax: "P-Max", "ga4_Performance Max": "P-Max", "ga4_Search": "구글검색(GA4)",
   coupang: "쿠팡광고", coupang_ads: "쿠팡광고", smartstore: "스마트스토어", cafe24: "카페24",
   gfa: "GFA", gdn: "GDN", influencer: "인플루언서",
 };
 const CHANNEL_COLORS: Record<string, string> = {
   meta: "#8b5cf6", naver_search: "#22c55e", naver_shopping: "#10b981",
-  google_search: "#eab308", google_ads: "#eab308", "ga4_Performance Max": "#eab308", "ga4_Search": "#eab308",
+  google_search: "#eab308", google_ads: "#eab308", google_pmax: "#eab308", "ga4_Performance Max": "#eab308", "ga4_Search": "#eab308",
   coupang: "#ef4444", coupang_ads: "#f97316", smartstore: "#22c55e", cafe24: "#3b82f6",
   gfa: "#14b8a6", ably: "#a78bfa",
 };

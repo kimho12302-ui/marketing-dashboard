@@ -8,6 +8,7 @@ const CHANNEL_LABELS: Record<string, string> = {
   naver_shopping: "네이버 쇼핑",
   google_search: "구글 검색",
   google_ads: "구글 광고",
+  google_pmax: "P-Max",
   "ga4_Performance Max": "퍼포먼스 맥스",
   "ga4_Search": "구글 검색(GA4)",
   coupang: "쿠팡",
