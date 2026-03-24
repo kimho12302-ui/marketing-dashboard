@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
       if (!productCode) { skipped++; continue; }
 
       const client = clientCol >= 0 ? String(row[clientCol] || "").trim() : "";
-      const channel = CHANNEL_MAP[client] || "other";
+      let channel = CHANNEL_MAP[client] || "other";
       const qty = Number(row[qtyCol] || 0);
       const unitPrice = Number(row[unitPriceCol] || 0);
       const supply = supplyCol >= 0 ? Number(row[supplyCol] || 0) : 0;
@@ -189,6 +189,12 @@ export async function POST(request: NextRequest) {
 
       const brand = detectBrand(productCode, productListMap);
       const plInfo = productListMap.get(productCode) || {};
+
+      // 밸런스랩 공동구매: channel = 공구_셀러명 (상품목록 D열)
+      if (brand === "balancelab" && plInfo.brand === "공동구매") {
+        const seller = plInfo.lineup || "기타";
+        channel = `공구_${seller}`;
+      }
 
       // Track unmatched product codes
       if (!productListMap.has(productCode)) {
