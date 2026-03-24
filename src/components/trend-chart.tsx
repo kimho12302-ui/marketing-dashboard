@@ -141,17 +141,7 @@ export default function TrendChart({ data, events = [] }: TrendChartProps) {
                 dot={{ r: 2, fill: "#a78bfa" }}
                 connectNulls
               />
-              <Line
-                yAxisId="left"
-                type="monotone"
-                dataKey="maRevenue"
-                name="매출 7일 평균"
-                stroke="#8b5cf6"
-                strokeWidth={2}
-                strokeDasharray="5 5"
-                dot={false}
-                connectNulls
-              />
+
               {events.map((e) => (
                 <ReferenceLine
                   key={e.id}
