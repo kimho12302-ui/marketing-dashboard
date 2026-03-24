@@ -127,8 +127,8 @@ export default function TrendChart({ data, events = [] }: TrendChartProps) {
                 type="monotone"
                 dataKey="adSpend"
                 name="광고비"
-                stroke="#ef4444"
-                strokeWidth={2}
+                stroke="#f59e0b"
+                strokeWidth={2.5}
                 dot={false}
               />
               <Line

@@ -142,8 +142,24 @@ export async function GET(request: NextRequest) {
         .sort((a, b) => b.value - a.value)
         .slice(0, 10);
       breakdownTitle = "제품별 매출";
+    } else if (brand === "saip") {
+      // Saip sub-brand classification
+      const subMap = new Map<string, number>();
+      for (const r of rows) {
+        const p = r.product;
+        let sub = "기타";
+        if (p.includes("고네이티브")) sub = "고네이티브";
+        else if (p.includes("테라카니스")) sub = "테라카니스";
+        else if (["마그네","오메가","바나","베가","프로키온","카놉","판크레","후코이카"].some(kw => p.includes(kw))) sub = "닥터레이";
+        else if (["오션","퀴노아","펌킨","트로피컬","프라임","화이트","앤세스트럴","엔세스트럴","그레인프리","라이트","퍼피","스몰브리드"].some(kw => p.includes(kw))) sub = "파미나";
+        subMap.set(sub, (subMap.get(sub) || 0) + Number(r.revenue));
+      }
+      breakdownPie = Array.from(subMap.entries())
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+      breakdownTitle = "하위 브랜드별 매출";
     } else {
-      // all / saip: category
+      // all: category
       breakdownPie = categoryPie;
       breakdownTitle = "카테고리별 매출";
     }

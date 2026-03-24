@@ -462,7 +462,7 @@ export default function AdsPage() {
                             <td className="py-2 px-2 max-w-[200px]">
                               <div className="flex items-center gap-2">
                                 {(cr.thumbnail_url || cr.image_url) && (
-                                  <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-gray-200 dark:bg-zinc-700 relative group cursor-pointer"
+                                  <div className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-zinc-700 relative group cursor-pointer"
                                     onClick={(e) => { e.stopPropagation(); setPreviewCreative(previewCreative === cr.id ? null : cr.id); }}>
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={cr.thumbnail_url || cr.image_url} alt="" className="w-full h-full object-cover" />
