@@ -377,8 +377,8 @@ export default function AdsPage() {
               </CardContent>
             </Card>
 
-            {/* Meta 크리에이티브 — 데이터 없어서 숨김 */}
-            {false && <Card>
+            {/* Meta 크리에이티브 성과 */}
+            <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>🎨 Meta 크리에이티브 성과 (퍼널별)</CardTitle>
@@ -516,7 +516,7 @@ export default function AdsPage() {
                   </>
               )}
               </CardContent>
-            </Card>}
+            </Card>
 
             {/* UTM 유입 분석 — 접기 */}
             {utmData.length > 0 && (

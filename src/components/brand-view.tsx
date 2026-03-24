@@ -32,7 +32,7 @@ const CHANNEL_COLORS: Record<string, string> = {
   gfa: "#14b8a6",
 };
 const LINEUP_COLORS: Record<string, string> = {
-  "사운드": "#6366f1", "하루루틴": "#22c55e", "선물세트": "#f97316", "기타": "#888",
+  "스트레스제로": "#ef4444", "사운드": "#6366f1", "그외": "#9ca3af",
 };
 const SUB_BRAND_COLORS: Record<string, string> = {
   "파미나": "#6366f1", "닥터레이": "#22c55e", "고네이티브": "#f97316", "테라카니스": "#ec4899", "기타": "#888",
@@ -435,20 +435,31 @@ function SaipSection({ data, chartTheme }: { data: BrandViewData; chartTheme: Re
       {subBrandRevenue.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
-            <CardHeader><CardTitle>🏷️ 하위 브랜드별 매출</CardTitle></CardHeader>
+            <CardHeader><CardTitle>🏷️ 하위 브랜드별 매출 비중</CardTitle></CardHeader>
             <CardContent>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={subBrandRevenue.map(s => ({ name: s.subBrand, revenue: s.revenue }))} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
-                    <XAxis type="number" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={v => formatCompact(v)} />
-                    <YAxis type="category" dataKey="name" width={80} tick={{ fill: chartTheme.labelColor, fontSize: 11 }} />
-                    <Tooltip contentStyle={chartTheme.tooltipStyle} formatter={(v: any) => [`₩${formatCompact(v)}`, "매출"]} />
-                    <Bar dataKey="revenue" radius={[0, 6, 6, 0]}>
+                  <PieChart>
+                    <Pie data={subBrandRevenue.map(s => ({ name: s.subBrand, value: s.revenue }))}
+                      dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} innerRadius={35}
+                      label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                      labelLine={{ stroke: chartTheme.isDark ? "#555" : "#9ca3af" }}>
                       {subBrandRevenue.map((s, i) => <Cell key={i} fill={SUB_BRAND_COLORS[s.subBrand] || PALETTE[i % PALETTE.length]} />)}
-                    </Bar>
-                  </BarChart>
+                    </Pie>
+                    <Tooltip contentStyle={chartTheme.tooltipStyle} formatter={(v: any) => [`₩${formatCompact(v)}`, "매출"]} />
+                  </PieChart>
                 </ResponsiveContainer>
+              </div>
+              <div className="space-y-1 mt-2">
+                {subBrandRevenue.map((s, i) => (
+                  <div key={s.subBrand} className="flex justify-between text-xs text-gray-500 dark:text-zinc-400">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: SUB_BRAND_COLORS[s.subBrand] || PALETTE[i % PALETTE.length] }} />
+                      {s.subBrand}
+                    </span>
+                    <span>₩{formatCompact(s.revenue)}</span>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
