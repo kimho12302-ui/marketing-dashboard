@@ -32,7 +32,7 @@ const CHANNEL_COLORS: Record<string, string> = {
   gfa: "#14b8a6",
 };
 const LINEUP_COLORS: Record<string, string> = {
-  "스트레스제로": "#ef4444", "사운드": "#6366f1", "그외": "#9ca3af",
+  "하루루틴": "#ef4444", "사운드": "#6366f1", "기타": "#9ca3af",
 };
 const SUB_BRAND_COLORS: Record<string, string> = {
   "파미나": "#6366f1", "닥터레이": "#22c55e", "고네이티브": "#f97316", "테라카니스": "#ec4899", "기타": "#888",

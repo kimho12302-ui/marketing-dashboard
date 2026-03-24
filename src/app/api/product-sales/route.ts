@@ -112,15 +112,11 @@ export async function GET(request: NextRequest) {
         // Extract lineup: first word or known patterns
         const name = r.product;
         let lineup = "기타";
-        if (name.includes("스트레스") || name.includes("에너젯") || name.includes("에너겟") || name.includes("굿모닝") || name.includes("퓨레")) lineup = "스트레스제로";
+        // 하루루틴 라인업: 스트레스제로, 에너젯, 굿모닝, 퓨레, 하루루틴 등
+        if (name.includes("스트레스") || name.includes("에너젯") || name.includes("에너겟") || name.includes("굿모닝") || name.includes("퓨레") || name.includes("하루루틴") || name.includes("바삭") || name.includes("버디") || name.includes("통째로") || name.includes("멀티") || name.includes("그루밍")) lineup = "하루루틴";
+        // 사운드 라인업: 사운드, 냠
         else if (name.includes("사운드") || name.includes("냠")) lineup = "사운드";
-        else if (name.includes("하루루틴")) lineup = "하루루틴";
-        else if (name.includes("바삭")) lineup = "바삭바삭";
-        else if (name.includes("버디")) lineup = "버디";
-        else if (name.includes("통째로")) lineup = "통째로";
-        else if (name.includes("멀티")) lineup = "멀티플러스";
-        else if (name.includes("그루밍")) lineup = "그루밍";
-        // 선물세트/기타 → "기타" (fallback, no product name leak)
+        // 나머지 → 기타
         lineupMap.set(lineup, (lineupMap.get(lineup) || 0) + Number(r.revenue));
       }
       breakdownPie = Array.from(lineupMap.entries())
