@@ -59,7 +59,7 @@ interface BrandViewData {
   // balancelab
   selfRevenue?: number;
   gongguRevenue?: number;
-  gongguSales?: { seller: string; revenue: number; orders: number }[];
+  gongguSales?: { seller: string; revenue: number; orders: number; quantity: number }[];
   selfGongguTrend?: { date: string; 자체판매: number; 공동구매: number }[];
   optionBreakdown?: { option: string; count: number; revenue: number }[];
   // saip
@@ -357,7 +357,7 @@ function BalancelabSection({ data, chartTheme }: { data: BrandViewData; chartThe
                       <span className="text-sm text-gray-700 dark:text-zinc-300">{g.seller}</span>
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-medium">₩{formatCompact(g.revenue)}</span>
-                        <span className="text-[10px] text-gray-400">{g.orders}건</span>
+                        <span className="text-[10px] text-gray-400">{g.orders}건 {g.quantity}개</span>
                       </div>
                     </div>
                     <div className="h-2 bg-gray-100 dark:bg-zinc-800 rounded-full overflow-hidden">

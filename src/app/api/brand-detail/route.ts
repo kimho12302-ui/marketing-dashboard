@@ -241,14 +241,15 @@ export async function GET(request: NextRequest) {
       // Self vs gonggu
       let selfRevenue = 0;
       let gongguRevenue = 0;
-      const gongguMap = new Map<string, { revenue: number; orders: number }>();
+      const gongguMap = new Map<string, { revenue: number; orders: number; quantity: number }>();
 
       for (const row of sales || []) {
         if (isGongguChannel(row.channel)) {
           const seller = row.channel.startsWith("공구_") ? row.channel.replace("공구_", "") : row.channel;
-          const existing = gongguMap.get(seller) || { revenue: 0, orders: 0 };
+          const existing = gongguMap.get(seller) || { revenue: 0, orders: 0, quantity: 0 };
           existing.revenue += Number(row.revenue);
-          existing.orders += Number(row.orders);
+          existing.orders += Number(row.quantity || row.orders || 0);
+          existing.quantity += Number(row.quantity || 0);
           gongguMap.set(seller, existing);
           gongguRevenue += Number(row.revenue);
         } else {
