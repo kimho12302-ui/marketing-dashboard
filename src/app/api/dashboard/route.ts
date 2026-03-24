@@ -315,17 +315,17 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.revenue - a.revenue);
 
     // Fetch targets for current month
-    const currentMonth = to.slice(0, 7) + "-01";
+    const currentMonth = to.slice(0, 7);
     const { data: targetData } = await supabase
       .from("manual_monthly")
-      .select("note")
+      .select("metric,value")
       .eq("category", "target")
-      .eq("month", currentMonth)
-      .eq("brand", brand)
-      .limit(1);
-    let targets = {};
-    if (targetData && targetData.length > 0) {
-      try { targets = JSON.parse(targetData[0].note || "{}"); } catch {}
+      .like("month", `${currentMonth}%`)
+      .eq("brand", brand);
+    const targets: Record<string, number> = {};
+    for (const row of targetData || []) {
+      const key = row.metric.replace("target_", "");
+      targets[key] = Number(row.value || 0);
     }
 
     // 공동구매(공구) 데이터 집계 (balancelab brand)
