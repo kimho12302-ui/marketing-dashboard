@@ -69,7 +69,8 @@ export default function FunnelPage() {
   const cartStep = funnel.find(s => s.name === "장바구니");
   const cartVal = cartStep?.value || 0;
   const purchaseVal = purchaseStep?.value || 0;
-  const abandonRate = cartVal > 0 ? ((cartVal - purchaseVal) / cartVal) * 100 : 0;
+  const abandonRate = cartVal > 0 && cartVal >= purchaseVal ? ((cartVal - purchaseVal) / cartVal) * 100 : 0;
+  const isCartDataIncomplete = purchaseVal > cartVal && cartVal > 0;
   const prevCartStep = prevFunnel.find(s => s.name === "장바구니");
   const prevPurchaseStep = prevFunnel.find(s => s.name === "구매");
   const prevAbandonRate = (prevCartStep?.value || 0) > 0
@@ -106,12 +107,16 @@ export default function FunnelPage() {
                   </p>
                 </CardContent>
               </Card>
-              <Card className={abandonRate > 50 ? "border-red-500/30" : abandonRate > 35 ? "border-yellow-500/30" : "border-green-500/30"}>
+              <Card className={isCartDataIncomplete ? "border-gray-500/30" : abandonRate > 50 ? "border-red-500/30" : abandonRate > 35 ? "border-yellow-500/30" : "border-green-500/30"}>
                 <CardContent className="pt-4 text-center">
                   <p className="text-xs text-gray-500 dark:text-zinc-400">장바구니 이탈률</p>
-                  <p className={`text-2xl font-bold ${abandonRate > 50 ? "text-red-400" : abandonRate > 35 ? "text-yellow-400" : "text-green-400"}`}>
-                    {abandonRate.toFixed(1)}%
-                  </p>
+                  {isCartDataIncomplete ? (
+                    <p className="text-sm font-medium text-gray-400">카페24만 추적</p>
+                  ) : (
+                    <p className={`text-2xl font-bold ${abandonRate > 50 ? "text-red-400" : abandonRate > 35 ? "text-yellow-400" : "text-green-400"}`}>
+                      {abandonRate.toFixed(1)}%
+                    </p>
+                  )}
                 </CardContent>
               </Card>
               <Card>
