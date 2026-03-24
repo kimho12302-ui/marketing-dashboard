@@ -155,6 +155,30 @@ export default function SalesUpload() {
                     </div>
                   </div>
                 )}
+                {result.unmatchedProducts && result.unmatchedProducts.length > 0 && (
+                  <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-800 text-xs">
+                    <p className="font-medium text-yellow-700 dark:text-yellow-300 mb-1">⚠️ 미등록 품목코드 {result.totalUnmatched}개 (업로드는 완료됨):</p>
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="text-yellow-600 dark:text-yellow-400 border-b border-yellow-200 dark:border-yellow-800">
+                          <th className="pb-1 pr-2">품목코드</th>
+                          <th className="pb-1 pr-2">품목명</th>
+                          <th className="pb-1 text-right">건수</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {result.unmatchedProducts.map((p) => (
+                          <tr key={p.code} className="border-b border-yellow-100 dark:border-yellow-900/30">
+                            <td className="py-1 pr-2 font-mono">{p.code}</td>
+                            <td className="py-1 pr-2">{p.name}</td>
+                            <td className="py-1 text-right">{p.count}건</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="mt-1 text-yellow-600 dark:text-yellow-400">→ 상품 목록 탭에 등록하면 다음부터 정확하게 분류됩니다.</p>
+                  </div>
+                )}
               </div>
             )}
           </div>

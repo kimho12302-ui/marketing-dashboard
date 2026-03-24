@@ -216,18 +216,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Block upload if unmatched product codes exist
-    if (unmatchedCodes.size > 0) {
-      const unmatchedList = Array.from(unmatchedCodes.entries()).map(([code, info]) => ({
-        code, name: info.name, count: info.count,
-      }));
-      return NextResponse.json({
-        error: "미등록 품목코드가 있습니다. 상품 목록 탭에 먼저 등록해주세요.",
-        unmatchedProducts: unmatchedList,
-        totalUnmatched: unmatchedList.length,
-        totalRows: rows.length,
-      }, { status: 400 });
-    }
+    // Warn about unmatched product codes (but don't block)
+    const unmatchedList = unmatchedCodes.size > 0
+      ? Array.from(unmatchedCodes.entries()).map(([code, info]) => ({
+          code, name: info.name, count: info.count,
+        }))
+      : [];
 
     // Aggregate for product_sales (by date + channel + product)
     const prodAgg = new Map<string, any>();
@@ -463,6 +457,7 @@ export async function POST(request: NextRequest) {
       sheetAppended: dbResults.sheetAppended || 0,
       brandSummary,
       dates: rows.length > 0 ? { from: rows[0].date, to: rows[rows.length - 1].date } : null,
+      ...(unmatchedList.length > 0 ? { unmatchedProducts: unmatchedList, totalUnmatched: unmatchedList.length } : {}),
       ...dbResults,
     });
   } catch (error) {
