@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
+// Target metrics stored as individual rows in manual_monthly
+// category="target", metric="target_revenue", "target_adSpend", etc.
+
 // GET: Fetch targets for a brand and month
 export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams;
@@ -13,20 +16,21 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabase
     .from("manual_monthly")
-    .select("note")
+    .select("metric,value")
     .eq("category", "target")
     .eq("month", month)
-    .eq("brand", brand)
-    .limit(1);
+    .eq("brand", brand);
 
   if (error) {
     console.error("Targets GET error:", error);
     return NextResponse.json({ targets: {} });
   }
 
-  let targets = {};
-  if (data && data.length > 0) {
-    try { targets = JSON.parse(data[0].note || "{}"); } catch {}
+  const targets: Record<string, number> = {};
+  for (const row of data || []) {
+    // metric format: "target_revenue" -> key "revenue"
+    const key = row.metric.replace("target_", "");
+    targets[key] = Number(row.value || 0);
   }
 
   return NextResponse.json({ targets });
@@ -42,35 +46,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "brand, month, targets required" }, { status: 400 });
     }
 
-    // Upsert: check if exists, then update or insert
-    const { data: existing } = await supabase
+    // Delete existing targets for this brand+month
+    await supabase
       .from("manual_monthly")
-      .select("id")
+      .delete()
       .eq("category", "target")
       .eq("month", month)
-      .eq("brand", brand)
-      .limit(1);
+      .eq("brand", brand);
 
-    if (existing && existing.length > 0) {
+    // Insert each target as a separate row
+    const rows = Object.entries(targets)
+      .filter(([, v]) => Number(v) > 0)
+      .map(([key, value]) => ({
+        month,
+        brand,
+        channel: "total",
+        category: "target",
+        metric: `target_${key}`,
+        value: Number(value),
+      }));
+
+    if (rows.length > 0) {
       const { error } = await supabase
         .from("manual_monthly")
-        .update({
-          note: JSON.stringify(targets),
-          value: targets.revenue || 0,
-        })
-        .eq("id", existing[0].id);
-      if (error) throw error;
-    } else {
-      const { error } = await supabase
-        .from("manual_monthly")
-        .insert({
-          month,
-          brand,
-          category: "target",
-          metric: "monthly_target",
-          value: targets.revenue || 0,
-          note: JSON.stringify(targets),
-        });
+        .insert(rows);
       if (error) throw error;
     }
 
