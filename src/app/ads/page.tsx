@@ -93,6 +93,7 @@ export default function AdsPage() {
   const [crFilter, setCrFilter] = useState<"all" | "active" | "paused">("all");
   const [gmActualCogs, setGmActualCogs] = useState<number>(0);
   const [utmData, setUtmData] = useState<{ source: string; medium: string; sessions: number; users: number; new_users: number }[]>([]);
+  const [utmCampaigns, setUtmCampaigns] = useState<{ source: string; medium: string; campaign: string; sessions: number; users: number; new_users: number; conversions: number; revenue: number; bounce_rate: number; avg_duration: number }[]>([]);
   const CR_PER_PAGE = 20;
 
   const fetchData = useCallback(async () => {
@@ -125,7 +126,7 @@ export default function AdsPage() {
     // UTM data
     fetch(`/api/utm?from=${filters.from}&to=${filters.to}`)
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.data) setUtmData(d.data); })
+      .then(d => { if (d?.data) { setUtmData(d.data); if (d.campaigns) setUtmCampaigns(d.campaigns); } })
       .catch(() => {});
 
     // Creatives (slow — Meta API)
@@ -566,6 +567,55 @@ export default function AdsPage() {
                     </table>
                   </div>
                 </CardContent>}
+              </Card>
+            )}
+
+            {/* 캠페인별 성과 */}
+            {utmCampaigns.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>📊 캠페인별 유입 성과 (GA4)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-xs text-gray-500 dark:text-zinc-400 border-b border-gray-100 dark:border-zinc-800">
+                          <th className="pb-2 pr-3">캠페인</th>
+                          <th className="pb-2 pr-3">소스</th>
+                          <th className="pb-2 pr-3 text-right">세션</th>
+                          <th className="pb-2 pr-3 text-right">사용자</th>
+                          <th className="pb-2 pr-3 text-right">전환</th>
+                          <th className="pb-2 pr-3 text-right">매출</th>
+                          <th className="pb-2 pr-3 text-right">이탈률</th>
+                          <th className="pb-2 text-right">체류시간</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {utmCampaigns.map((c, i) => (
+                          <tr key={i} className="border-b border-gray-50 dark:border-zinc-800/50 hover:bg-gray-50 dark:hover:bg-zinc-800/30">
+                            <td className="py-2 pr-3">
+                              <span className="font-medium text-gray-800 dark:text-zinc-200 text-xs">{c.campaign.length > 30 ? c.campaign.slice(0, 30) + "…" : c.campaign}</span>
+                            </td>
+                            <td className="py-2 pr-3">
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400">{c.source}/{c.medium}</span>
+                            </td>
+                            <td className="py-2 pr-3 text-right font-medium">{c.sessions.toLocaleString()}</td>
+                            <td className="py-2 pr-3 text-right text-gray-500 dark:text-zinc-400">{c.users.toLocaleString()}</td>
+                            <td className="py-2 pr-3 text-right">
+                              <span className={c.conversions > 0 ? "text-green-600 dark:text-green-400 font-medium" : "text-gray-400"}>{c.conversions.toLocaleString()}</span>
+                            </td>
+                            <td className="py-2 pr-3 text-right text-gray-500 dark:text-zinc-400">{c.revenue > 0 ? `₩${(c.revenue / 10000).toFixed(1)}만` : "-"}</td>
+                            <td className="py-2 pr-3 text-right">
+                              <span className={c.bounce_rate > 70 ? "text-red-500" : c.bounce_rate > 50 ? "text-yellow-500" : "text-green-500"}>{c.bounce_rate}%</span>
+                            </td>
+                            <td className="py-2 text-right text-gray-500 dark:text-zinc-400">{c.avg_duration > 60 ? `${Math.floor(c.avg_duration / 60)}분 ${c.avg_duration % 60}초` : `${c.avg_duration}초`}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
               </Card>
             )}
           </>
