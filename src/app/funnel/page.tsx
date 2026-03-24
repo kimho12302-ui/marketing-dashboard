@@ -185,15 +185,17 @@ export default function FunnelPage() {
                           const pct = maxVal > 0 ? (step.value / maxVal) * 100 : 0;
                           const width = Math.max(pct, 12);
                           const prevStep = i > 0 ? funnelWithoutImpressions[i - 1] : null;
-                          const stepConvRate = prevStep && prevStep.value > 0 ? (step.value / prevStep.value * 100) : 100;
-                          const dropRate = 100 - stepConvRate;
+                          const rawConvRate = prevStep && prevStep.value > 0 ? (step.value / prevStep.value * 100) : 100;
+                          const stepConvRate = rawConvRate > 100 ? 100 : rawConvRate;
+                          const dropRate = rawConvRate > 100 ? 0 : 100 - stepConvRate;
+                          const isDataMismatch = prevStep && step.value > prevStep.value;
 
                           return (
                             <div key={step.name}>
                               {/* 이탈률 표시 (단계 사이) */}
                               {i > 0 && (
                                 <div className="flex items-center justify-center py-1">
-                                  <span className="text-[10px] text-red-400">▼ 이탈 {dropRate.toFixed(1)}% ({formatCompact((prevStep?.value || 0) - step.value)}명)</span>
+                                  <span className="text-[10px] text-red-400">{isDataMismatch ? "⚠️ 채널별 데이터 범위 차이" : `▼ 이탈 ${dropRate.toFixed(1)}% (${formatCompact((prevStep?.value || 0) - step.value)}명)`}</span>
                                 </div>
                               )}
                               <div className="flex items-center gap-3">
@@ -235,12 +237,17 @@ export default function FunnelPage() {
                     ];
                     return pairs.map((p) => {
                       const rate = p.fromVal > 0 ? (p.toVal / p.fromVal * 100) : 0;
+                      const isMismatch = p.toVal > p.fromVal && p.fromVal > 0;
                       return (
                         <div key={p.to} className="bg-gray-50 dark:bg-zinc-800/50 rounded-lg p-3">
                           <p className="text-[10px] text-gray-400 dark:text-zinc-500">{p.from} → {p.to}</p>
-                          <p className={`text-xl font-bold mt-1 ${rate >= 5 ? "text-green-400" : rate >= 2 ? "text-yellow-400" : "text-red-400"}`}>
-                            {rate.toFixed(2)}%
-                          </p>
+                          {isMismatch ? (
+                            <p className="text-sm font-medium text-gray-400 mt-1">데이터 범위 차이</p>
+                          ) : (
+                            <p className={`text-xl font-bold mt-1 ${rate >= 5 ? "text-green-400" : rate >= 2 ? "text-yellow-400" : "text-red-400"}`}>
+                              {rate.toFixed(2)}%
+                            </p>
+                          )}
                           <p className="text-[10px] text-gray-400 dark:text-zinc-500 mt-0.5">
                             {formatCompact(p.fromVal)} → {formatCompact(p.toVal)}
                           </p>
