@@ -521,17 +521,25 @@ export default function AdsPage() {
                             <tr key={`${cr.id}-trend`}>
                               <td colSpan={11} className="p-3 bg-gray-50 dark:bg-zinc-800/30">
                                 <p className="text-xs font-medium text-gray-500 dark:text-zinc-400 mb-2">📈 일별 성과 추이</p>
-                                <div className="h-40">
+                                <div className="h-48">
                                   <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={creativeTrend}>
+                                    <LineChart data={creativeTrend}>
                                       <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
                                       <XAxis dataKey="date" tick={{ fill: chartTheme.tickColor, fontSize: 10 }} tickFormatter={(v: string) => v.slice(5)} />
-                                      <YAxis yAxisId="spend" tick={{ fill: chartTheme.tickColor, fontSize: 10 }} tickFormatter={(v: number) => formatCompact(v)} />
-                                      <YAxis yAxisId="roas" orientation="right" tick={{ fill: "#22c55e", fontSize: 10 }} tickFormatter={(v: number) => `${v.toFixed(1)}x`} />
-                                      <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} formatter={(v: any, name: any) => [name === "ROAS" ? `${Number(v).toFixed(2)}x` : `₩${formatCompact(v)}`, name]} />
-                                      <Area yAxisId="spend" type="monotone" dataKey="spend" name="지출" fill="#6366f1" fillOpacity={0.2} stroke="#6366f1" strokeWidth={1.5} />
-                                      <Area yAxisId="spend" type="monotone" dataKey="revenue" name="매출" fill="#22c55e" fillOpacity={0.2} stroke="#22c55e" strokeWidth={1.5} />
-                                    </AreaChart>
+                                      <YAxis yAxisId="money" tick={{ fill: chartTheme.tickColor, fontSize: 10 }} tickFormatter={(v: number) => formatCompact(v)} />
+                                      <YAxis yAxisId="roas" orientation="right" tick={{ fill: "#a78bfa", fontSize: 10 }} tickFormatter={(v: number) => `${v.toFixed(1)}x`} domain={[0, "auto"]} />
+                                      <Tooltip contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle}
+                                        formatter={(v: any, name: any) => {
+                                          if (name === "ROAS") return [`${Number(v).toFixed(2)}x`, name];
+                                          if (name === "CPC") return [`₩${Math.round(Number(v)).toLocaleString()}`, name];
+                                          return [`₩${formatCompact(v)}`, name];
+                                        }} />
+                                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                                      <Line yAxisId="money" type="monotone" dataKey="spend" name="지출" stroke="#6366f1" strokeWidth={2} dot={false} />
+                                      <Line yAxisId="money" type="monotone" dataKey="revenue" name="매출" stroke="#22c55e" strokeWidth={2} dot={false} />
+                                      <Line yAxisId="money" type="monotone" dataKey="cpc" name="CPC" stroke="#f97316" strokeWidth={1.5} dot={false} strokeDasharray="4 4" />
+                                      <Line yAxisId="roas" type="monotone" dataKey="roas" name="ROAS" stroke="#a78bfa" strokeWidth={2} dot={false} />
+                                    </LineChart>
                                   </ResponsiveContainer>
                                 </div>
                                 <div className="flex gap-4 mt-2 text-[10px] text-gray-400">
