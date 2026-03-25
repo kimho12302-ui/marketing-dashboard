@@ -88,7 +88,7 @@ export default function OverviewPage() {
   const [selfSalesTotal, setSelfSalesTotal] = useState(0);
   const [gongguTargets, setGongguTargets] = useState<{ seller: string; target: number; note: string }[]>([]);
   const [brandAnomalies, setBrandAnomalies] = useState<{ brand: string; metric: string; change: number; current: number; previous: number }[]>([]);
-  const [brandProfit, setBrandProfit] = useState<{ brand: string; revenue: number; adSpend: number; cogs: number; profit: number; margin: number }[]>([]);
+  const [brandProfit, setBrandProfit] = useState<{ brand: string; revenue: number; orders: number; adSpend: number; cogs: number; profit: number; margin: number }[]>([]);
   const [lastFetched, setLastFetched] = useState<string>("");
 
   const fetchData = useCallback(async () => {
@@ -428,6 +428,34 @@ export default function OverviewPage() {
                 );
               })}
             </div>
+            {/* 브랜드별 CPA */}
+            {brandProfit.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-gray-200 dark:border-zinc-700">
+                <p className="text-xs text-gray-500 dark:text-zinc-400 mb-2">브랜드별 CPA (광고비 ÷ 주문수)</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {brandProfit.map((bp) => {
+                    const cpa = bp.orders > 0 ? bp.adSpend / bp.orders : 0;
+                    const brandLabel = BRAND_LABELS[bp.brand] || bp.brand;
+                    const brandColor = BRAND_COLORS[bp.brand] || "#6b7280";
+                    return (
+                      <div key={bp.brand} className="bg-gray-50 dark:bg-zinc-800/50 rounded-lg p-3">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: brandColor }} />
+                          <span className="text-xs font-medium text-gray-600 dark:text-zinc-300">{brandLabel}</span>
+                        </div>
+                        <p className="text-lg font-bold text-gray-900 dark:text-zinc-100">
+                          {cpa > 0 ? `₩${formatCompact(cpa)}` : "-"}
+                        </p>
+                        <div className="text-[10px] text-gray-400 dark:text-zinc-500 space-y-0.5">
+                          <p>광고비 ₩{formatCompact(bp.adSpend)}</p>
+                          <p>주문 {bp.orders.toLocaleString()}건</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       );

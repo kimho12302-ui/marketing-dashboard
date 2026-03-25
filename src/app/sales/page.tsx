@@ -59,6 +59,8 @@ export default function SalesPage() {
   const [selfSalesTotal, setSelfSalesTotal] = useState(0);
   const [channelAds, setChannelAds] = useState<{ channel: string; spend: number; conversions: number; roas: number }[]>([]);
   const [gongguTargets, setGongguTargets] = useState<{ seller: string; target: number; note: string }[]>([]);
+  const [profitData, setProfitData] = useState<{ revenue: number; cogs: number; adSpend: number; profit: number }>({ revenue: 0, cogs: 0, adSpend: 0, profit: 0 });
+  const [brandProfitData, setBrandProfitData] = useState<{ brand: string; revenue: number; cogs: number; adSpend: number; profit: number }[]>([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -66,9 +68,7 @@ export default function SalesPage() {
       const params = new URLSearchParams({ brand: filters.brand, from: filters.from, to: filters.to });
       const [res, dashRes, adsRes] = await Promise.all([
         fetch(`/api/product-sales?${params}`),
-        (filters.brand === "balancelab" || filters.brand === "all")
-          ? fetch(`/api/dashboard?brand=${filters.brand}&from=${filters.from}&to=${filters.to}`)
-          : Promise.resolve(null),
+        fetch(`/api/dashboard?brand=${filters.brand}&from=${filters.from}&to=${filters.to}`),
         fetch(`/api/ads?${params}`),
       ]);
       if (!res.ok) throw new Error("fetch failed");
@@ -90,6 +90,14 @@ export default function SalesPage() {
         setGongguSalesTotal(dashData.gongguSalesTotal || 0);
         setSelfSalesTotal(dashData.selfSalesTotal || 0);
         setGongguTargets(dashData.gongguTargets || []);
+        const kpi = dashData.kpi || {};
+        setProfitData({
+          revenue: kpi.revenue || 0,
+          cogs: kpi.cogs || 0,
+          adSpend: kpi.adSpend || 0,
+          profit: kpi.profit || 0,
+        });
+        setBrandProfitData(dashData.brandProfit || []);
       } else {
         setGongguSales([]);
         setGongguSalesTotal(0);
@@ -246,6 +254,56 @@ export default function SalesPage() {
                 <p className={`text-xl font-bold ${salesSummary.margin >= 30 ? "text-green-500" : salesSummary.margin >= 15 ? "text-yellow-500" : "text-red-500"}`}>{salesSummary.margin.toFixed(1)}%</p>
               </div>
             </div>
+
+            {/* 매출/원가/영업이익 누적막대그래프 */}
+            <Card>
+              <CardHeader><CardTitle>📊 매출 vs 원가 vs 영업이익</CardTitle></CardHeader>
+              <CardContent>
+                <div className="h-64">
+                  {(() => {
+                    const barData = filters.brand === "all" && brandProfitData.length > 0
+                      ? [
+                          ...brandProfitData.map(bp => ({
+                            name: ({ nutty: "너티", ironpet: "아이언펫", saip: "사입", balancelab: "밸런스랩" })[bp.brand] || bp.brand,
+                            매출: bp.revenue,
+                            원가: bp.cogs,
+                            광고비: bp.adSpend,
+                            영업이익: bp.profit,
+                          })),
+                          {
+                            name: "합계",
+                            매출: profitData.revenue,
+                            원가: profitData.cogs,
+                            광고비: profitData.adSpend,
+                            영업이익: profitData.profit,
+                          },
+                        ]
+                      : [{
+                          name: "합계",
+                          매출: profitData.revenue,
+                          원가: profitData.cogs,
+                          광고비: profitData.adSpend,
+                          영업이익: profitData.profit,
+                        }];
+                    return (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={barData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                          <XAxis dataKey="name" tick={{ fill: chartTheme.textColor, fontSize: 11 }} />
+                          <YAxis tick={{ fill: chartTheme.textColor, fontSize: 11 }} tickFormatter={(v: number) => formatCompact(v)} />
+                          <Tooltip formatter={(value: any) => [`₩${Number(value).toLocaleString()}`, ""]} contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} />
+                          <Legend />
+                          <Bar dataKey="매출" fill="#3b82f6" />
+                          <Bar dataKey="원가" fill="#f97316" />
+                          <Bar dataKey="광고비" fill="#ef4444" />
+                          <Bar dataKey="영업이익" fill="#22c55e" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    );
+                  })()}
+                </div>
+              </CardContent>
+            </Card>
 
             <div className={`grid grid-cols-1 ${filters.brand === "all" ? "lg:grid-cols-3" : "lg:grid-cols-2"} gap-6`}>
               <Card>

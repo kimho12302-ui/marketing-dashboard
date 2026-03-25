@@ -255,10 +255,11 @@ export async function GET(request: NextRequest) {
     }
     const brandProfit = ["nutty", "ironpet", "saip", "balancelab"].map(b => {
       const rev = brandMap.get(b)?.revenue || 0;
+      const orders = brandMap.get(b)?.orders || 0;
       const ad = (brandAdMap.get(b) || 0) + (brandMiscMap.get(b) || 0);
       const cogs = brandCogsMap.get(b) || 0;
       const profit = rev - ad - cogs;
-      return { brand: b, revenue: rev, adSpend: ad, cogs, profit, margin: rev > 0 ? (profit / rev * 100) : 0 };
+      return { brand: b, revenue: rev, orders, adSpend: ad, cogs, profit, margin: rev > 0 ? (profit / rev * 100) : 0 };
     });
 
     // Brand revenue trend by date
