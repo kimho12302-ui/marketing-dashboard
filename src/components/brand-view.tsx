@@ -209,6 +209,27 @@ export default function BrandView() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+            {/* 채널별 CPA */}
+            {kpi.orders > 0 && adByChannel.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-gray-200 dark:border-zinc-700">
+                <p className="text-xs text-gray-500 dark:text-zinc-400 mb-2">채널별 CPA (광고비 ÷ 총 주문 {kpi.orders.toLocaleString()}건)</p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {adByChannel.filter(c => c.spend > 0).map((c, i) => {
+                    const cpa = kpi.orders > 0 ? c.spend / kpi.orders : 0;
+                    return (
+                      <div key={c.channel} className="flex items-center justify-between bg-gray-50 dark:bg-zinc-800/50 rounded px-2 py-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: CHANNEL_COLORS[c.channel] || PALETTE[i % PALETTE.length] }} />
+                          <span className="text-xs text-gray-600 dark:text-zinc-300">{CH_LABELS[c.channel] || c.channel}</span>
+                        </div>
+                        <span className="text-xs font-bold text-gray-900 dark:text-zinc-100">₩{formatCompact(cpa)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-gray-400 dark:text-zinc-500 mt-1">총 CPA: ₩{formatCompact(kpi.adSpend / kpi.orders)}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </section>
