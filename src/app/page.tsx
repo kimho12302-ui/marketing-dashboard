@@ -353,6 +353,45 @@ export default function OverviewPage() {
                   ⚠️ 원가 데이터 부족 ({((kpi.matchedRate || 0) * 100).toFixed(0)}% 매칭) — 일부 제품의 원가가 누락되어 영업이익이 부정확할 수 있습니다.
                 </p>
               )}
+              {/* 브랜드별 영업이익 */}
+              {brandProfit.length > 0 && (
+                <div className="mt-4 pt-3 border-t border-gray-200 dark:border-zinc-700">
+                  <p className="text-xs text-gray-500 dark:text-zinc-400 mb-2">브랜드별 영업이익</p>
+                  <div className="space-y-2">
+                    {brandProfit.map((bp) => {
+                      const brandLabel = BRAND_LABELS[bp.brand] || bp.brand;
+                      const brandColor = BRAND_COLORS[bp.brand] || "#6b7280";
+                      const margin = bp.revenue > 0 ? (bp.profit / bp.revenue * 100) : 0;
+                      return (
+                        <div key={bp.brand} className="bg-gray-50 dark:bg-zinc-800/50 rounded p-2">
+                          <div className="flex justify-between items-center mb-1">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: brandColor }} />
+                              <span className="text-sm font-medium text-gray-700 dark:text-zinc-200">{brandLabel}</span>
+                            </div>
+                            <span className={`text-sm font-bold ${bp.profit >= 0 ? "text-green-400" : "text-red-400"}`}>
+                              ₩{formatCompact(bp.profit)}
+                              <span className="text-[10px] ml-1 text-gray-400">({margin.toFixed(0)}%)</span>
+                            </span>
+                          </div>
+                          <div className="flex gap-3 text-[10px] text-gray-400 dark:text-zinc-500">
+                            <span>매출 ₩{formatCompact(bp.revenue)}</span>
+                            <span>원가 ₩{formatCompact(bp.cogs)}</span>
+                            <span>광고비 ₩{formatCompact(bp.adSpend)}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {/* 합계 */}
+                    <div className="bg-gray-100 dark:bg-zinc-700/50 rounded p-2 flex justify-between items-center">
+                      <span className="text-sm font-bold text-gray-700 dark:text-zinc-200">합계</span>
+                      <span className={`text-sm font-bold ${(kpi.profit || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                        ₩{formatCompact(kpi.profit || 0)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
