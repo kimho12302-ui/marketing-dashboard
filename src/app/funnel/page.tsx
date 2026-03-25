@@ -30,6 +30,7 @@ export default function FunnelPage() {
   const [prevFunnel, setPrevFunnel] = useState<FunnelStep[]>([]);
   const [trend, setTrend] = useState<TrendPoint[]>([]);
   const [channelFunnel, setChannelFunnel] = useState<{ channel: string; sessions: number; cart_adds: number; purchases: number; repurchases: number; convRate: number }[]>([]);
+  const [repurchase, setRepurchase] = useState<{ value: number; rate: number }>({ value: 0, rate: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,6 +45,7 @@ export default function FunnelPage() {
       setFunnel(data.funnel || []);
       setTrend(data.trend || []);
       setChannelFunnel(data.channelFunnel || []);
+      setRepurchase(data.repurchase || { value: 0, rate: 0 });
 
       const fromDate = new Date(filters.from);
       const toDate = new Date(filters.to);
@@ -179,9 +181,9 @@ export default function FunnelPage() {
                         </div>
                       )}
 
-                      {/* 깔때기: 유입 → 장바구니 → 구매 → 재구매 */}
+                      {/* 깔때기: 유입 → 장바구니 → 회원가입 → 구매 (재구매 별도) */}
                       <div className="space-y-0">
-                        {funnelWithoutImpressions.map((step, i) => {
+                        {funnelWithoutImpressions.map((step: any, i: number) => {
                           const pct = maxVal > 0 ? (step.value / maxVal) * 100 : 0;
                           const width = Math.max(pct, 12);
                           const prevStep = i > 0 ? funnelWithoutImpressions[i - 1] : null;
@@ -189,10 +191,12 @@ export default function FunnelPage() {
                           const stepConvRate = rawConvRate > 100 ? 100 : rawConvRate;
                           const dropRate = rawConvRate > 100 ? 0 : 100 - stepConvRate;
                           const isDataMismatch = prevStep && step.value > prevStep.value;
+                          const channels = step.channels as Record<string, number> | undefined;
+                          const hasChannels = channels && Object.values(channels).some((v: number) => v > 0);
+                          const totalCh = hasChannels ? Object.values(channels!).reduce((s: number, v: number) => s + v, 0) : 0;
 
                           return (
                             <div key={step.name}>
-                              {/* 이탈률 표시 (단계 사이) */}
                               {i > 0 && (
                                 <div className="flex items-center justify-center py-1">
                                   <span className="text-[10px] text-red-400">{isDataMismatch ? "⚠️ 채널별 데이터 범위 차이" : `▼ 이탈 ${dropRate.toFixed(1)}% (${formatCompact((prevStep?.value || 0) - step.value)}명)`}</span>
@@ -201,20 +205,48 @@ export default function FunnelPage() {
                               <div className="flex items-center gap-3">
                                 <span className="text-xs text-gray-500 dark:text-zinc-400 w-16 text-right shrink-0">{step.name}</span>
                                 <div className="flex-1 flex justify-center">
-                                  <div className="h-12 rounded-lg flex items-center justify-between px-4 transition-all shadow-sm"
-                                    style={{ backgroundColor: FUNNEL_COLORS[i + 1] || FUNNEL_COLORS[i], opacity: 0.9, width: `${width}%` }}>
-                                    <span className="text-sm font-bold text-white">{formatCompact(step.value)}</span>
-                                    <span className="text-[11px] text-white/80 font-medium">{pct.toFixed(1)}%</span>
-                                  </div>
+                                  {hasChannels && totalCh > 0 ? (
+                                    <div className="h-12 rounded-lg flex overflow-hidden transition-all shadow-sm" style={{ width: `${width}%` }}>
+                                      {Object.entries(channels!).filter(([, v]) => v > 0).map(([ch, v]) => {
+                                        const chPct = totalCh > 0 ? (v / totalCh) * 100 : 0;
+                                        const chColor = CHANNEL_COLORS[ch] || CHANNEL_COLORS[ch.replace("(알림)", "")] || "#6b7280";
+                                        return (
+                                          <div key={ch} className="h-full flex items-center justify-center relative group"
+                                            style={{ backgroundColor: chColor, width: `${chPct}%`, minWidth: chPct > 5 ? "auto" : "8px" }}>
+                                            {chPct > 15 && <span className="text-[9px] text-white/90 font-medium truncate px-1">{ch}</span>}
+                                            <div className="absolute bottom-full mb-1 hidden group-hover:block bg-black/80 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap z-10">
+                                              {ch}: {formatCompact(v)} ({chPct.toFixed(0)}%)
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <div className="h-12 rounded-lg flex items-center justify-between px-4 transition-all shadow-sm"
+                                      style={{ backgroundColor: FUNNEL_COLORS[i + 1] || FUNNEL_COLORS[i], opacity: 0.9, width: `${width}%` }}>
+                                      <span className="text-sm font-bold text-white">{formatCompact(step.value)}</span>
+                                      <span className="text-[11px] text-white/80 font-medium">{pct.toFixed(1)}%</span>
+                                    </div>
+                                  )}
                                 </div>
                                 <span className="text-xs text-gray-400 dark:text-zinc-500 w-20 shrink-0">
-                                  {i > 0 ? `전환 ${stepConvRate.toFixed(1)}%` : "기준"}
+                                  {hasChannels ? formatCompact(step.value) : ""} {i > 0 ? `전환 ${stepConvRate.toFixed(1)}%` : "기준"}
                                 </span>
                               </div>
                             </div>
                           );
                         })}
                       </div>
+                      {/* 재구매 — 숫자+재구매율만 */}
+                      {repurchase.value >= 0 && (
+                        <div className="flex items-center gap-3 bg-teal-50 dark:bg-teal-900/10 rounded-lg px-4 py-3 mt-3">
+                          <span className="text-sm font-medium text-teal-600 dark:text-teal-400">🔄 재구매</span>
+                          <span className="text-2xl font-bold text-teal-500">{formatCompact(repurchase.value)}</span>
+                          <span className="text-xs text-gray-400 dark:text-zinc-500 ml-auto">
+                            재구매율 {repurchase.rate.toFixed(1)}%
+                          </span>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
@@ -225,15 +257,16 @@ export default function FunnelPage() {
             <Card>
               <CardHeader><CardTitle>📊 단계별 전환율 상세</CardTitle></CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                   {(() => {
                     const impressionStep = funnel.find(s => s.name === "노출");
                     const steps = funnel.filter(s => s.name !== "노출");
                     const pairs = [
                       { from: "노출", to: "유입", fromVal: impressionStep?.value || 0, toVal: steps.find(s => s.name === "유입")?.value || 0 },
                       { from: "유입", to: "장바구니", fromVal: steps.find(s => s.name === "유입")?.value || 0, toVal: steps.find(s => s.name === "장바구니")?.value || 0 },
+                      { from: "유입", to: "회원가입", fromVal: steps.find(s => s.name === "유입")?.value || 0, toVal: steps.find(s => s.name === "회원가입")?.value || 0 },
                       { from: "장바구니", to: "구매", fromVal: steps.find(s => s.name === "장바구니")?.value || 0, toVal: steps.find(s => s.name === "구매")?.value || 0 },
-                      { from: "구매", to: "재구매", fromVal: steps.find(s => s.name === "구매")?.value || 0, toVal: steps.find(s => s.name === "재구매")?.value || 0 },
+                      { from: "구매", to: "재구매", fromVal: steps.find(s => s.name === "구매")?.value || 0, toVal: repurchase.value },
                     ];
                     return pairs.map((p) => {
                       const rate = p.fromVal > 0 ? (p.toVal / p.fromVal * 100) : 0;
