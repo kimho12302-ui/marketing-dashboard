@@ -162,19 +162,12 @@ export async function POST(request: NextRequest) {
       }
       if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) { skipped++; continue; }
 
-      // Date filtering: compare 결제일(F열) with fileDate extracted from filename
-      if (fileDate && paymentDateCol >= 0) {
-        let payDateVal = row[paymentDateCol];
-        let payDateStr = "";
-        if (payDateVal instanceof Date) {
-          payDateStr = payDateVal.toISOString().slice(0, 10);
-        } else if (payDateVal) {
-          payDateStr = String(payDateVal).slice(0, 10);
-        }
-        if (payDateStr && payDateStr !== fileDate) {
-          dateFiltered++;
-          continue; // Skip rows where 결제일 doesn't match filename date
-        }
+      // Date filtering: use 일자(X열=dateStr) instead of 결제일
+      // 결제일은 쿠팡(00:00:00) 등 비정상 값이 있어 필터 부적합
+      // 일자 기준으로 fileDate와 비교
+      if (fileDate && dateStr !== fileDate) {
+        dateFiltered++;
+        continue; // Skip rows where 일자 doesn't match filename date
       }
 
       const productCode = String(row[productCodeCol] || "").trim();
