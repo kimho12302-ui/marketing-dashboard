@@ -25,7 +25,7 @@ function VideoPlayer({ videoId, poster }: { videoId: string; poster: string }) {
   }, [videoId]);
   if (loading) return <div className="w-80 h-48 flex items-center justify-center bg-black/10 rounded-lg"><p className="text-sm text-gray-400">영상 로딩 중...</p></div>;
   if (!src) return <div className="text-center"><p className="text-sm text-gray-400 mb-2">영상 직접 재생 불가</p>{/* eslint-disable-next-line @next/next/no-img-element */}<img src={poster} alt="" className="max-w-md max-h-80 rounded-lg object-contain" /></div>;
-  return <video src={src} poster={poster} controls playsInline className="max-w-lg max-h-96 rounded-lg" />;
+  return <video src={src} poster={poster} controls playsInline style={{ minWidth: "640px" }} className="max-h-[80vh] rounded-lg" />;
 }
 import { useEvents, EventBadges } from "@/components/event-markers";
 
@@ -217,6 +217,64 @@ export default function AdsPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* 채널별 비용/클릭/전환매출 비교 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader><CardTitle className="text-sm">💰 채널별 비용</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={channels.map(c => ({ label: CH_LABELS[c.channel] || c.channel, value: c.spend, channel: c.channel }))} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                        <XAxis type="number" tick={{ fill: chartTheme.tickColor, fontSize: 10 }} tickFormatter={(v: number) => formatCompact(v)} />
+                        <YAxis type="category" dataKey="label" width={80} tick={{ fill: chartTheme.labelColor, fontSize: 10 }} />
+                        <Tooltip contentStyle={chartTheme.tooltipStyle} formatter={(v: any) => [`₩${Number(v).toLocaleString()}`, "비용"]} />
+                        <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                          {channels.map((c, i) => <Cell key={i} fill={CHANNEL_COLORS[c.channel] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader><CardTitle className="text-sm">👆 채널별 클릭</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={channels.map(c => ({ label: CH_LABELS[c.channel] || c.channel, value: c.clicks, channel: c.channel }))} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                        <XAxis type="number" tick={{ fill: chartTheme.tickColor, fontSize: 10 }} tickFormatter={(v: number) => formatCompact(v)} />
+                        <YAxis type="category" dataKey="label" width={80} tick={{ fill: chartTheme.labelColor, fontSize: 10 }} />
+                        <Tooltip contentStyle={chartTheme.tooltipStyle} formatter={(v: any) => [`${Number(v).toLocaleString()}`, "클릭"]} />
+                        <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                          {channels.map((c, i) => <Cell key={i} fill={CHANNEL_COLORS[c.channel] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader><CardTitle className="text-sm">💸 채널별 전환매출</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={channels.filter(c => (c.conversionValue || 0) > 0).map(c => ({ label: CH_LABELS[c.channel] || c.channel, value: c.conversionValue || 0, channel: c.channel }))} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
+                        <XAxis type="number" tick={{ fill: chartTheme.tickColor, fontSize: 10 }} tickFormatter={(v: number) => formatCompact(v)} />
+                        <YAxis type="category" dataKey="label" width={80} tick={{ fill: chartTheme.labelColor, fontSize: 10 }} />
+                        <Tooltip contentStyle={chartTheme.tooltipStyle} formatter={(v: any) => [`₩${Number(v).toLocaleString()}`, "전환매출"]} />
+                        <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                          {channels.filter(c => (c.conversionValue || 0) > 0).map((c, i) => <Cell key={i} fill={CHANNEL_COLORS[c.channel] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
             <Card>
               <CardHeader><CardTitle>채널별 상세 성과</CardTitle></CardHeader>
@@ -487,10 +545,10 @@ export default function AdsPage() {
                                         <span className="text-white text-lg">▶</span>
                                       </div>
                                     )}
-                                    {/* Hover 큰 프리뷰 */}
-                                    <div className="hidden group-hover:block absolute z-50 left-full ml-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                    {/* Hover 큰 프리뷰 (860px+) */}
+                                    <div className="hidden group-hover:block absolute z-50 left-full ml-3 top-0 pointer-events-none">
                                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                                      <img src={cr.image_url || cr.thumbnail_url} alt="" className="w-72 max-h-72 object-contain rounded-xl shadow-2xl border-2 border-white dark:border-zinc-600" />
+                                      <img src={cr.image_url || cr.thumbnail_url} alt="" style={{ minWidth: "860px" }} className="max-h-[80vh] object-contain rounded-xl shadow-2xl border-2 border-white dark:border-zinc-600" />
                                     </div>
                                   </div>
                                 )}
@@ -524,7 +582,7 @@ export default function AdsPage() {
                                     <VideoPlayer videoId={cr.video_id} poster={cr.thumbnail_url || cr.image_url} />
                                   ) : (cr.image_url || cr.thumbnail_url) ? (
                                     // eslint-disable-next-line @next/next/no-img-element
-                                    <img src={cr.image_url || cr.thumbnail_url} alt={cr.name} className="max-w-md max-h-80 rounded-lg object-contain" />
+                                    <img src={cr.image_url || cr.thumbnail_url} alt={cr.name} style={{ minWidth: "860px" }} className="max-h-[80vh] rounded-lg object-contain" />
                                   ) : (
                                     <p className="text-sm text-gray-400">미리보기 없음</p>
                                   )}
