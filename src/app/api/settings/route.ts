@@ -249,24 +249,37 @@ export async function POST(request: NextRequest) {
           nutty: "[N]Paid", ironpet: "[I]Paid", saip: "[사입]Paid",
         };
         const paidTab = paidTabMap[data.brand];
-        // 채널→열 매핑 (COST 열): 검색=G(7), 쇼핑=L(12), 메타=R(18), GFA=AD(30), Google=AK(37), GDN=AS(45), 쿠팡=BA(53)
-        const channelColMap: Record<string, string> = {
-          naver_search: "G", naver_shopping: "L", meta: "R", gfa: "AD", google_ads: "AK", google_pmax: "AS", coupang_ads: "BA",
+        // 채널→열 매핑 (상세: cost/imp/click/conv)
+        // 검색: G=COST, H=imp, J=CLICK | 쇼핑: L=COST, M=imp, O=CLICK
+        // 메타: R=COST, S=imp, U=CLICK | GFA: AD=COST, AE=imp, AG=CLICK, AJ=구매
+        // Google: AK=COST, AL=imp, AN=CLICK | GDN/P-Max: AS=COST, AT=imp, AV=CLICK
+        // 쿠팡: BA=COST (매출=AZ)
+        const channelColMap: Record<string, { cost: string; imp?: string; click?: string; conv?: string }> = {
+          naver_search:   { cost: "G",  imp: "H",  click: "I" },
+          naver_shopping: { cost: "L",  imp: "M",  click: "N" },
+          meta:           { cost: "R",  imp: "U",  click: "T" },
+          gfa:            { cost: "AD", imp: "AE", click: "AG", conv: "AJ" },
+          google_ads:     { cost: "AK", imp: "AL", click: "AN" },
+          google_pmax:    { cost: "AS", imp: "AT", click: "AV" },
+          coupang_ads:    { cost: "BA" },
         };
-        const col = channelColMap[data.channel];
-        if (paidTab && col) {
+        const colMap = channelColMap[data.channel];
+        if (paidTab && colMap) {
           const dateLabel = `${parseInt(data.date.slice(5, 7))}월 ${parseInt(data.date.slice(8, 10))}일`;
           const paidData = await readFromSheet(`${paidTab}!A:A`);
           if (paidData.ok && paidData.values) {
             const rowIdx = paidData.values.findIndex(r => r[0]?.toString().includes(dateLabel));
             if (rowIdx >= 0) {
               const sheetRow = rowIdx + 1;
-              await writeToSheet(`${paidTab}!${col}${sheetRow}`, [[data.spend]]);
-              // imp + clicks if available
-              if (data.impressions) {
-                const nextCol = String.fromCharCode(col.charCodeAt(col.length - 1) + 1);
-                const colPrefix = col.length > 1 ? col.slice(0, -1) : "";
-                await writeToSheet(`${paidTab}!${colPrefix}${nextCol}${sheetRow}`, [[data.impressions]]);
+              await writeToSheet(`${paidTab}!${colMap.cost}${sheetRow}`, [[data.spend]]);
+              if (data.impressions && colMap.imp) {
+                await writeToSheet(`${paidTab}!${colMap.imp}${sheetRow}`, [[data.impressions]]);
+              }
+              if (data.clicks && colMap.click) {
+                await writeToSheet(`${paidTab}!${colMap.click}${sheetRow}`, [[data.clicks]]);
+              }
+              if (data.conversions && colMap.conv) {
+                await writeToSheet(`${paidTab}!${colMap.conv}${sheetRow}`, [[data.conversions]]);
               }
             }
           }
