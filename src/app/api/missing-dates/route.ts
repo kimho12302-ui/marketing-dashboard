@@ -6,7 +6,7 @@ const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
 // Sources to check per date
 const SALES_CHANNELS = ["coupang", "cafe24", "smartstore", "pp", "ably", "petfriends"];
-const AD_CHANNELS = ["meta", "google_ads", "naver_search", "coupang_ads", "gfa"];
+const AD_CHANNELS = ["meta", "google_pmax", "naver_search", "coupang_ads", "gfa"];
 const FUNNEL_BRANDS = ["coupang", "cafe24", "smartstore"];
 
 export async function GET(req: NextRequest) {
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
 
     // Ad spend: check key channels
     if (!adSet.has(`${date}|meta`)) missing.push("메타광고");
-    if (!adSet.has(`${date}|google_ads`)) missing.push("구글광고");
+    if (!adSet.has(`${date}|google_pmax`)) missing.push("구글광고");
     if (!adSet.has(`${date}|naver_search`)) missing.push("네이버SA");
     if (!adSet.has(`${date}|coupang_ads`)) missing.push("쿠팡광고");
     if (!adSet.has(`${date}|gfa`)) missing.push("GFA");
