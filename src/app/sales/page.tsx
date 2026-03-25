@@ -289,8 +289,8 @@ export default function SalesPage() {
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={barData}>
                           <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridColor} />
-                          <XAxis dataKey="name" tick={{ fill: chartTheme.textColor, fontSize: 11 }} />
-                          <YAxis tick={{ fill: chartTheme.textColor, fontSize: 11 }} tickFormatter={(v: number) => formatCompact(v)} />
+                          <XAxis dataKey="name" tick={{ fill: chartTheme.tickColor, fontSize: 11 }} />
+                          <YAxis tick={{ fill: chartTheme.tickColor, fontSize: 11 }} tickFormatter={(v: number) => formatCompact(v)} />
                           <Tooltip formatter={(value: any) => [`₩${Number(value).toLocaleString()}`, ""]} contentStyle={chartTheme.tooltipStyle} labelStyle={chartTheme.tooltipLabelStyle} itemStyle={chartTheme.tooltipItemStyle} />
                           <Legend />
                           <Bar dataKey="매출" fill="#3b82f6" />
