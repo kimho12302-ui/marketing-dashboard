@@ -44,13 +44,13 @@ export async function GET() {
     const { data: googleLatest } = await supabase
       .from("daily_ad_spend")
       .select("date")
-      .eq("channel", "google_ads")
+      .eq("channel", "google_pmax")
       .order("date", { ascending: false })
       .limit(1);
     const googleDate = googleLatest?.[0]?.date || null;
     sources.push({
-      id: "google_ads",
-      label: "Google Ads 광고비",
+      id: "google_pmax",
+      label: "Google P-Max 광고비",
       type: "auto",
       latestDate: googleDate,
       ok: googleDate >= yesterdayStr,
