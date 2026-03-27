@@ -230,16 +230,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (type === "manual_ad_spend") {
-      // Check duplicate: same date + brand + channel
-      const { data: existing } = await supabase.from("daily_ad_spend")
-        .select("*").eq("date", data.date).eq("brand", data.brand).eq("channel", data.channel).limit(1);
-      if (existing && existing.length > 0 && !forceOverride) {
-        return NextResponse.json({
-          duplicate: true,
-          message: `동일한 광고비 데이터가 이미 있습니다. (${data.date} / ${data.channel} / ₩${existing[0].spend?.toLocaleString()}) 덮어쓰시겠습니까?`,
-          existing: existing[0],
-        }, { status: 409 });
-      }
+      // UPSERT: 중복 체크 없이 자동 덮어쓰기
       const { error } = await supabase.from("daily_ad_spend").upsert(data, { onConflict: "date,brand,channel" });
       if (error) throw error;
 
