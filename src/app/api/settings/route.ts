@@ -198,6 +198,20 @@ export async function POST(request: NextRequest) {
                 Number(data.sessions || 0), Number(data.avg_duration || 0), Number(data.cart_adds || 0),
               ]]);
             }
+            if (type === "smartstore_funnel") {
+              // AI=유입, AJ=체류시간, AK=알림받기, AM=재구매
+              await writeToSheet(`Funnel!AI${sheetRow}`, [[Number(data.sessions || 0)]]);
+              await writeToSheet(`Funnel!AJ${sheetRow}`, [[Number(data.avg_duration || 0)]]);
+              await writeToSheet(`Funnel!AK${sheetRow}`, [[Number(data.subscribers || 0)]]);
+              await writeToSheet(`Funnel!AM${sheetRow}`, [[Number(data.repurchases || 0)]]);
+            }
+            if (type === "balancelab_smartstore_funnel") {
+              // 밸런스랩 스마트스토어도 같은 패턴 (필요 시 컬럼 수정)
+              await writeToSheet(`Funnel!AI${sheetRow}`, [[Number(data.sessions || 0)]]);
+              await writeToSheet(`Funnel!AJ${sheetRow}`, [[Number(data.avg_duration || 0)]]);
+              await writeToSheet(`Funnel!AK${sheetRow}`, [[Number(data.subscribers || 0)]]);
+              await writeToSheet(`Funnel!AM${sheetRow}`, [[Number(data.repurchases || 0)]]);
+            }
           }
         }
       } catch (sheetErr) { console.error("Sheet write error (funnel):", sheetErr); }
