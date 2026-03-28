@@ -193,10 +193,10 @@ export async function POST(request: NextRequest) {
           if (rowIdx >= 0) {
             const sheetRow = rowIdx + 1; // 1-indexed
             if (type === "cafe24_funnel") {
-              // X=세션, Y=체류시간, Z=장바구니 (col 24, 25, 26)
-              await writeToSheet(`Funnel!X${sheetRow}:Z${sheetRow}`, [[
-                Number(data.sessions || 0), Number(data.avg_duration || 0), Number(data.cart_adds || 0),
-              ]]);
+              // Z=장바구니, AA=회원가입, AC=재구매
+              await writeToSheet(`Funnel!Z${sheetRow}`, [[Number(data.cart_adds || 0)]]);
+              await writeToSheet(`Funnel!AA${sheetRow}`, [[Number(data.signups || 0)]]);
+              await writeToSheet(`Funnel!AC${sheetRow}`, [[Number(data.repurchases || 0)]]);
             }
             if (type === "smartstore_funnel") {
               // AI=유입, AJ=체류시간, AK=알림받기, AM=재구매
