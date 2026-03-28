@@ -86,6 +86,7 @@ def main():
     meta_tabs = {
         "너티_campaign_v2": "nutty", "너티_campaign": "nutty",
         "아이언펫_campaign_v2": "ironpet", "아이언펫_campaign": "ironpet",
+        "큐모발검사_campaign_v2": "balancelab", "큐모발검사_campaign": "balancelab",
     }
     rows = []
     for tab, brand in meta_tabs.items():
@@ -96,20 +97,43 @@ def main():
         for r in recs:
             d = parse_date(r.get("날짜",""))
             if not d: continue
-            spend = safe_num(r.get("지출금액", r.get("지출 금액", r.get("비용", 0))))
+            spend = safe_num(r.get("지출금액", r.get("지출 금액", r.get("지출액", r.get("비용", 0)))))
             impressions = safe_int(r.get("노출수", r.get("노출", 0)))
-            clicks = safe_int(r.get("클릭수", r.get("클릭", r.get("인라인링크클릭", 0))))
-            conversions = safe_int(r.get("구매", r.get("전환수", r.get("전환", 0))))
-            conv_value = safe_num(r.get("구매전환값", r.get("전환값", r.get("구매 전환 값", 0))))
+            clicks = safe_int(r.get("인라인링크클릭", r.get("클릭수", r.get("클릭", 0))))
+            reach = safe_int(r.get("도달", 0))
+            conversions = safe_int(r.get("구매수", r.get("구매", r.get("전환수", r.get("전환", 0)))))
+            conv_value = safe_num(r.get("전환값", r.get("구매전환값", r.get("구매 전환 값", 0))))
             if spend == 0 and impressions == 0: continue
             rows.append({
                 "date": d, "brand": brand, "channel": "meta",
-                "spend": spend, "impressions": impressions, "clicks": clicks,
+                "spend": spend, "impressions": impressions, "clicks": clicks, "reach": reach,
                 "conversions": conversions, "conversion_value": conv_value,
-                "roas": conv_value/spend if spend > 0 else 0,
-                "ctr": clicks/impressions*100 if impressions > 0 else 0,
-                "cpc": spend/clicks if clicks > 0 else 0,
             })
+    # 날짜+브랜드+채널별 합계 계산
+    from collections import defaultdict
+    agg = defaultdict(lambda: {"spend": 0, "impressions": 0, "clicks": 0, "reach": 0, "conversions": 0, "conversion_value": 0})
+    for r in rows:
+        key = (r["date"], r["brand"], r["channel"])
+        agg[key]["spend"] += r["spend"]
+        agg[key]["impressions"] += r["impressions"]
+        agg[key]["clicks"] += r["clicks"]
+        agg[key]["reach"] += r.get("reach", 0)  # reach가 없을 수도 있음
+        agg[key]["conversions"] += r["conversions"]
+        agg[key]["conversion_value"] += r["conversion_value"]
+    rows = []
+    for (d, b, c), data in agg.items():
+        row_data = {
+            "date": d, "brand": b, "channel": c,
+            "spend": data["spend"], "impressions": data["impressions"], "clicks": data["clicks"],
+            "conversions": data["conversions"], "conversion_value": data["conversion_value"],
+            "roas": data["conversion_value"]/data["spend"] if data["spend"] > 0 else 0,
+            "ctr": data["clicks"]/data["impressions"]*100 if data["impressions"] > 0 else 0,
+            "cpc": data["spend"]/data["clicks"] if data["clicks"] > 0 else 0,
+        }
+        # reach가 0이 아닐 때만 추가
+        if data["reach"] > 0:
+            row_data["reach"] = data["reach"]
+        rows.append(row_data)
     dedup_upsert(sb, "daily_ad_spend", rows, "date,brand,channel")
 
     # 3. Naver SA — 캠페인 성과
@@ -118,26 +142,72 @@ def main():
     rows = []
     try:
         ws = sheet.worksheet("캠페인_성과")
-        recs = ws.get_all_records()
-        for r in recs:
-            d = parse_date(r.get("날짜",""))
+        all_values = ws.get_all_values()
+        # 헤더(행1) 스킵
+        for row in all_values[1:]:
+            if len(row) < 11: continue  # 컬럼 부족
+            
+            # 0: 수집일시, 1: 캠페인ID, 2: 캠페인명, 3: 캠페인유형, 4: 날짜
+            # 5: 노출수, 6: 클릭수, 7: CTR, 8: CPC, 9: 총비용, 10: 전환수
+            d = parse_date(row[4])  # 날짜
             if not d: continue
-            spend = safe_num(r.get("총비용", r.get("비용", 0)))
+            spend = safe_num(row[9])  # 총비용
             if spend == 0: continue
-            impressions = safe_int(r.get("노출수", 0))
-            clicks = safe_int(r.get("클릭수", 0))
-            conversions = safe_int(r.get("전환수", 0))
-            conv_value = safe_num(r.get("전환매출", r.get("전환가치", 0)))
+            impressions = safe_int(row[5])  # 노출수
+            clicks = safe_int(row[6])  # 클릭수
+            conversions = safe_int(row[10])  # 전환수
+            conv_value = 0  # 네이버 시트에는 전환매출 없음
+            
+            # 캠페인명으로 브랜드 판별
+            campaign = str(row[2])  # 캠페인명
+            campaign_lower = campaign.lower()
+            
+            if "아이언펫" in campaign_lower:
+                brand = "ironpet"
+            elif "너티" in campaign_lower:
+                brand = "nutty"
+            elif "사입" in campaign_lower:
+                brand = "saip"
+            elif "밸런스" in campaign or "큐모발" in campaign or "balancelab" in campaign_lower:
+                brand = "balancelab"
+            else:
+                brand = "nutty"  # 기본값
+            
+            # 캠페인유형으로 채널 판별
+            campaign_type = str(row[3])  # 캠페인유형
+            if campaign_type == "SHOPPING":
+                channel = "naver_shopping"
+            else:
+                channel = "naver_search"
+            
             rows.append({
-                "date": d, "brand": "nutty", "channel": "naver_search",
+                "date": d, "brand": brand, "channel": channel,
                 "spend": spend, "impressions": impressions, "clicks": clicks,
                 "conversions": conversions, "conversion_value": conv_value,
-                "roas": conv_value/spend if spend > 0 else 0,
-                "ctr": clicks/impressions*100 if impressions > 0 else 0,
-                "cpc": spend/clicks if clicks > 0 else 0,
             })
     except Exception as e:
         print(f"  ⚠ 캠페인_성과: {e}")
+    
+    # 날짜+브랜드+채널별 합계 계산
+    from collections import defaultdict
+    agg = defaultdict(lambda: {"spend": 0, "impressions": 0, "clicks": 0, "conversions": 0, "conversion_value": 0})
+    for r in rows:
+        key = (r["date"], r["brand"], r["channel"])
+        agg[key]["spend"] += r["spend"]
+        agg[key]["impressions"] += r["impressions"]
+        agg[key]["clicks"] += r["clicks"]
+        agg[key]["conversions"] += r["conversions"]
+        agg[key]["conversion_value"] += r["conversion_value"]
+    rows = []
+    for (d, b, c), data in agg.items():
+        rows.append({
+            "date": d, "brand": b, "channel": c,
+            "spend": data["spend"], "impressions": data["impressions"], "clicks": data["clicks"],
+            "conversions": data["conversions"], "conversion_value": data["conversion_value"],
+            "roas": data["conversion_value"]/data["spend"] if data["spend"] > 0 else 0,
+            "ctr": data["clicks"]/data["impressions"]*100 if data["impressions"] > 0 else 0,
+            "cpc": data["spend"]/data["clicks"] if data["clicks"] > 0 else 0,
+        })
     dedup_upsert(sb, "daily_ad_spend", rows, "date,brand,channel")
 
     # 4. Google Ads — G_캠페인_성과
@@ -151,20 +221,57 @@ def main():
             if not d: continue
             spend = safe_num(r.get("cost", 0))
             if spend == 0: continue
+            
+            # 캠페인명으로 브랜드 + 채널 판별
+            campaign = str(r.get("campaign", "")).lower()
+            
+            # 브랜드 판별
+            if "아이언펫" in campaign or "ironpet" in campaign:
+                brand = "ironpet"
+            elif "사입" in campaign:
+                brand = "saip"
+            else:
+                brand = "nutty"  # 기본값
+            
+            # 채널 판별 (P-Max가 기본, 명시적으로 search 있을 때만 분리)
+            if "search" in campaign and "p-max" not in campaign and "pmax" not in campaign:
+                channel = "google_search"
+            else:
+                channel = "google_pmax"  # 기본값 (대부분 P-Max)
+            
             impressions = safe_int(r.get("impressions", 0))
             clicks = safe_int(r.get("clicks", 0))
             conversions = safe_int(r.get("conversions", 0))
             conv_value = safe_num(r.get("conversion_value", 0))
+            
             rows.append({
-                "date": d, "brand": "nutty", "channel": "google_search",
+                "date": d, "brand": brand, "channel": channel,
                 "spend": spend, "impressions": impressions, "clicks": clicks,
                 "conversions": conversions, "conversion_value": conv_value,
-                "roas": conv_value/spend if spend > 0 else 0,
-                "ctr": clicks/impressions*100 if impressions > 0 else 0,
-                "cpc": spend/clicks if clicks > 0 else 0,
             })
     except Exception as e:
         print(f"  ⚠ G_캠페인_성과: {e}")
+    
+    # 날짜+브랜드+채널별 합계 계산
+    from collections import defaultdict
+    agg = defaultdict(lambda: {"spend": 0, "impressions": 0, "clicks": 0, "conversions": 0, "conversion_value": 0})
+    for r in rows:
+        key = (r["date"], r["brand"], r["channel"])
+        agg[key]["spend"] += r["spend"]
+        agg[key]["impressions"] += r["impressions"]
+        agg[key]["clicks"] += r["clicks"]
+        agg[key]["conversions"] += r["conversions"]
+        agg[key]["conversion_value"] += r["conversion_value"]
+    rows = []
+    for (d, b, c), data in agg.items():
+        rows.append({
+            "date": d, "brand": b, "channel": c,
+            "spend": data["spend"], "impressions": data["impressions"], "clicks": data["clicks"],
+            "conversions": data["conversions"], "conversion_value": data["conversion_value"],
+            "roas": data["conversion_value"]/data["spend"] if data["spend"] > 0 else 0,
+            "ctr": data["clicks"]/data["impressions"]*100 if data["impressions"] > 0 else 0,
+            "cpc": data["spend"]/data["clicks"] if data["clicks"] > 0 else 0,
+        })
     dedup_upsert(sb, "daily_ad_spend", rows, "date,brand,channel")
 
     # 5. GA4 퍼널 — daily_funnel
@@ -191,25 +298,8 @@ def main():
     dedup_upsert(sb, "daily_funnel", rows, "date,brand")
 
     # 6. GA4 세션/매출 — ga_daily_data → daily_sales 보조
-    print("\n📊 6. GA4 세션 데이터...")
-    rows = []
-    try:
-        ws = sheet.worksheet("ga_daily_data")
-        recs = ws.get_all_records()
-        for r in recs:
-            d = parse_date(r.get("date",""))
-            if not d: continue
-            revenue = safe_num(r.get("purchaseRevenue", 0))
-            purchases = safe_int(r.get("ecommercePurchases", 0))
-            if revenue > 0:
-                rows.append({
-                    "date": d, "brand": "nutty", "channel": "ga4",
-                    "revenue": revenue, "orders": purchases,
-                    "avg_order_value": revenue/purchases if purchases > 0 else 0
-                })
-    except Exception as e:
-        print(f"  ⚠ ga_daily_data: {e}")
-    dedup_upsert(sb, "daily_sales", rows, "date,brand,channel")
+    # ❌ 제외: 매출은 엑셀에서만 추가 (사용자 요청)
+    print("\n📊 6. GA4 세션 데이터... (매출 제외, 스킵)")
 
     # 7. GA4 campaign_type → 광고비
     print("\n📊 7. GA4 캠페인별 광고비...")
