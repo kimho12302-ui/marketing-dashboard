@@ -165,8 +165,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    if (type === "cafe24_funnel" || type === "smartstore_funnel" || type === "balancelab_smartstore_funnel") {
-      const brandMap: Record<string, string> = { cafe24_funnel: "cafe24", smartstore_funnel: "smartstore", balancelab_smartstore_funnel: "balancelab_smartstore" };
+    if (type === "cafe24_funnel" || type === "smartstore_funnel" || type === "balancelab_smartstore_funnel" || type === "coupang_funnel") {
+      const brandMap: Record<string, string> = { cafe24_funnel: "cafe24", smartstore_funnel: "smartstore", balancelab_smartstore_funnel: "balancelab_smartstore", coupang_funnel: "coupang" };
       const row = {
         date: data.date,
         brand: brandMap[type] || "smartstore",
@@ -211,6 +211,13 @@ export async function POST(request: NextRequest) {
               await writeToSheet(`Funnel!AJ${sheetRow}`, [[Number(data.avg_duration || 0)]]);
               await writeToSheet(`Funnel!AK${sheetRow}`, [[Number(data.subscribers || 0)]]);
               await writeToSheet(`Funnel!AM${sheetRow}`, [[Number(data.repurchases || 0)]]);
+            }
+            if (type === "coupang_funnel") {
+              // AQ=조회, AR=방문자, AS=장바구니, AT=구매
+              await writeToSheet(`Funnel!AQ${sheetRow}`, [[Number(data.impressions || 0)]]);
+              await writeToSheet(`Funnel!AR${sheetRow}`, [[Number(data.sessions || 0)]]);
+              await writeToSheet(`Funnel!AS${sheetRow}`, [[Number(data.cart_adds || 0)]]);
+              await writeToSheet(`Funnel!AT${sheetRow}`, [[Number(data.purchases || 0)]]);
             }
           }
         }
