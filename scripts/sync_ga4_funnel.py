@@ -90,12 +90,16 @@ def write_to_funnel_tab(data_list):
                 row_num = i + 1
                 
                 batch_data.extend([
+                    {'range': f'T{row_num}', 'values': [[data['page_views']]]},
+                    {'range': f'U{row_num}', 'values': [[data['new_users']]]},
+                    {'range': f'V{row_num}', 'values': [[data['returning_users']]]},
+                    {'range': f'W{row_num}', 'values': [[data['active_users']]]},
                     {'range': f'X{row_num}', 'values': [[data['sessions']]]},
                     {'range': f'Y{row_num}', 'values': [[data['avg_duration']]]},
                 ])
                 
                 matched += 1
-                print(f"  ✅ {date_label} (행{row_num}): 세션={data['sessions']} | 체류={data['avg_duration']}")
+                print(f"  ✅ {date_label} (행{row_num}): T={data['page_views']} U={data['new_users']} V={data['returning_users']} W={data['active_users']} X={data['sessions']} Y={data['avg_duration']}")
                 break
     
     if batch_data:
