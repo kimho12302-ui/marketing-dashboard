@@ -191,7 +191,13 @@ export async function POST(request: NextRequest) {
 
       // Track unmatched product codes
       if (!productListMap.has(productCode)) {
-        const prodName = productNameCol >= 0 ? String(row[productNameCol] || "").trim() : productCode;
+        // Try 품목명 first, fallback to 상품명, then productCode
+        let prodName = productNameCol >= 0 ? String(row[productNameCol] || "").trim() : "";
+        if (!prodName) {
+          // Fallback to 상품명 (L열 = colMap["상품명"])
+          const productNameCol2 = colMap["상품명"] ?? -1;
+          prodName = productNameCol2 >= 0 ? String(row[productNameCol2] || "").trim() : productCode;
+        }
         const existing = unmatchedCodes.get(productCode);
         if (existing) { existing.count++; }
         else { unmatchedCodes.set(productCode, { name: prodName, count: 1 }); }
