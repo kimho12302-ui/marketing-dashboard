@@ -571,7 +571,18 @@ export default function DailyInput() {
             .join(", ") : "";
           updateBatchRow(setSalesBatch, row.id, { status: "done", result: `✅ ${row.date} ${data.parsed}건 | ${brands}` });
         } else {
-          updateBatchRow(setSalesBatch, row.id, { status: "error", result: data.error || "실패" });
+          // 미등록 품목코드가 있으면 상세 정보 포함
+          if (data.unmatchedProducts && data.unmatchedProducts.length > 0) {
+            const unmatchedList = data.unmatchedProducts
+              .map((p: any) => `${p.code}${p.name ? ` (${p.name})` : ''} - ${p.count}건`)
+              .join(", ");
+            updateBatchRow(setSalesBatch, row.id, { 
+              status: "error", 
+              result: `${data.error}\n미등록 품목코드 (${data.totalUnmatched}개): ${unmatchedList}` 
+            });
+          } else {
+            updateBatchRow(setSalesBatch, row.id, { status: "error", result: data.error || "실패" });
+          }
         }
       } catch {
         updateBatchRow(setSalesBatch, row.id, { status: "error", result: "업로드 실패" });
