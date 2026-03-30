@@ -103,7 +103,7 @@ def main():
             reach = safe_int(r.get("도달", 0))
             conversions = safe_int(r.get("구매수", r.get("구매", r.get("전환수", r.get("전환", 0)))))
             conv_value = safe_num(r.get("전환값", r.get("구매전환값", r.get("구매 전환 값", 0))))
-            if spend == 0 and impressions == 0: continue
+            # 지출 0원도 기록 (사용자 요청)
             rows.append({
                 "date": d, "brand": brand, "channel": "meta",
                 "spend": spend, "impressions": impressions, "clicks": clicks, "reach": reach,
@@ -152,7 +152,7 @@ def main():
             d = parse_date(row[4])  # 날짜
             if not d: continue
             spend = safe_num(row[9])  # 총비용
-            if spend == 0: continue
+            # 지출 0원도 기록 (사용자 요청)
             impressions = safe_int(row[5])  # 노출수
             clicks = safe_int(row[6])  # 클릭수
             conversions = safe_int(row[10])  # 전환수

@@ -60,7 +60,8 @@ def aggregate_data(brand, start_date, end_date, sb):
             data_by_date[date]['meta_cost'] += spend
             data_by_date[date]['meta_imp'] += imp
             data_by_date[date]['meta_click'] += click
-            data_by_date[date]['meta_reach'] += r.get('reach', 0)
+            reach_val = r.get('reach')
+            data_by_date[date]['meta_reach'] += (reach_val if reach_val is not None else 0)
         elif channel == 'google_search':
             data_by_date[date]['google_search_cost'] += spend
         elif channel == 'google_pmax' or channel.startswith('ga4'):
@@ -71,7 +72,8 @@ def aggregate_data(brand, start_date, end_date, sb):
             data_by_date[date]['coupang_cost'] += spend
             data_by_date[date]['coupang_imp'] += imp
             data_by_date[date]['coupang_click'] += click
-            data_by_date[date]['coupang_revenue'] += r.get('conversion_value', 0)
+            conv_val = r.get('conversion_value')
+            data_by_date[date]['coupang_revenue'] += (conv_val if conv_val is not None else 0)
         elif channel == 'gfa':
             data_by_date[date]['gfa_cost'] += spend
             data_by_date[date]['gfa_imp'] += imp
