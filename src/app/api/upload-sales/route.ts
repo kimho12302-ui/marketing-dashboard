@@ -184,7 +184,8 @@ export async function POST(request: NextRequest) {
       const plInfo = productListMap.get(productCode) || {};
 
       // 밸런스랩 공동구매: channel = 공구_셀러명 (상품목록 D열)
-      if (brand === "balancelab" && plInfo.brand === "공동구매") {
+      // 단, 거래처명에 "스마트스토어"가 포함되어 있으면 엑셀 거래처명 우선
+      if (brand === "balancelab" && plInfo.brand === "공동구매" && !client.includes("스마트스토어")) {
         const seller = plInfo.lineup || "기타";
         channel = `공구_${seller}`;
       }
