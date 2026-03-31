@@ -246,7 +246,8 @@ export async function POST(request: NextRequest) {
       } else {
         prodAgg.set(key, {
           date: r.date, channel: r.channel, product: r.product,
-          brand: r.brand, revenue: r.revenue, quantity: r.quantity, buyers: 0,
+          brand: r.brand, category: r.category, lineup: r.lineup,
+          revenue: r.revenue, quantity: r.quantity, buyers: 0,
         });
       }
     }
