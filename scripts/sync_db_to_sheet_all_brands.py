@@ -134,6 +134,128 @@ def update_sheet(ws, data_by_date, brand_name):
         return len(data_by_date), len(batch_data)
     return 0, 0
 
+def update_balancelab_sheet(sb, start_date, end_date):
+    """밸런스랩 [Q]Paid 시트 업데이트"""
+    print(f"🔹 balancelab → [Q]Paid")
+    
+    BALANCELAB_SHEET_ID = "1sQclVno_knYQ3v9-0jZEcwuWuRrP84J481V4wD_ab74"
+    
+    creds = Credentials.from_service_account_file(SA_JSON, scopes=[
+        'https://www.googleapis.com/auth/spreadsheets',
+        'https://www.googleapis.com/auth/drive'
+    ])
+    gc = gspread.authorize(creds)
+    
+    sheet = gc.open_by_key(BALANCELAB_SHEET_ID)
+    ws = sheet.worksheet("[Q]Paid")
+    
+    result = sb.table('daily_ad_spend').select('*').eq('brand', 'balancelab').gte('date', start_date).lte('date', end_date).execute()
+    
+    by_date = {}
+    for r in result.data:
+        date = r['date']
+        if date not in by_date:
+            by_date[date] = {
+                'naver_search_cost': 0, 'naver_search_imp': 0, 'naver_search_click': 0,
+                'naver_shopping_cost': 0, 'naver_shopping_imp': 0, 'naver_shopping_click': 0,
+                'meta_cost': 0, 'meta_imp': 0, 'meta_click': 0, 'meta_reach': 0
+            }
+        
+        channel = r['channel']
+        if channel == 'naver_search':
+            by_date[date]['naver_search_cost'] += r['spend']
+            by_date[date]['naver_search_imp'] += r['impressions']
+            by_date[date]['naver_search_click'] += r['clicks']
+        elif channel == 'naver_shopping':
+            by_date[date]['naver_shopping_cost'] += r['spend']
+            by_date[date]['naver_shopping_imp'] += r['impressions']
+            by_date[date]['naver_shopping_click'] += r['clicks']
+        elif channel == 'meta':
+            by_date[date]['meta_cost'] += r['spend']
+            by_date[date]['meta_imp'] += r['impressions']
+            by_date[date]['meta_click'] += r['clicks']
+    
+    all_values = ws.get_all_values()
+    batch_data = []
+    
+    for date_str, data in by_date.items():
+        dt = datetime.strptime(date_str, "%Y-%m-%d")
+        DAY_NAMES = ["월", "화", "수", "목", "금", "토", "일"]
+        target_date = f"{dt.month}월 {dt.day}일 ({DAY_NAMES[dt.weekday()]})"
+        
+        for i, row in enumerate(all_values):
+            if target_date in str(row[0]):
+                row_num = i + 1
+                print(f"    {target_date} (행{row_num}): 네이버검색={data['naver_search_cost']:,}원 | 메타={data['meta_cost']:,}원")
+                
+                batch_data.extend([
+                    {'range': f'E{row_num}', 'values': [[data['naver_search_cost']]]},
+                    {'range': f'F{row_num}', 'values': [[data['naver_search_imp']]]},
+                    {'range': f'G{row_num}', 'values': [[data['naver_search_click']]]},
+                    {'range': f'J{row_num}', 'values': [[data['naver_shopping_cost']]]},
+                    {'range': f'K{row_num}', 'values': [[data['naver_shopping_imp']]]},
+                    {'range': f'L{row_num}', 'values': [[data['naver_shopping_click']]]},
+                    {'range': f'P{row_num}', 'values': [[data['meta_cost']]]},
+                    {'range': f'R{row_num}', 'values': [[data['meta_click']]]},
+                    {'range': f'S{row_num}', 'values': [[data['meta_imp']]]},
+                ])
+                break
+    
+    if batch_data:
+        ws.batch_update(batch_data)
+        print(f"  ✅ {len(by_date)}개 날짜 업데이트 완료\n")
+    else:
+        print(f"  ⏭️ 데이터 없음\n")
+
+def update_coupang_funnel(sb, start_date, end_date):
+    """쿠팡 Funnel 데이터 업데이트 (Funnel 탭 AQ~AT열)"""
+    print(f"🔹 쿠팡 funnel → Funnel 탭")
+    
+    creds = Credentials.from_service_account_file(SA_JSON, scopes=[
+        'https://www.googleapis.com/auth/spreadsheets',
+        'https://www.googleapis.com/auth/drive'
+    ])
+    gc = gspread.authorize(creds)
+    
+    sheet = gc.open_by_key(SHEET_ID)
+    ws = sheet.worksheet("Funnel")
+    
+    result = sb.table('daily_funnel').select('*').eq('brand', 'coupang').gte('date', start_date).lte('date', end_date).execute()
+    
+    all_values = ws.get_all_values()
+    batch_data = []
+    
+    for row_data in result.data:
+        date = row_data['date']
+        dt = datetime.strptime(date, "%Y-%m-%d")
+        DAY_NAMES = ["월", "화", "수", "목", "금", "토", "일"]
+        target_date = f"{dt.month}월 {dt.day}일 ({DAY_NAMES[dt.weekday()]})"
+        
+        for i, row in enumerate(all_values):
+            if target_date in str(row[0]):
+                row_num = i + 1
+                
+                impressions = row_data.get('impressions', 0)
+                sessions = row_data.get('sessions', 0)
+                cart_adds = row_data.get('cart_adds', 0)
+                purchases = row_data.get('purchases', 0)
+                
+                print(f"    {target_date} (행{row_num}): 조회={impressions}, 방문자={sessions}, 장바구니={cart_adds}, 구매={purchases}")
+                
+                batch_data.extend([
+                    {'range': f'AQ{row_num}', 'values': [[impressions]]},
+                    {'range': f'AR{row_num}', 'values': [[sessions]]},
+                    {'range': f'AS{row_num}', 'values': [[cart_adds]]},
+                    {'range': f'AT{row_num}', 'values': [[purchases]]},
+                ])
+                break
+    
+    if batch_data:
+        ws.batch_update(batch_data)
+        print(f"  ✅ {len(result.data)}개 날짜 업데이트 완료\n")
+    else:
+        print(f"  ⏭️ 데이터 없음\n")
+
 def main():
     print("📊 DB → 브랜드별 Paid 시트 업데이트\n")
     
@@ -172,6 +294,18 @@ def main():
                 print(f"  ⏭️ 데이터 없음\n")
         except Exception as e:
             print(f"  ❌ 에러: {e}\n")
+    
+    # 밸런스랩 추가
+    try:
+        update_balancelab_sheet(sb, start_date, end_date)
+    except Exception as e:
+        print(f"  ❌ 밸런스랩 에러: {e}\n")
+    
+    # 쿠팡 funnel 추가
+    try:
+        update_coupang_funnel(sb, start_date, end_date)
+    except Exception as e:
+        print(f"  ❌ 쿠팡 funnel 에러: {e}\n")
     
     print(f"✅ 전체 완료: {total_dates}개 날짜, {total_cells}개 셀 업데이트")
 
