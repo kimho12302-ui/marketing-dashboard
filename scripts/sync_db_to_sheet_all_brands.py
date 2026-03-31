@@ -174,6 +174,7 @@ def update_balancelab_sheet(sb, start_date, end_date):
             by_date[date]['meta_cost'] += r['spend']
             by_date[date]['meta_imp'] += r['impressions']
             by_date[date]['meta_click'] += r['clicks']
+            by_date[date]['meta_reach'] += r.get('reach', 0)
     
     all_values = ws.get_all_values()
     batch_data = []
@@ -198,6 +199,7 @@ def update_balancelab_sheet(sb, start_date, end_date):
                     {'range': f'P{row_num}', 'values': [[data['meta_cost']]]},
                     {'range': f'R{row_num}', 'values': [[data['meta_click']]]},
                     {'range': f'S{row_num}', 'values': [[data['meta_imp']]]},
+                    {'range': f'U{row_num}', 'values': [[data['meta_reach']]]},
                 ])
                 break
     
