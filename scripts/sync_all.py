@@ -326,6 +326,93 @@ def main():
         errors.append(str(e))
         print(f"  ❌ {e}")
     
+    # 7. 밸런스랩 네이버 SA (별도 계정)
+    print("\n📊 7. 밸런스랩 네이버 SA...")
+    def sync_balancelab_naver():
+        import json
+        import requests
+        import hmac
+        import hashlib
+        import base64
+        from datetime import datetime, timedelta
+        
+        CONFIG_PATH = r'C:\Users\김호\.naver-searchad-balancelab\config.json'
+        with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        
+        API_KEY = config['api_key']
+        API_SECRET = config['api_secret']
+        CUSTOMER_ID = config['customer_id']
+        BASE_URL = config['base_url']
+        
+        def generate_signature(timestamp, method, uri):
+            message = f"{timestamp}.{method}.{uri}"
+            sign = hmac.new(API_SECRET.encode('utf-8'), message.encode('utf-8'), hashlib.sha256).digest()
+            return base64.b64encode(sign).decode('utf-8')
+        
+        def api_get(endpoint, params=None):
+            timestamp = str(int(time.time() * 1000))
+            method = 'GET'
+            uri = endpoint
+            signature = generate_signature(timestamp, method, uri)
+            headers = {
+                'X-API-KEY': API_KEY, 'X-Customer': CUSTOMER_ID,
+                'X-Timestamp': timestamp, 'X-Signature': signature,
+                'Content-Type': 'application/json'
+            }
+            url = f"{BASE_URL}{endpoint}"
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            return response.json()
+        
+        # 최근 7일 데이터 수집
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=7)
+        
+        campaigns = api_get('/ncc/campaigns')
+        rows = []
+        
+        for date_offset in range(8):
+            target_date = (start_date + timedelta(days=date_offset)).strftime('%Y-%m-%d')
+            date_spend = 0
+            date_impressions = 0
+            date_clicks = 0
+            
+            for campaign in campaigns:
+                cmp_id = campaign['nccCampaignId']
+                try:
+                    stats_params = {
+                        'ids': [cmp_id],
+                        'fields': '["impCnt","clkCnt","salesAmt"]',
+                        'timeRange': json.dumps({"since": target_date, "until": target_date}),
+                        'timeIncrement': 'TIME_INCREMENT_DAILY'
+                    }
+                    stats = api_get('/stats', params=stats_params)
+                    data_list = stats if isinstance(stats, list) else stats.get('data', [])
+                    for item in data_list:
+                        date_spend += float(item.get('salesAmt', 0))
+                        date_impressions += int(item.get('impCnt', 0))
+                        date_clicks += int(item.get('clkCnt', 0))
+                except:
+                    continue
+            
+            # 0원이어도 기록
+            rows.append({
+                'date': target_date, 'brand': 'balancelab', 'channel': 'naver_search',
+                'spend': date_spend, 'impressions': date_impressions, 'clicks': date_clicks,
+                'conversions': 0, 'conversion_value': 0, 'roas': 0,
+                'ctr': date_clicks / date_impressions * 100 if date_impressions > 0 else 0,
+                'cpc': date_spend / date_clicks if date_clicks > 0 else 0,
+            })
+        
+        dedup_upsert(sb, "daily_ad_spend", rows, "date,brand,channel")
+    
+    try:
+        retry_with_backoff(sync_balancelab_naver, "밸런스랩 네이버 SA")
+    except Exception as e:
+        errors.append(str(e))
+        print(f"  ❌ {e}")
+    
     # 최종 결과
     print("\n" + "=" * 80)
     if errors:
