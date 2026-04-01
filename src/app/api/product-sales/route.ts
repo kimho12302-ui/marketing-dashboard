@@ -153,7 +153,37 @@ export async function GET(request: NextRequest) {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, d]) => ({ date, ...d }));
 
-    return NextResponse.json({ channelPie, categoryPie, breakdownPie, breakdownTitle, channelTrend, topProducts, brandPie, brandTrend, productTrend, ordersTrend });
+    // 공구별 매출 집계 (product_sales.lineup 기반)
+    const gongguMap = new Map<string, { revenue: number; orders: number; quantity: number }>();
+    let selfSalesRevenue = 0;
+    
+    for (const r of rows) {
+      const lineup = r.lineup || "";
+      if (lineup && lineup.trim() !== "") {
+        // lineup 있음 = 공구
+        const seller = lineup.trim();
+        const existing = gongguMap.get(seller) || { revenue: 0, orders: 0, quantity: 0 };
+        existing.revenue += Number(r.revenue);
+        existing.orders += Number(r.buyers || 0);  // buyers = 주문 건수
+        existing.quantity += Number(r.quantity || 0);
+        gongguMap.set(seller, existing);
+      } else {
+        // lineup 없음 = 자체판매
+        selfSalesRevenue += Number(r.revenue);
+      }
+    }
+    
+    const gongguSales = Array.from(gongguMap.entries())
+      .map(([seller, d]) => ({ seller, ...d }))
+      .sort((a, b) => b.revenue - a.revenue);
+    
+    const gongguSalesTotal = gongguSales.reduce((sum, g) => sum + g.revenue, 0);
+
+    return NextResponse.json({ 
+      channelPie, categoryPie, breakdownPie, breakdownTitle, channelTrend, 
+      topProducts, brandPie, brandTrend, productTrend, ordersTrend,
+      gongguSales, gongguSalesTotal, selfSalesTotal: selfSalesRevenue 
+    });
   } catch (error) {
     console.error("Product sales API error:", error);
     return NextResponse.json({ error: "Failed" }, { status: 500 });
