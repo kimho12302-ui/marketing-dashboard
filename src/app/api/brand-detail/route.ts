@@ -246,21 +246,25 @@ export async function GET(request: NextRequest) {
         .map(([option, d]) => ({ option, count: d.count, revenue: d.revenue }))
         .sort((a, b) => b.count - a.count);
 
-      // Self vs gonggu
+      // Self vs gonggu (use product_sales lineup field)
       let selfRevenue = 0;
       let gongguRevenue = 0;
       const gongguMap = new Map<string, { revenue: number; orders: number; quantity: number }>();
 
-      for (const row of sales || []) {
-        if (isGongguChannel(row.channel)) {
-          const seller = row.channel.startsWith("공구_") ? row.channel.replace("공구_", "") : row.channel;
+      // Use product_sales for lineup-based aggregation
+      for (const row of prodData || []) {
+        const lineup = row.lineup || "";
+        if (lineup && lineup.trim() !== "") {
+          // Has lineup = gonggu
+          const seller = lineup.trim();
           const existing = gongguMap.get(seller) || { revenue: 0, orders: 0, quantity: 0 };
           existing.revenue += Number(row.revenue);
-          existing.orders += Number(row.quantity || row.orders || 0);
+          existing.orders += Number(row.buyers || 0);
           existing.quantity += Number(row.quantity || 0);
           gongguMap.set(seller, existing);
           gongguRevenue += Number(row.revenue);
         } else {
+          // No lineup = self
           selfRevenue += Number(row.revenue);
         }
       }
@@ -271,12 +275,13 @@ export async function GET(request: NextRequest) {
         .map(([seller, d]) => ({ seller, ...d }))
         .sort((a, b) => b.revenue - a.revenue);
 
-      // Self vs gonggu trend by date
+      // Self vs gonggu trend by date (use product_sales lineup)
       const selfGongguTrend = new Map<string, { self: number; gonggu: number }>();
-      for (const row of sales || []) {
+      for (const row of prodData || []) {
         const key = getGroupKey(row.date, period);
         const existing = selfGongguTrend.get(key) || { self: 0, gonggu: 0 };
-        if (isGongguChannel(row.channel)) {
+        const lineup = row.lineup || "";
+        if (lineup && lineup.trim() !== "") {
           existing.gonggu += Number(row.revenue);
         } else {
           existing.self += Number(row.revenue);
