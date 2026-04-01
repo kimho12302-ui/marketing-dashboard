@@ -255,9 +255,9 @@ export default function SalesPage() {
               </div>
             </div>
 
-            {/* 매출/원가/영업이익 누적막대그래프 */}
+            {/* 매출/원가/통상이익 누적막대그래프 */}
             <Card>
-              <CardHeader><CardTitle>📊 매출 vs 원가 vs 영업이익</CardTitle></CardHeader>
+              <CardHeader><CardTitle>📊 매출 vs 원가 vs 통상이익</CardTitle></CardHeader>
               <CardContent>
                 <div className="h-64">
                   {(() => {
@@ -268,14 +268,14 @@ export default function SalesPage() {
                             매출: bp.revenue,
                             원가: bp.cogs,
                             광고비: bp.adSpend,
-                            영업이익: bp.profit,
+                            통상이익: bp.profit,
                           })),
                           {
                             name: "합계",
                             매출: profitData.revenue,
                             원가: profitData.cogs,
                             광고비: profitData.adSpend,
-                            영업이익: profitData.profit,
+                            통상이익: profitData.profit,
                           },
                         ]
                       : [{
@@ -283,7 +283,7 @@ export default function SalesPage() {
                           매출: profitData.revenue,
                           원가: profitData.cogs,
                           광고비: profitData.adSpend,
-                          영업이익: profitData.profit,
+                          통상이익: profitData.profit,
                         }];
                     return (
                       <ResponsiveContainer width="100%" height="100%">
@@ -296,7 +296,7 @@ export default function SalesPage() {
                           <Bar dataKey="매출" fill="#3b82f6" />
                           <Bar dataKey="원가" fill="#f97316" />
                           <Bar dataKey="광고비" fill="#ef4444" />
-                          <Bar dataKey="영업이익" fill="#22c55e" />
+                          <Bar dataKey="통상이익" fill="#22c55e" />
                         </BarChart>
                       </ResponsiveContainer>
                     );

@@ -87,7 +87,7 @@ export default function MonthlyPage() {
                 { label: "YTD 광고비", value: `₩${formatCompact(ytd.adSpend || 0)}`, color: "text-red-500" },
                 { label: "YTD ROAS", value: `${(ytd.roas || 0).toFixed(2)}x`, color: ytd.roas >= 2 ? "text-green-500" : "text-yellow-500" },
                 { label: "YTD AOV", value: `₩${formatCompact(ytd.aov || 0)}`, color: "text-blue-500" },
-                { label: "YTD 영업이익", value: `₩${formatCompact(ytd.profit || 0)}`, color: (ytd.profit || 0) >= 0 ? "text-emerald-500" : "text-red-500" },
+                { label: "YTD 통상이익", value: `₩${formatCompact(ytd.profit || 0)}`, color: (ytd.profit || 0) >= 0 ? "text-emerald-500" : "text-red-500" },
               ].map(kpi => (
                 <Card key={kpi.label}>
                   <CardContent className="pt-4 text-center">
@@ -158,7 +158,7 @@ export default function MonthlyPage() {
                         <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">주문수</th>
                         <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">광고비</th>
                         <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">ROAS</th>
-                        <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">영업이익</th>
+                        <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">통상이익</th>
                         <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">이익률</th>
                         <th className="text-right py-2 px-2 text-gray-500 dark:text-zinc-400">MoM</th>
                       </tr>

@@ -28,7 +28,7 @@ interface KPICardsProps {
 const GLOSSARY: Record<string, string> = {
   revenue: "총 매출액. 모든 채널의 판매 금액 합계.",
   adSpend: "광고비 + 건별 마케팅비. Meta, 네이버, 쿠팡 등 모든 광고 채널 합산.",
-  profit: "영업이익 = 매출 - 광고비 - 제품원가 - 배송비. 실제 남는 돈.",
+  profit: "통상이익 = 매출 - 광고비 - 제품원가 - 배송비. 실제 남는 돈.",
   roas: "Return On Ad Spend. 광고비 1원당 매출액. 2.0x = 1원 쓰면 2원 번다.",
   orders: "총 주문 건수. 모든 판매 채널 합산.",
   aov: "Average Order Value. 주문 1건당 평균 금액 = 매출 ÷ 주문수.",
@@ -124,7 +124,7 @@ export default function KPICards({ data, periodLabel, onCardClick, selectedCard,
   const primaryCards = [
     { key: "revenue", title: "매출", value: data.revenue, prev: data.revenuePrev, prefix: "₩", icon: DollarSign, invertColor: false, target: targets?.revenue, primary: true },
     { key: "adSpend", title: "광고비", value: data.adSpend, prev: data.adSpendPrev, prefix: "₩", icon: Megaphone, invertColor: true, primary: true },
-    { key: "profit", title: "영업이익", value: data.profit || 0, prev: data.profitPrev || 0, prefix: "₩", icon: CreditCard, invertColor: false, subtitle: data.revenue > 0 ? `${((data.profit || 0) / data.revenue * 100).toFixed(1)}%` : undefined, primary: true },
+    { key: "profit", title: "통상이익", value: data.profit || 0, prev: data.profitPrev || 0, prefix: "₩", icon: CreditCard, invertColor: false, subtitle: data.revenue > 0 ? `${((data.profit || 0) / data.revenue * 100).toFixed(1)}%` : undefined, primary: true },
     { key: "roas", title: "ROAS", value: data.roas, prev: data.roasPrev, suffix: "x", icon: BarChart3, isRatio: true, invertColor: false, target: targets?.roas, primary: true },
   ];
 

@@ -133,7 +133,7 @@ function DailyInputGuide({ onSwitchTab }: { onSwitchTab: (tab: string) => void }
     },
     {
       num: 5, title: "대시보드 확인",
-      desc: "Overview에서 매출/광고비/ROAS/영업이익 확인",
+      desc: "Overview에서 매출/광고비/ROAS/통상이익 확인",
       action: "대시보드 보기 →", tab: "_overview",
       auto: false,
     },
@@ -867,7 +867,7 @@ export default function SettingsPage() {
                   <CardTitle>⚠️ 원가 미등록 제품 ({productList.filter(p => !p.hasCost).length}건)</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-xs text-gray-500 dark:text-zinc-500 mb-3">매출이 있지만 원가가 등록되지 않은 제품입니다. 원가를 등록하면 정확한 영업이익을 계산할 수 있습니다.</p>
+                  <p className="text-xs text-gray-500 dark:text-zinc-500 mb-3">매출이 있지만 원가가 등록되지 않은 제품입니다. 원가를 등록하면 정확한 통상이익을 계산할 수 있습니다.</p>
 
                   {/* CSV 일괄 업로드 */}
                   <div className="flex items-center gap-2 mb-3 p-2 rounded bg-gray-50 dark:bg-zinc-800/50">
@@ -1339,7 +1339,7 @@ export default function SettingsPage() {
                     { name: "인플루언서/체험단", status: "📝", desc: "일일입력 섹션 3 → Paid 탭 + DB 동시 저장" },
                     { name: "건별비용", status: "📝", desc: "일일입력 섹션 4 → 건별비용 탭 + DB 동시 저장" },
                     { name: "스마트스토어 퍼널", status: "📝", desc: "일일입력 섹션 5 → Funnel 탭 + DB 동시 저장" },
-                    { name: "제품 원가", status: "📝", desc: "제품 원가 탭에서 입력 → 영업이익 계산" },
+                    { name: "제품 원가", status: "📝", desc: "제품 원가 탭에서 입력 → 통상이익 계산" },
                   ].map(item => (
                     <div key={item.name} className="flex items-center gap-3">
                       <span>{item.status}</span>

@@ -311,7 +311,7 @@ export default function OverviewPage() {
           <CardContent className="pt-4">
             <div className="space-y-3">
               <p className="text-sm font-medium text-gray-700 dark:text-zinc-200">
-                영업이익 = 매출 - 제품원가 - 광고비 - 건별비용
+                통상이익 = 매출 - 제품원가 - 광고비 - 건별비용
               </p>
               <div className="space-y-2">
                 {costBreakdown.map((item, i) => (
@@ -335,28 +335,28 @@ export default function OverviewPage() {
                   </div>
                 ))}
                 <div className="border-t border-gray-200 dark:border-zinc-700 pt-2 flex justify-between items-center px-2">
-                  <span className="text-sm font-bold text-gray-700 dark:text-zinc-200">= 영업이익</span>
+                  <span className="text-sm font-bold text-gray-700 dark:text-zinc-200">= 통상이익</span>
                   <span className={`text-lg font-bold ${(kpi.profit || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
                     ₩{formatCompact(kpi.profit || 0)}
                   </span>
                 </div>
                 <div className="flex justify-between text-xs text-gray-400 dark:text-zinc-500 px-2">
-                  <span>영업이익률</span>
+                  <span>통상이익률</span>
                   <span>{kpi.revenue > 0 ? ((kpi.profit || 0) / kpi.revenue * 100).toFixed(1) : 0}%</span>
                 </div>
               </div>
               {!hasCogs && (
-                <p className="text-xs text-yellow-500 mt-2">⚠️ 제품 원가가 미입력 상태입니다. 설정 → 제품 원가에서 입력하면 정확한 영업이익이 계산됩니다.</p>
+                <p className="text-xs text-yellow-500 mt-2">⚠️ 제품 원가가 미입력 상태입니다. 설정 → 제품 원가에서 입력하면 정확한 통상이익이 계산됩니다.</p>
               )}
               {hasCogs && (kpi.matchedRate !== undefined && kpi.matchedRate < 0.5) && (
                 <p className="text-xs text-orange-500 mt-2">
-                  ⚠️ 원가 데이터 부족 ({((kpi.matchedRate || 0) * 100).toFixed(0)}% 매칭) — 일부 제품의 원가가 누락되어 영업이익이 부정확할 수 있습니다.
+                  ⚠️ 원가 데이터 부족 ({((kpi.matchedRate || 0) * 100).toFixed(0)}% 매칭) — 일부 제품의 원가가 누락되어 통상이익이 부정확할 수 있습니다.
                 </p>
               )}
-              {/* 브랜드별 영업이익 */}
+              {/* 브랜드별 통상이익 */}
               {brandProfit.length > 0 && (
                 <div className="mt-4 pt-3 border-t border-gray-200 dark:border-zinc-700">
-                  <p className="text-xs text-gray-500 dark:text-zinc-400 mb-2">브랜드별 영업이익</p>
+                  <p className="text-xs text-gray-500 dark:text-zinc-400 mb-2">브랜드별 통상이익</p>
                   <div className="space-y-2">
                     {brandProfit.map((bp) => {
                       const brandLabel = BRAND_LABELS[bp.brand] || bp.brand;
@@ -552,7 +552,7 @@ export default function OverviewPage() {
                           </span>
                         </div>
                         <div className="flex items-center justify-between mt-1 text-xs">
-                          <span className="text-gray-400 dark:text-zinc-500">영업이익</span>
+                          <span className="text-gray-400 dark:text-zinc-500">통상이익</span>
                           <span className={`font-medium ${profit >= 0 ? "text-green-400" : "text-red-400"}`}>
                             ₩{formatCompact(profit)} <span className="text-[10px]">({margin.toFixed(0)}%)</span>
                           </span>

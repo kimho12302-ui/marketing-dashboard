@@ -39,7 +39,7 @@ export default function MissingDataAlert({ className = "" }: MissingDataAlertPro
         }
 
         if (data.productCosts === 0) {
-          alerts.push("제품 원가 미등록 — 영업이익 계산 불가");
+          alerts.push("제품 원가 미등록 — 통상이익 계산 불가");
         }
 
         setIssues(alerts);
