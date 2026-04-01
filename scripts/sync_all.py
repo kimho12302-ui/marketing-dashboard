@@ -422,7 +422,40 @@ def main():
         print("=" * 80)
         sys.exit(1)
     else:
-        print("🎉 전체 동기화 완료!")
+        print("🎉 DB 동기화 완료!")
+        print("=" * 80)
+        
+        # 8. DB → 시트 동기화
+        print("\n📊 8. DB → 시트 역동기화...")
+        import subprocess
+        import os
+        
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        sheet_sync_script = os.path.join(script_dir, "sync_db_to_sheet_all_brands.py")
+        
+        try:
+            result = subprocess.run(
+                ["python", sheet_sync_script],
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                timeout=180
+            )
+            
+            if result.returncode == 0:
+                print("  ✅ 시트 역동기화 완료")
+                print(result.stdout)
+            else:
+                print(f"  ⚠ 시트 역동기화 실패 (exit {result.returncode})")
+                print(result.stderr)
+                # 시트 동기화 실패는 전체 실패로 처리하지 않음 (DB는 성공했으므로)
+        except subprocess.TimeoutExpired:
+            print("  ⚠ 시트 역동기화 타임아웃 (180초 초과)")
+        except Exception as e:
+            print(f"  ⚠ 시트 역동기화 에러: {e}")
+        
+        print("\n" + "=" * 80)
+        print("🎉 전체 동기화 완료! (DB + 시트)")
         print("=" * 80)
         sys.exit(0)
 
