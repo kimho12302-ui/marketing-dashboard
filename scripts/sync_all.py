@@ -2,6 +2,7 @@
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
 import time
+import os
 from collections import defaultdict
 import gspread
 from google.oauth2.service_account import Credentials
@@ -35,6 +36,32 @@ def parse_date(v):
         try: return datetime.strptime(v, "%Y%m%d").strftime("%Y-%m-%d")
         except: pass
     return None
+
+def send_telegram_alert(message):
+    """텔레그램 알림 발송"""
+    try:
+        import requests
+        bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+        chat_id = "8383605834"  # 호
+        
+        if not bot_token:
+            print("  ⚠ TELEGRAM_BOT_TOKEN 환경변수 없음 (알림 스킵)")
+            return
+        
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        data = {
+            "chat_id": chat_id,
+            "text": message,
+            "parse_mode": "Markdown"
+        }
+        
+        response = requests.post(url, json=data, timeout=10)
+        if response.status_code == 200:
+            print("  ✅ 텔레그램 알림 발송 완료")
+        else:
+            print(f"  ⚠ 텔레그램 알림 실패: {response.status_code}")
+    except Exception as e:
+        print(f"  ⚠ 텔레그램 알림 에러: {e}")
 
 def retry_with_backoff(func, name, retries=3, delay=5):
     """재시도 로직 (지수 백오프)"""
@@ -420,6 +447,16 @@ def main():
         for i, err in enumerate(errors, 1):
             print(f"  {i}. {err}")
         print("=" * 80)
+        
+        # 실패 알림 발송
+        from datetime import datetime
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+        alert_msg = f"⚠️ *마케팅 데이터 동기화 실패* ({now_str})\n\n"
+        alert_msg += f"실패한 섹션: {len(errors)}개\n\n"
+        for i, err in enumerate(errors, 1):
+            alert_msg += f"{i}. {err}\n"
+        send_telegram_alert(alert_msg)
+        
         sys.exit(1)
     else:
         print("🎉 DB 동기화 완료!")
@@ -457,6 +494,13 @@ def main():
         print("\n" + "=" * 80)
         print("🎉 전체 동기화 완료! (DB + 시트)")
         print("=" * 80)
+        
+        # 성공 알림 발송 (간단하게)
+        from datetime import datetime
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+        success_msg = f"✅ 마케팅 데이터 동기화 완료 ({now_str})"
+        send_telegram_alert(success_msg)
+        
         sys.exit(0)
 
 if __name__ == "__main__":
