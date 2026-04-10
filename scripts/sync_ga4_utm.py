@@ -1,3 +1,4 @@
+import os
 """GA4 UTM 데이터 → 구글시트 + Supabase 자동 동기화"""
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
@@ -10,7 +11,7 @@ from googleapiclient.discovery import build
 from supabase import create_client
 
 # Config
-SA_JSON = r'C:\Users\김호\.naver-searchad\google-service-account.json'
+SA_JSON = os.path.expanduser("~/.naver-searchad/google-service-account.json")
 GA4_PROPERTY = 'properties/433673281'
 GA4_SHEET_ID = '1iFhY2G9fm4wxDeG8D1mhSzEEmu428GQYcsCHbY2M66c'
 UTM_TAB = 'UTM_유입분석'

@@ -18,7 +18,7 @@ from supabase import create_client, Client
 
 SUPABASE_URL = "https://phcfydxgwkmjiogerqmm.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBoY2Z5ZHhnd2ttamlvZ2VycW1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1Njg4NjQsImV4cCI6MjA4OTE0NDg2NH0.M0ThTSK0kBvN71rccvzQpr3dQuL52oRs_Tj9MT7VWRg"
-SERVICE_ACCOUNT_JSON = r"C:\Users\김호\.naver-searchad\google-service-account.json"
+SERVICE_ACCOUNT_JSON = os.path.expanduser("~/.naver-searchad/google-service-account.json")
 
 # Google Sheets IDs
 SHEET_SALES = "1YT3_RMO8XJYVxf3i7kzb50cVGPU5fMChhqGCRaa6NTw"

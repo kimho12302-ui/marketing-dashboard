@@ -1,4 +1,5 @@
-"""GA4 Data API → 통계 시트 Funnel 탭 자동 동기화"""
+import os
+"""GA4 Data API → Supabase daily_funnel (channel=cafe24)"""
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -6,15 +7,20 @@ from datetime import datetime, timedelta
 from google.oauth2.service_account import Credentials
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.data_v1beta.types import RunReportRequest, DateRange, Dimension, Metric
-import gspread
+from supabase import create_client
 
 # Config
-SA_JSON = r'C:\Users\김호\.naver-searchad\google-service-account.json'
+SA_JSON = os.path.expanduser("~/.naver-searchad/google-service-account.json")
 GA4_PROPERTY = 'properties/433673281'
-STATS_SHEET_ID = '1FzxDCyR9FyAIduf7Q0lfUIOzvSqVlod21eOFqaPrXio'
+SUPABASE_URL = "https://phcfydxgwkmjiogerqmm.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBoY2Z5ZHhnd2ttamlvZ2VycW1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1Njg4NjQsImV4cCI6MjA4OTE0NDg2NH0.M0ThTSK0kBvN71rccvzQpr3dQuL52oRs_Tj9MT7VWRg"
 
-def fetch_ga4_funnel_data(start_date, end_date):
-    """GA4에서 Funnel용 기본 데이터 가져오기"""
+
+def get_supabase():
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
+
+
+def fetch_ga4_data(start_date, end_date):
     creds = Credentials.from_service_account_file(SA_JSON)
     client = BetaAnalyticsDataClient(credentials=creds)
 
@@ -25,7 +31,7 @@ def fetch_ga4_funnel_data(start_date, end_date):
             Metric(name='sessions'),
             Metric(name='totalUsers'),
             Metric(name='newUsers'),
-            Metric(name='activeUsers'),
+            Metric(name='activeUsers'),  # 재방문 근사치 (totalUsers - newUsers로도 계산 가능)
             Metric(name='screenPageViews'),
             Metric(name='averageSessionDuration'),
         ],
@@ -33,113 +39,94 @@ def fetch_ga4_funnel_data(start_date, end_date):
     )
 
     resp = client.run_report(request)
-    
     results = []
     for row in resp.rows:
-        date_raw = row.dimension_values[0].value  # YYYYMMDD
-        date_obj = datetime.strptime(date_raw, '%Y%m%d')
-        
-        sessions = int(row.metric_values[0].value)
-        total_users = int(row.metric_values[1].value)
-        new_users = int(row.metric_values[2].value)
-        active_users = int(row.metric_values[3].value)
-        page_views = int(row.metric_values[4].value)
-        avg_duration = int(float(row.metric_values[5].value))
-        
-        returning_users = total_users - new_users
-        
+        date_str       = datetime.strptime(row.dimension_values[0].value, '%Y%m%d').strftime('%Y-%m-%d')
+        sessions       = int(row.metric_values[0].value)
+        total_users    = int(row.metric_values[1].value)
+        new_users      = int(row.metric_values[2].value)
+        active_users   = int(row.metric_values[3].value)
+        returning_users = total_users - new_users  # 재방문 = 총방문 - 신규
+        page_views     = int(row.metric_values[4].value)
+        _ = active_users  # suppress unused warning
+        avg_duration   = float(row.metric_values[5].value)  # 초 단위
+
         results.append({
-            'date': date_obj,
-            'page_views': page_views,         # T열: 유입
-            'new_users': new_users,           # U열: 신규
-            'returning_users': returning_users,  # V열: 재방문
-            'active_users': active_users,     # W열: DAU
-            'sessions': sessions,             # X열: 세션
-            'avg_duration': avg_duration,     # Y열: 평균 체류시간(초)
+            "date": date_str,
+            "brand": "nutty",
+            "channel": "cafe24",
+            "impressions": page_views,
+            "sessions": sessions,
+            "signups": new_users,
+            "returning_users": returning_users,
+            "total_users": total_users,
+            "avg_duration": round(avg_duration),  # 초 단위, integer
+            "cart_adds": 0,
+            "purchases": 0,
+            "repurchases": 0,
         })
-    
     return results
 
 
-def write_to_funnel_tab(data_list):
-    """통계 시트 Funnel 탭에 업데이트 (X,Y열만)"""
-    creds = Credentials.from_service_account_file(
-        SA_JSON,
-        scopes=['https://www.googleapis.com/auth/spreadsheets']
-    )
-    gc = gspread.authorize(creds)
-    
-    sheet = gc.open_by_key(STATS_SHEET_ID)
-    ws = sheet.worksheet('Funnel')
-    all_values = ws.get_all_values()
-    
-    batch_data = []
-    matched = 0
-    
-    for data in data_list:
-        date_obj = data['date']
-        date_label = f"{date_obj.month}월 {date_obj.day}일"
-        
-        # Funnel 탭에서 날짜 행 찾기
-        for i, row in enumerate(all_values):
-            if i == 0:
-                continue  # 헤더 스킵
-            cell_a = str(row[0]) if row else ""
-            
-            if date_label in cell_a:
-                row_num = i + 1
-                
-                batch_data.extend([
-                    {'range': f'T{row_num}', 'values': [[data['page_views']]]},
-                    {'range': f'U{row_num}', 'values': [[data['new_users']]]},
-                    {'range': f'V{row_num}', 'values': [[data['returning_users']]]},
-                    {'range': f'W{row_num}', 'values': [[data['active_users']]]},
-                    {'range': f'X{row_num}', 'values': [[data['sessions']]]},
-                    {'range': f'Y{row_num}', 'values': [[data['avg_duration']]]},
-                ])
-                
-                matched += 1
-                print(f"  ✅ {date_label} (행{row_num}): T={data['page_views']} U={data['new_users']} V={data['returning_users']} W={data['active_users']} X={data['sessions']} Y={data['avg_duration']}")
-                break
-    
-    if batch_data:
-        ws.batch_update(batch_data)
-        print(f"\n🎉 {matched}개 날짜, {len(batch_data)}개 셀 업데이트!")
-        return matched
-    else:
-        print("\n❌ 매칭된 날짜 없음")
+def upsert_to_db(sb, rows):
+    if not rows:
         return 0
+    # subscribers 컬럼에 total_users(DAU) 저장 — cafe24 채널은 subscribers가 항상 0
+    for r in rows:
+        r["subscribers"] = r.pop("total_users", 0)
+
+    # GA4가 수집하는 필드만 업데이트 (수기입력 필드인 cart_adds, purchases, repurchases는 절대 덮어쓰지 않음)
+    GA4_COLS = {"date", "brand", "channel", "impressions", "sessions", "signups",
+                "avg_duration", "returning_users", "subscribers"}
+
+    for r in rows:
+        ga4_data = {k: v for k, v in r.items() if k in GA4_COLS}
+        date, brand, channel = ga4_data["date"], ga4_data["brand"], ga4_data["channel"]
+
+        # 기존 레코드 확인
+        existing = sb.table("daily_funnel").select("id,cart_adds,purchases,repurchases") \
+            .eq("date", date).eq("brand", brand).eq("channel", channel).execute()
+
+        if existing.data:
+            # 기존 레코드가 있으면 GA4 필드만 UPDATE (수기입력 필드 보존)
+            sb.table("daily_funnel").update(ga4_data) \
+                .eq("date", date).eq("brand", brand).eq("channel", channel).execute()
+        else:
+            # 신규 레코드면 전체 INSERT (cart_adds 등 0으로 초기화)
+            insert_data = {**ga4_data, "cart_adds": 0, "purchases": 0, "repurchases": 0}
+            sb.table("daily_funnel").insert(insert_data).execute()
+
+    return len(rows)
 
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description='GA4 Data API → Funnel 탭')
+    parser = argparse.ArgumentParser(description='GA4 → Supabase daily_funnel')
     parser.add_argument('--date', help='특정 날짜 (YYYY-MM-DD)')
-    parser.add_argument('--days', type=int, default=1, help='N일치 (기본: 1)')
+    parser.add_argument('--days', type=int, default=4, help='N일치 백필 (기본: 4 = D-3)')
     args = parser.parse_args()
-    
-    # 날짜 범위 계산
+
     if args.date:
         end_date = datetime.strptime(args.date, '%Y-%m-%d')
     else:
         end_date = datetime.now() - timedelta(days=1)  # 어제
-    
+
     start_date = end_date - timedelta(days=args.days - 1)
-    
     start_str = start_date.strftime('%Y-%m-%d')
-    end_str = end_date.strftime('%Y-%m-%d')
-    
-    print(f'📊 GA4 API → Funnel 탭 동기화')
-    print(f'Property: {GA4_PROPERTY}')
+    end_str   = end_date.strftime('%Y-%m-%d')
+
+    print(f'📊 GA4 → Supabase daily_funnel (cafe24)')
     print(f'기간: {start_str} ~ {end_str}\n')
-    
-    # GA4 데이터 수집
-    data_list = fetch_ga4_funnel_data(start_str, end_str)
-    print(f'✅ GA4 데이터 {len(data_list)}건 수집\n')
-    
-    # Funnel 탭 업데이트
-    if data_list:
-        write_to_funnel_tab(data_list)
+
+    data = fetch_ga4_data(start_str, end_str)
+    print(f'✅ GA4 데이터 {len(data)}건 수집')
+    for r in data:
+        print(f"  {r['date']}: sessions={r['sessions']} new={r['signups']} returning={r['returning_users']} duration={r['avg_duration']}s")
+
+    if data:
+        sb = get_supabase()
+        n = upsert_to_db(sb, data)
+        print(f'\n🎉 {n}건 DB upsert 완료')
     else:
         print('데이터 없음')
 

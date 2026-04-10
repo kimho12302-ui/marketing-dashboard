@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 """DB → [N]Paid, [I]Paid, [사입]Paid 시트 역동기화 (전체 브랜드)"""
 import sys
@@ -7,7 +8,7 @@ from google.oauth2.service_account import Credentials
 from supabase import create_client
 from datetime import datetime, timedelta
 
-SA_JSON = r"C:\Users\김호\.naver-searchad\google-service-account.json"
+SA_JSON = os.path.expanduser("~/.naver-searchad/google-service-account.json")
 SHEET_ID = "1FzxDCyR9FyAIduf7Q0lfUIOzvSqVlod21eOFqaPrXio"
 
 SUPABASE_URL = "https://phcfydxgwkmjiogerqmm.supabase.co"
@@ -35,6 +36,9 @@ def aggregate_data(brand, start_date, end_date, sb):
                 'meta_cost': 0, 'meta_imp': 0, 'meta_click': 0, 'meta_reach': 0,
                 'google_search_cost': 0,
                 'google_pmax_cost': 0, 'google_pmax_imp': 0, 'google_pmax_click': 0,
+                'ga4_pmax_cost': 0, 'ga4_pmax_imp': 0, 'ga4_pmax_click': 0,
+                'ga4_search_cost': 0, 'ga4_search_imp': 0, 'ga4_search_click': 0,
+                'ga4_demandgen_cost': 0, 'ga4_demandgen_imp': 0, 'ga4_demandgen_click': 0,
                 'coupang_cost': 0, 'coupang_imp': 0, 'coupang_click': 0, 'coupang_revenue': 0,
                 'gfa_cost': 0, 'gfa_imp': 0, 'gfa_click': 0,
             }
@@ -44,9 +48,11 @@ def aggregate_data(brand, start_date, end_date, sb):
         imp = r['impressions']
         click = r['clicks']
         
-        data_by_date[date]['total_cost'] += spend
-        data_by_date[date]['total_imp'] += imp
-        data_by_date[date]['total_click'] += click
+        # ga4 채널은 google_pmax와 중복이므로 total에서 제외
+        if not channel.startswith('ga4'):
+            data_by_date[date]['total_cost'] += spend
+            data_by_date[date]['total_imp'] += imp
+            data_by_date[date]['total_click'] += click
         
         if channel == 'naver_search':
             data_by_date[date]['naver_search_cost'] += spend
@@ -64,10 +70,22 @@ def aggregate_data(brand, start_date, end_date, sb):
             data_by_date[date]['meta_reach'] += (reach_val if reach_val is not None else 0)
         elif channel == 'google_search':
             data_by_date[date]['google_search_cost'] += spend
-        elif channel == 'google_pmax' or channel.startswith('ga4'):
+        elif channel == 'google_pmax':
             data_by_date[date]['google_pmax_cost'] += spend
             data_by_date[date]['google_pmax_imp'] += imp
             data_by_date[date]['google_pmax_click'] += click
+        elif channel == 'ga4_Performance Max':
+            data_by_date[date]['ga4_pmax_cost'] += spend
+            data_by_date[date]['ga4_pmax_imp'] += imp
+            data_by_date[date]['ga4_pmax_click'] += click
+        elif channel == 'ga4_Search':
+            data_by_date[date]['ga4_search_cost'] += spend
+            data_by_date[date]['ga4_search_imp'] += imp
+            data_by_date[date]['ga4_search_click'] += click
+        elif channel == 'ga4_Demand Gen':
+            data_by_date[date]['ga4_demandgen_cost'] += spend
+            data_by_date[date]['ga4_demandgen_imp'] += imp
+            data_by_date[date]['ga4_demandgen_click'] += click
         elif channel == 'coupang_ads':
             data_by_date[date]['coupang_cost'] += spend
             data_by_date[date]['coupang_imp'] += imp
@@ -97,7 +115,7 @@ def update_sheet(ws, data_by_date, brand_name):
                 print(f"    {target_date} (행{row_num}): total={data['total_cost']:,.0f}원 | meta={data['meta_cost']:,.0f}원")
                 
                 batch_data.extend([
-                    {'range': f'B{row_num}', 'values': [[f"₩ {data['total_cost']:,.0f}"]]},
+                    {'range': f'B{row_num}', 'values': [[round(data['total_cost'])]]},
                     {'range': f'C{row_num}', 'values': [[data['total_imp']]]},
                     {'range': f'D{row_num}', 'values': [[data['total_click']]]},
                     {'range': f'G{row_num}', 'values': [[data['naver_search_cost']]]},
@@ -222,7 +240,7 @@ def update_coupang_funnel(sb, start_date, end_date):
     sheet = gc.open_by_key(SHEET_ID)
     ws = sheet.worksheet("Funnel")
     
-    result = sb.table('daily_funnel').select('*').eq('brand', 'coupang').gte('date', start_date).lte('date', end_date).execute()
+    result = sb.table('daily_funnel').select('*').eq('brand', 'all').eq('channel', 'coupang').gte('date', start_date).lte('date', end_date).execute()
     
     all_values = ws.get_all_values()
     batch_data = []
@@ -258,7 +276,140 @@ def update_coupang_funnel(sb, start_date, end_date):
     else:
         print(f"  ⏭️ 데이터 없음\n")
 
+def update_cafe24_funnel(sb, gc, start_date, end_date):
+    """카페24 퍼널 → Funnel 탭 (T=세션, Z=장바구니, AA=회원가입, AC=재구매)"""
+    print(f"🔹 카페24 funnel → Funnel 탭")
+    sheet = gc.open_by_key(SHEET_ID)
+    ws = sheet.worksheet("Funnel")
+    result = sb.table('daily_funnel').select('*').eq('brand', 'all').eq('channel', 'cafe24').gte('date', start_date).lte('date', end_date).execute()
+    all_values = ws.get_all_values()
+    batch_data = []
+    for row_data in result.data:
+        date = row_data['date']
+        dt = datetime.strptime(date, "%Y-%m-%d")
+        DAY_NAMES = ["월", "화", "수", "목", "금", "토", "일"]
+        target_date = f"{dt.month}월 {dt.day}일 ({DAY_NAMES[dt.weekday()]})"
+        for i, row in enumerate(all_values):
+            if target_date in str(row[0]):
+                row_num = i + 1
+                sessions = row_data.get('sessions', 0) or 0
+                cart_adds = row_data.get('cart_adds', 0) or 0
+                new_visitors = row_data.get('signups', 0) or 0     # GA4 신규방문자
+                registrations = row_data.get('purchases', 0) or 0  # 실제 회원가입 수 (수기입력)
+                repurchases = row_data.get('repurchases', 0) or 0
+                avg_duration = row_data.get('avg_duration', 0) or 0
+                total_users = row_data.get('subscribers', 0) or 0  # DAU (subscribers에 저장됨)
+                returning = max(0, total_users - new_visitors)      # 재방문 = DAU - 신규방문자
+                print(f"    {target_date} (행{row_num}): 세션={sessions}, DAU={total_users}, 신규={new_visitors}, 재방문={returning}, 체류={avg_duration:.0f}s, 장바구니={cart_adds}, 회원가입={registrations}, 재구매={repurchases}")
+                batch_data.extend([
+                    {'range': f'T{row_num}', 'values': [[sessions]]},               # 유입 total
+                    {'range': f'U{row_num}', 'values': [[new_visitors]]},           # 신규방문자 (GA4)
+                    {'range': f'V{row_num}', 'values': [[returning]]},              # 재방문
+                    {'range': f'W{row_num}', 'values': [[total_users]]},            # DAU
+                    {'range': f'X{row_num}', 'values': [[sessions]]},               # 세션 수
+                    {'range': f'Y{row_num}', 'values': [[round(avg_duration)]]},    # 체류시간(초)
+                    {'range': f'Z{row_num}', 'values': [[cart_adds]]},              # 장바구니
+                    {'range': f'AA{row_num}', 'values': [[registrations]]},         # 회원가입 (수기입력)
+                    {'range': f'AC{row_num}', 'values': [[repurchases]]},           # 재구매
+                ])
+                break
+    if batch_data:
+        ws.batch_update(batch_data)
+        print(f"  ✅ {len(result.data)}개 날짜 업데이트 완료\n")
+    else:
+        print(f"  ⏭️ 데이터 없음\n")
+
+
+def update_smartstore_funnel(sb, gc, start_date, end_date):
+    """스마트스토어 퍼널 → Funnel 탭 (AI=세션, AK=알림, AM=재구매)"""
+    print(f"🔹 스마트스토어 funnel → Funnel 탭")
+    sheet = gc.open_by_key(SHEET_ID)
+    ws = sheet.worksheet("Funnel")
+    result = sb.table('daily_funnel').select('*').eq('brand', 'all').eq('channel', 'smartstore').gte('date', start_date).lte('date', end_date).execute()
+    all_values = ws.get_all_values()
+    batch_data = []
+    for row_data in result.data:
+        date = row_data['date']
+        dt = datetime.strptime(date, "%Y-%m-%d")
+        DAY_NAMES = ["월", "화", "수", "목", "금", "토", "일"]
+        target_date = f"{dt.month}월 {dt.day}일 ({DAY_NAMES[dt.weekday()]})"
+        for i, row in enumerate(all_values):
+            if target_date in str(row[0]):
+                row_num = i + 1
+                sessions = row_data.get('sessions', 0) or 0
+                subscribers = row_data.get('subscribers', 0) or 0
+                repurchases = row_data.get('repurchases', 0) or 0
+                avg_duration = row_data.get('avg_duration', 0) or 0
+                print(f"    {target_date} (행{row_num}): 세션={sessions}, 체류={avg_duration:.0f}s, 알림={subscribers}, 재구매={repurchases}")
+                batch_data.extend([
+                    {'range': f'AI{row_num}', 'values': [[sessions]]},              # 유입 total
+                    {'range': f'AJ{row_num}', 'values': [[round(avg_duration)]]},  # 체류시간(초)
+                    {'range': f'AK{row_num}', 'values': [[subscribers]]},           # 알림
+                    {'range': f'AM{row_num}', 'values': [[repurchases]]},           # 재구매
+                ])
+                break
+    if batch_data:
+        ws.batch_update(batch_data)
+        print(f"  ✅ {len(result.data)}개 날짜 업데이트 완료\n")
+    else:
+        print(f"  ⏭️ 데이터 없음\n")
+
+
+def sync_product_costs_to_sheet(sb, gc, start_date: str, end_date: str):
+    """건별비용 DB(product_costs) → 시트 건별비용 탭
+
+    기존 시트 행 그대로 두고, DB에만 있는 신규 항목만 맨 아래에 추가.
+    건별비용 탭 구조: A=DATE, B=관련(브랜드), C=카테고리, D=사유, E=금액, F=공급업체/메모
+    """
+    print("🔹 건별비용 DB → 시트 동기화")
+    result = sb.table('product_costs').select('*').gte('date', start_date).lte('date', end_date).order('date').execute()
+    if not result.data:
+        print("  ⏭️ product_costs 데이터 없음")
+        return
+
+    sheet = gc.open_by_key(SHEET_ID)
+    ws = sheet.worksheet("건별비용")
+    existing = ws.get_all_values()  # 헤더 포함
+
+    # 시트의 기존 (date, description, amount) 조합으로 중복 방지
+    existing_keys = set()
+    for row in existing[1:]:  # 헤더 제외
+        if len(row) >= 5 and row[0].strip():
+            existing_keys.add((row[0].strip(), row[3].strip(), str(row[4]).strip().replace(",", "")))
+
+    BRAND_LABELS = {
+        "nutty": "너티", "ironpet": "아이언펫",
+        "saip": "사입", "balancelab": "밸런스랩",
+    }
+
+    new_rows = []
+    for r in result.data:
+        date_str = str(r.get("date", ""))
+        desc = str(r.get("description", ""))
+        amount = str(int(r.get("amount", 0)))
+        key = (date_str, desc, amount)
+        if key in existing_keys:
+            continue
+        brand_label = BRAND_LABELS.get(r.get("brand", ""), r.get("brand", ""))
+        new_rows.append([
+            date_str,
+            brand_label,
+            r.get("category", ""),
+            desc,
+            int(r.get("amount", 0)),
+            r.get("note", ""),
+        ])
+
+    if not new_rows:
+        print("  ✅ 신규 항목 없음 (모두 동기화됨)")
+        return
+
+    ws.append_rows(new_rows, value_input_option="USER_ENTERED")
+    print(f"  ✅ {len(new_rows)}건 추가 완료")
+
+
 def main():
+    import sys
     print("📊 DB → 브랜드별 Paid 시트 업데이트\n")
     
     creds = Credentials.from_service_account_file(SA_JSON, scopes=[
@@ -270,10 +421,15 @@ def main():
     
     sheet = gc.open_by_key(SHEET_ID)
     
-    # 어제부터 4일 (오늘 제외)
-    yesterday = datetime.now() - timedelta(days=1)
-    end_date = yesterday.strftime("%Y-%m-%d")
-    start_date = (yesterday - timedelta(days=3)).strftime("%Y-%m-%d")  # 어제-3일 = 4일치
+    # CLI 인자로 날짜 범위 지정 가능: python script.py 2025-12-22 2026-04-01
+    if len(sys.argv) >= 3:
+        start_date = sys.argv[1]
+        end_date = sys.argv[2]
+    else:
+        # 어제부터 4일 (오늘 제외)
+        yesterday = datetime.now() - timedelta(days=1)
+        end_date = yesterday.strftime("%Y-%m-%d")
+        start_date = (yesterday - timedelta(days=3)).strftime("%Y-%m-%d")  # 어제-3일 = 4일치
     
     print(f"기간: {start_date} ~ {end_date}\n")
     
@@ -308,7 +464,25 @@ def main():
         update_coupang_funnel(sb, start_date, end_date)
     except Exception as e:
         print(f"  ❌ 쿠팡 funnel 에러: {e}\n")
-    
+
+    # 카페24 funnel 추가 (T=세션, Z=장바구니, AA=회원가입, AC=재구매)
+    try:
+        update_cafe24_funnel(sb, gc, start_date, end_date)
+    except Exception as e:
+        print(f"  ❌ 카페24 funnel 에러: {e}\n")
+
+    # 스마트스토어 funnel 추가 (AI=세션, AK=알림, AM=재구매)
+    try:
+        update_smartstore_funnel(sb, gc, start_date, end_date)
+    except Exception as e:
+        print(f"  ❌ 스마트스토어 funnel 에러: {e}\n")
+
+    # 건별비용 DB → 시트 건별비용 탭 (misc_costs 테이블 미존재로 비활성화)
+    # try:
+    #     sync_product_costs_to_sheet(sb, gc, start_date, end_date)
+    # except Exception as e:
+    #     print(f"  ❌ 건별비용 에러: {e}\n")
+
     print(f"✅ 전체 완료: {total_dates}개 날짜, {total_cells}개 셀 업데이트")
 
 if __name__ == "__main__":

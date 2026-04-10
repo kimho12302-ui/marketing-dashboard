@@ -10,7 +10,7 @@ from supabase import create_client
 
 SUPABASE_URL = "https://phcfydxgwkmjiogerqmm.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBoY2Z5ZHhnd2ttamlvZ2VycW1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1Njg4NjQsImV4cCI6MjA4OTE0NDg2NH0.M0ThTSK0kBvN71rccvzQpr3dQuL52oRs_Tj9MT7VWRg"
-SA_JSON = r"C:\Users\김호\.naver-searchad\google-service-account.json"
+SA_JSON = os.path.expanduser("~/.naver-searchad/google-service-account.json")
 
 SHEET_SALES = "1YT3_RMO8XJYVxf3i7kzb50cVGPU5fMChhqGCRaa6NTw"
 SHEET_META = "1JaKZBYsAhd7nsDzNZAYRC2bp66-K1Nd0noDr1JzOqBs"
@@ -297,30 +297,10 @@ def main():
         errors.append(str(e))
         print(f"  ❌ {e}")
     
-    # 5. GA4 퍼널
-    print("\n📊 5. GA4 퍼널...")
-    def sync_ga4_funnel():
-        sheet = gc.open_by_key(SHEET_GA4)
-        ws = sheet.worksheet("daily_funnel")
-        recs = ws.get_all_records()
-        rows = []
-        for r in recs:
-            d = parse_date(r.get("date",""))
-            if not d: continue
-            rows.append({
-                "date": d, "brand": "nutty",
-                "impressions": safe_int(r.get("page_view", 0)),
-                "sessions": safe_int(r.get("page_view", 0)),
-                "cart_adds": safe_int(r.get("add_to_cart", 0)),
-                "signups": 0, "purchases": safe_int(r.get("purchase", 0)), "repurchases": 0,
-            })
-        dedup_upsert(sb, "daily_funnel", rows, "date,brand")
-    
-    try:
-        retry_with_backoff(sync_ga4_funnel, "GA4 퍼널")
-    except Exception as e:
-        errors.append(str(e))
-        print(f"  ❌ {e}")
+    # 5. GA4 퍼널 — 시트 기반 구버전 비활성화
+    # sync_ga4_funnel.py (API 직접 수집)로 교체됨
+    # 구버전은 sessions=page_view(잘못된 매핑), signups=0(하드코딩) 문제가 있었음
+    print("\n📊 5. GA4 퍼널... (API 기반 sync_ga4_funnel.py에서 별도 수집, 스킵)")
     
     # 6. GA4 캠페인별 광고비
     print("\n📊 6. GA4 캠페인별 광고비...")
@@ -356,14 +336,15 @@ def main():
     # 7. 밸런스랩 네이버 SA (별도 계정)
     print("\n📊 7. 밸런스랩 네이버 SA...")
     def sync_balancelab_naver():
+        import os
         import json
         import requests
         import hmac
         import hashlib
         import base64
         from datetime import datetime, timedelta
-        
-        CONFIG_PATH = r'C:\Users\김호\.naver-searchad-balancelab\config.json'
+
+        CONFIG_PATH = os.path.expanduser("~/.naver-searchad-balancelab/config.json")
         with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
             config = json.load(f)
         
@@ -398,15 +379,20 @@ def main():
         
         campaigns = api_get('/ncc/campaigns')
         rows = []
-        
+
         for date_offset in range(8):
             target_date = (start_date + timedelta(days=date_offset)).strftime('%Y-%m-%d')
-            date_spend = 0
-            date_impressions = 0
-            date_clicks = 0
-            
+            # 파워링크(search)와 쇼핑광고(shopping)를 분리해서 집계
+            by_channel = {
+                'naver_search':   {'spend': 0, 'impressions': 0, 'clicks': 0},
+                'naver_shopping': {'spend': 0, 'impressions': 0, 'clicks': 0},
+            }
+
             for campaign in campaigns:
                 cmp_id = campaign['nccCampaignId']
+                # campaignTp: SHOPPING이면 쇼핑광고, 아니면 파워링크
+                cmp_type = campaign.get('campaignTp', '')
+                channel = 'naver_shopping' if cmp_type == 'SHOPPING' else 'naver_search'
                 try:
                     stats_params = {
                         'ids': [cmp_id],
@@ -417,20 +403,20 @@ def main():
                     stats = api_get('/stats', params=stats_params)
                     data_list = stats if isinstance(stats, list) else stats.get('data', [])
                     for item in data_list:
-                        date_spend += float(item.get('salesAmt', 0))
-                        date_impressions += int(item.get('impCnt', 0))
-                        date_clicks += int(item.get('clkCnt', 0))
+                        by_channel[channel]['spend'] += float(item.get('salesAmt', 0))
+                        by_channel[channel]['impressions'] += int(item.get('impCnt', 0))
+                        by_channel[channel]['clicks'] += int(item.get('clkCnt', 0))
                 except:
                     continue
-            
-            # 0원이어도 기록
-            rows.append({
-                'date': target_date, 'brand': 'balancelab', 'channel': 'naver_search',
-                'spend': date_spend, 'impressions': date_impressions, 'clicks': date_clicks,
-                'conversions': 0, 'conversion_value': 0, 'roas': 0,
-                'ctr': date_clicks / date_impressions * 100 if date_impressions > 0 else 0,
-                'cpc': date_spend / date_clicks if date_clicks > 0 else 0,
-            })
+
+            for channel, data in by_channel.items():
+                rows.append({
+                    'date': target_date, 'brand': 'balancelab', 'channel': channel,
+                    'spend': data['spend'], 'impressions': data['impressions'], 'clicks': data['clicks'],
+                    'conversions': 0, 'conversion_value': 0, 'roas': 0,
+                    'ctr': data['clicks'] / data['impressions'] * 100 if data['impressions'] > 0 else 0,
+                    'cpc': data['spend'] / data['clicks'] if data['clicks'] > 0 else 0,
+                })
         
         dedup_upsert(sb, "daily_ad_spend", rows, "date,brand,channel")
     
