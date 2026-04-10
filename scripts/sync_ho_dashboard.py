@@ -106,7 +106,7 @@ def main():
     # header row0: 매출, 건수, 구매자수, 객단가 (repeated per channel)
     sales_rows = []
     channels = [
-        (4, "cafe24"), (7, "smartstore"), (10, "coupang"), (13, "ably"), (16, "feopet")
+        (4, "cafe24"), (7, "smartstore"), (10, "coupang"), (13, "ably"), (16, "petfriends")
     ]
     for row in vals[2:]:  # skip headers
         d = parse_date(row[0])
@@ -154,12 +154,51 @@ def main():
         # 메타
         meta_cost = safe_num(row[17]) if len(row) > 17 else 0
         meta_click = safe_int(row[19]) if len(row) > 19 else 0
-        meta_imp = safe_int(row[18]) if len(row) > 18 else 0  # CPM column, but let's check
         if meta_cost > 0:
             ad_rows.append({"date": d, "brand": "nutty", "channel": "meta",
                 "spend": meta_cost, "impressions": 0, "clicks": meta_click,
                 "conversions": 0, "conversion_value": 0,
                 "roas": 0, "ctr": 0, "cpc": meta_cost/meta_click if meta_click > 0 else 0})
+        # GFA (col29)
+        gfa_cost = safe_num(row[29]) if len(row) > 29 else 0
+        gfa_imp = safe_int(row[30]) if len(row) > 30 else 0
+        gfa_click = safe_int(row[32]) if len(row) > 32 else 0
+        if gfa_cost > 0:
+            ad_rows.append({"date": d, "brand": "nutty", "channel": "gfa",
+                "spend": gfa_cost, "impressions": gfa_imp, "clicks": gfa_click,
+                "conversions": 0, "conversion_value": 0,
+                "roas": 0, "ctr": gfa_click/gfa_imp*100 if gfa_imp > 0 else 0,
+                "cpc": gfa_cost/gfa_click if gfa_click > 0 else 0})
+        # 구글 검색광고 (col37)
+        gsearch_cost = safe_num(row[37]) if len(row) > 37 else 0
+        gsearch_imp = safe_int(row[38]) if len(row) > 38 else 0
+        gsearch_click = safe_int(row[40]) if len(row) > 40 else 0
+        if gsearch_cost > 0:
+            ad_rows.append({"date": d, "brand": "nutty", "channel": "google_search",
+                "spend": gsearch_cost, "impressions": gsearch_imp, "clicks": gsearch_click,
+                "conversions": 0, "conversion_value": 0, "roas": 0,
+                "ctr": gsearch_click/gsearch_imp*100 if gsearch_imp > 0 else 0,
+                "cpc": gsearch_cost/gsearch_click if gsearch_click > 0 else 0})
+        # 구글 GDN / Performance Max (col45)
+        gdn_cost = safe_num(row[45]) if len(row) > 45 else 0
+        gdn_imp = safe_int(row[46]) if len(row) > 46 else 0
+        gdn_click = safe_int(row[48]) if len(row) > 48 else 0
+        if gdn_cost > 0:
+            ad_rows.append({"date": d, "brand": "nutty", "channel": "google_pmax",
+                "spend": gdn_cost, "impressions": gdn_imp, "clicks": gdn_click,
+                "conversions": 0, "conversion_value": 0, "roas": 0,
+                "ctr": gdn_click/gdn_imp*100 if gdn_imp > 0 else 0,
+                "cpc": gdn_cost/gdn_click if gdn_click > 0 else 0})
+        # 쿠팡 광고 (col53)
+        coupang_cost = safe_num(row[53]) if len(row) > 53 else 0
+        coupang_imp = safe_int(row[54]) if len(row) > 54 else 0
+        coupang_click = safe_int(row[56]) if len(row) > 56 else 0
+        if coupang_cost > 0:
+            ad_rows.append({"date": d, "brand": "nutty", "channel": "coupang_ads",
+                "spend": coupang_cost, "impressions": coupang_imp, "clicks": coupang_click,
+                "conversions": 0, "conversion_value": 0, "roas": 0,
+                "ctr": coupang_click/coupang_imp*100 if coupang_imp > 0 else 0,
+                "cpc": coupang_cost/coupang_click if coupang_click > 0 else 0})
     dedup_upsert(sb, "daily_ad_spend", ad_rows, "date,brand,channel")
 
     # 4. [I]Paid — 아이언펫 광고비
@@ -211,59 +250,14 @@ def main():
         repurchases = safe_int(row[7])
         if impressions > 0 or sessions > 0:
             funnel_rows.append({
-                "date": d, "brand": "nutty",
+                "date": d, "brand": "nutty", "channel": "all",  # channel 컬럼 필수 (unique key: date,brand,channel)
                 "impressions": impressions, "sessions": sessions,
                 "cart_adds": cart, "signups": signups,
                 "purchases": purchases, "repurchases": repurchases
             })
-    dedup_upsert(sb, "daily_funnel", funnel_rows, "date,brand")
+    dedup_upsert(sb, "daily_funnel", funnel_rows, "date,brand,channel")
 
-    # 6. Sales 탭 — 개별 주문 (브랜드별 일별 집계)
-    print("\n📊 6. Sales (브랜드별 매출)...")
-    ws = sheet.worksheet("Sales")
-    vals = ws.get_all_values()
-    # row1 header: 월, 주문일시, 판매처, 카테고리, 브랜드명, 라인업, 제품, 수량, 구매자 수, 매출, 객단가
-    from collections import defaultdict
-    daily_brand = defaultdict(lambda: {"revenue": 0, "orders": 0})
-    for row in vals[2:]:  # skip headers
-        if len(row) < 10: continue
-        d = parse_date(row[1])
-        if not d: continue
-        brand_name = str(row[4]).strip()
-        channel = str(row[2]).strip()
-        revenue = safe_num(row[9])
-        qty = safe_int(row[7])
-        
-        # Map brand — 카테고리 기반
-        category = str(row[3]).strip()
-        brand = "nutty"
-        if "아이언펫" in brand_name or "ironpet" in brand_name.lower() or "아이언펫" in category:
-            brand = "ironpet"
-        elif "닥터레이" in brand_name:
-            brand = "ironpet"  # 닥터레이는 아이언펫 라인
-        
-        # Map channel
-        ch = "etc"
-        ch_lower = channel.lower()
-        if "카페24" in channel or "cafe24" in ch_lower: ch = "cafe24"
-        elif "스마트스토어" in channel or "smartstore" in ch_lower: ch = "smartstore"
-        elif "쿠팡" in channel or "coupang" in ch_lower: ch = "coupang"
-        elif "에이블리" in channel: ch = "ably"
-        elif "페오펫" in channel: ch = "feopet"
-        
-        key = (d, brand, ch)
-        daily_brand[key]["revenue"] += revenue
-        daily_brand[key]["orders"] += qty
-
-    sales_rows = []
-    for (d, brand, ch), data in daily_brand.items():
-        if data["revenue"] > 0:
-            sales_rows.append({
-                "date": d, "brand": brand, "channel": f"sales_{ch}",
-                "revenue": data["revenue"], "orders": data["orders"],
-                "avg_order_value": data["revenue"]/data["orders"] if data["orders"] > 0 else 0
-            })
-    dedup_upsert(sb, "daily_sales", sales_rows, "date,brand,channel")
+    # 6. Sales 탭 — 제거됨 (이카운트 엑셀 업로드가 daily_sales 단일 소스, 중복 방지)
 
     print("\n🎉 호 대시보드 전체 동기화 완료!")
 
