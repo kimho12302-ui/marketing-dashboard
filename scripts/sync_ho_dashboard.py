@@ -102,11 +102,13 @@ def main():
     print("\n📊 2. [매출]채널별...")
     ws = sheet.worksheet("[매출]채널별")
     vals = ws.get_all_values()
-    # header row1: 총, 카페24, 스마트스토어, 쿠팡, 에이블리, 페오펫
-    # header row0: 매출, 건수, 구매자수, 객단가 (repeated per channel)
+    # 실제 컬럼 레이아웃 (row0=그룹헤더, row1=매출/개수/구매자수 반복):
+    # col1-4: 총(매출,건수,구매자수,객단가), col5-7: 카페24(매출,개수,구매자수)
+    # col8-10: 스마트스토어, col11-13: 쿠팡, col14-16: 에이블리
+    # col17-19: 페오펫(데이터없음), col20-22: 피피, col23-24: 펫프렌즈(데이터없음)
     sales_rows = []
     channels = [
-        (4, "cafe24"), (7, "smartstore"), (10, "coupang"), (13, "ably"), (16, "petfriends")
+        (5, "cafe24"), (8, "smartstore"), (11, "coupang"), (14, "ably"), (20, "pp")
     ]
     for row in vals[2:]:  # skip headers
         d = parse_date(row[0])
@@ -255,7 +257,7 @@ def main():
                 "cart_adds": cart, "signups": signups,
                 "purchases": purchases, "repurchases": repurchases
             })
-    dedup_upsert(sb, "daily_funnel", funnel_rows, "date,brand,channel")
+    dedup_upsert(sb, "daily_funnel", funnel_rows, "date,brand")
 
     # 6. Sales 탭 — 제거됨 (이카운트 엑셀 업로드가 daily_sales 단일 소스, 중복 방지)
 
