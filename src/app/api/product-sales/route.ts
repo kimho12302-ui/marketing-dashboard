@@ -49,9 +49,10 @@ export async function GET(request: NextRequest) {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, d]) => ({ date, ...d }));
 
-    // Top products
+    // Top products - 공구(lineup 있는 row) 제외
     const prodMap = new Map<string, { revenue: number; quantity: number; buyers: number }>();
     for (const r of rows) {
+      if (r.lineup && r.lineup.trim() !== "") continue; // 공구 제외
       const existing = prodMap.get(r.product) || { revenue: 0, quantity: 0, buyers: 0 };
       existing.revenue += Number(r.revenue);
       existing.quantity += Number(r.quantity);
@@ -90,6 +91,7 @@ export async function GET(request: NextRequest) {
     const top5Names = new Set(topProducts.slice(0, 5).map(p => p.product));
     const prodTrendMap = new Map<string, Record<string, number>>();
     for (const r of rows) {
+      if (r.lineup && r.lineup.trim() !== "") continue; // 공구 제외
       if (!top5Names.has(r.product)) continue;
       const existing = prodTrendMap.get(r.date) || {};
       existing[r.product] = (existing[r.product] || 0) + Number(r.revenue);
