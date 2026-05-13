@@ -81,16 +81,18 @@ def upsert_to_db(sb, rows):
 
     for r in rows:
         ga4_data = {k: v for k, v in r.items() if k in GA4_COLS}
-        date, brand = ga4_data["date"], ga4_data["brand"]
+        date, brand, channel = ga4_data["date"], ga4_data["brand"], ga4_data.get("channel", "cafe24")
+        ga4_data["channel"] = channel
 
-        # 기존 레코드 확인 — channel 무관하게 (date, brand) 기준
+        # 기존 레코드 확인 — daily_funnel 의 unique key (date, brand, channel) 기준.
+        # sync_all_v2.py 의 on_conflict 와 동일 키로 통일하여 동시 실행 시 충돌 없음.
         existing = sb.table("daily_funnel").select("id,cart_adds,purchases,repurchases") \
-            .eq("date", date).eq("brand", brand).execute()
+            .eq("date", date).eq("brand", brand).eq("channel", channel).execute()
 
         if existing.data:
-            # 기존 레코드가 있으면 GA4 필드만 UPDATE (channel도 cafe24로 갱신, 수기입력 필드 보존)
+            # 기존 레코드가 있으면 GA4 필드만 UPDATE (수기입력 필드 보존)
             sb.table("daily_funnel").update(ga4_data) \
-                .eq("date", date).eq("brand", brand).execute()
+                .eq("date", date).eq("brand", brand).eq("channel", channel).execute()
         else:
             # 신규 레코드면 전체 INSERT (cart_adds 등 0으로 초기화)
             insert_data = {**ga4_data, "cart_adds": 0, "purchases": 0, "repurchases": 0}
