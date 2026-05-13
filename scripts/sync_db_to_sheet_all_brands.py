@@ -277,80 +277,126 @@ def update_coupang_funnel(sb, start_date, end_date):
         print(f"  ⏭️ 데이터 없음\n")
 
 def update_cafe24_funnel(sb, gc, start_date, end_date):
-    """카페24 퍼널 → Funnel 탭 (T=세션, Z=장바구니, AA=회원가입, AC=재구매)"""
+    """카페24 퍼널 → Funnel 탭 (T=세션, Z=장바구니, AA=회원가입, AC=재구매)
+
+    주의: daily_funnel에 같은 날짜가 brand=all(수기 입력) + brand=nutty/기타(GA4)로 나뉘어
+    저장된 케이스가 있어 날짜별로 병합 후 시트에 기록한다.
+    """
     print(f"🔹 카페24 funnel → Funnel 탭")
     sheet = gc.open_by_key(SHEET_ID)
     ws = sheet.worksheet("Funnel")
-    result = sb.table('daily_funnel').select('*').eq('brand', 'all').eq('channel', 'cafe24').gte('date', start_date).lte('date', end_date).execute()
+    result = sb.table('daily_funnel').select('*').eq('channel', 'cafe24').gte('date', start_date).lte('date', end_date).execute()
     all_values = ws.get_all_values()
     batch_data = []
-    for row_data in result.data:
-        date = row_data['date']
+
+    by_date = {}
+    for r in result.data:
+        d = r['date']
+        entry = by_date.get(d, {
+            'sessions': 0,
+            'cart_adds': 0,
+            'new_visitors': 0,
+            'registrations': 0,
+            'repurchases': 0,
+            'avg_duration': 0,
+            'total_users': 0,
+        })
+        entry['sessions'] = max(entry['sessions'], r.get('sessions', 0) or 0)
+        entry['cart_adds'] = max(entry['cart_adds'], r.get('cart_adds', 0) or 0)
+        entry['new_visitors'] = max(entry['new_visitors'], r.get('signups', 0) or 0)     # GA4 신규방문자
+        entry['registrations'] = max(entry['registrations'], r.get('purchases', 0) or 0) # 실제 회원가입 수 (수기입력)
+        entry['repurchases'] = max(entry['repurchases'], r.get('repurchases', 0) or 0)
+        entry['avg_duration'] = max(entry['avg_duration'], r.get('avg_duration', 0) or 0)
+        entry['total_users'] = max(entry['total_users'], r.get('subscribers', 0) or 0)   # DAU
+        by_date[d] = entry
+
+    for date, row_data in by_date.items():
         dt = datetime.strptime(date, "%Y-%m-%d")
         DAY_NAMES = ["월", "화", "수", "목", "금", "토", "일"]
         target_date = f"{dt.month}월 {dt.day}일 ({DAY_NAMES[dt.weekday()]})"
         for i, row in enumerate(all_values):
             if target_date in str(row[0]):
                 row_num = i + 1
-                sessions = row_data.get('sessions', 0) or 0
-                cart_adds = row_data.get('cart_adds', 0) or 0
-                new_visitors = row_data.get('signups', 0) or 0     # GA4 신규방문자
-                registrations = row_data.get('purchases', 0) or 0  # 실제 회원가입 수 (수기입력)
-                repurchases = row_data.get('repurchases', 0) or 0
-                avg_duration = row_data.get('avg_duration', 0) or 0
-                total_users = row_data.get('subscribers', 0) or 0  # DAU (subscribers에 저장됨)
-                returning = max(0, total_users - new_visitors)      # 재방문 = DAU - 신규방문자
+                sessions = row_data['sessions']
+                cart_adds = row_data['cart_adds']
+                new_visitors = row_data['new_visitors']
+                registrations = row_data['registrations']
+                repurchases = row_data['repurchases']
+                avg_duration = row_data['avg_duration']
+                total_users = row_data['total_users']
+                returning = max(0, total_users - new_visitors)
                 print(f"    {target_date} (행{row_num}): 세션={sessions}, DAU={total_users}, 신규={new_visitors}, 재방문={returning}, 체류={avg_duration:.0f}s, 장바구니={cart_adds}, 회원가입={registrations}, 재구매={repurchases}")
                 batch_data.extend([
-                    {'range': f'T{row_num}', 'values': [[sessions]]},               # 유입 total
-                    {'range': f'U{row_num}', 'values': [[new_visitors]]},           # 신규방문자 (GA4)
-                    {'range': f'V{row_num}', 'values': [[returning]]},              # 재방문
-                    {'range': f'W{row_num}', 'values': [[total_users]]},            # DAU
-                    {'range': f'X{row_num}', 'values': [[sessions]]},               # 세션 수
-                    {'range': f'Y{row_num}', 'values': [[round(avg_duration)]]},    # 체류시간(초)
-                    {'range': f'Z{row_num}', 'values': [[cart_adds]]},              # 장바구니
-                    {'range': f'AA{row_num}', 'values': [[registrations]]},         # 회원가입 (수기입력)
-                    {'range': f'AC{row_num}', 'values': [[repurchases]]},           # 재구매
+                    {'range': f'T{row_num}', 'values': [[sessions]]},
+                    {'range': f'U{row_num}', 'values': [[new_visitors]]},
+                    {'range': f'V{row_num}', 'values': [[returning]]},
+                    {'range': f'W{row_num}', 'values': [[total_users]]},
+                    {'range': f'X{row_num}', 'values': [[sessions]]},
+                    {'range': f'Y{row_num}', 'values': [[round(avg_duration)]]},
+                    {'range': f'Z{row_num}', 'values': [[cart_adds]]},
+                    {'range': f'AA{row_num}', 'values': [[registrations]]},
+                    {'range': f'AC{row_num}', 'values': [[repurchases]]},
                 ])
                 break
     if batch_data:
         ws.batch_update(batch_data)
-        print(f"  ✅ {len(result.data)}개 날짜 업데이트 완료\n")
+        print(f"  ✅ {len(by_date)}개 날짜 업데이트 완료\n")
     else:
         print(f"  ⏭️ 데이터 없음\n")
 
 
 def update_smartstore_funnel(sb, gc, start_date, end_date):
-    """스마트스토어 퍼널 → Funnel 탭 (AI=세션, AK=알림, AM=재구매)"""
+    """스마트스토어 퍼널 → Funnel 탭 (AI=세션, AK=알림, AM=재구매)
+
+    규칙:
+    - 일반(너티/아이언펫/사입)은 brand='all'
+    - 밸런스랩은 brand='balancelab'
+    - Funnel 탭은 날짜별 스마트스토어 총합을 봐야 하므로 두 값을 합산
+    """
     print(f"🔹 스마트스토어 funnel → Funnel 탭")
     sheet = gc.open_by_key(SHEET_ID)
     ws = sheet.worksheet("Funnel")
-    result = sb.table('daily_funnel').select('*').eq('brand', 'all').eq('channel', 'smartstore').gte('date', start_date).lte('date', end_date).execute()
+    result = sb.table('daily_funnel').select('*').eq('channel', 'smartstore').gte('date', start_date).lte('date', end_date).execute()
     all_values = ws.get_all_values()
     batch_data = []
-    for row_data in result.data:
-        date = row_data['date']
+
+    by_date = {}
+    for r in result.data:
+        d = r['date']
+        entry = by_date.get(d, {
+            'sessions': 0,
+            'subscribers': 0,
+            'repurchases': 0,
+            'avg_duration': 0,
+        })
+        entry['sessions'] += r.get('sessions', 0) or 0
+        entry['subscribers'] += r.get('subscribers', 0) or 0
+        entry['repurchases'] += r.get('repurchases', 0) or 0
+        entry['avg_duration'] = max(entry['avg_duration'], r.get('avg_duration', 0) or 0)
+        by_date[d] = entry
+
+    for date, row_data in by_date.items():
         dt = datetime.strptime(date, "%Y-%m-%d")
         DAY_NAMES = ["월", "화", "수", "목", "금", "토", "일"]
         target_date = f"{dt.month}월 {dt.day}일 ({DAY_NAMES[dt.weekday()]})"
         for i, row in enumerate(all_values):
             if target_date in str(row[0]):
                 row_num = i + 1
-                sessions = row_data.get('sessions', 0) or 0
-                subscribers = row_data.get('subscribers', 0) or 0
-                repurchases = row_data.get('repurchases', 0) or 0
-                avg_duration = row_data.get('avg_duration', 0) or 0
+                sessions = row_data['sessions']
+                subscribers = row_data['subscribers']
+                repurchases = row_data['repurchases']
+                avg_duration = row_data['avg_duration']
                 print(f"    {target_date} (행{row_num}): 세션={sessions}, 체류={avg_duration:.0f}s, 알림={subscribers}, 재구매={repurchases}")
                 batch_data.extend([
-                    {'range': f'AI{row_num}', 'values': [[sessions]]},              # 유입 total
-                    {'range': f'AJ{row_num}', 'values': [[round(avg_duration)]]},  # 체류시간(초)
-                    {'range': f'AK{row_num}', 'values': [[subscribers]]},           # 알림
-                    {'range': f'AM{row_num}', 'values': [[repurchases]]},           # 재구매
+                    {'range': f'AI{row_num}', 'values': [[sessions]]},
+                    {'range': f'AJ{row_num}', 'values': [[round(avg_duration)]]},
+                    {'range': f'AK{row_num}', 'values': [[subscribers]]},
+                    {'range': f'AM{row_num}', 'values': [[repurchases]]},
                 ])
                 break
     if batch_data:
         ws.batch_update(batch_data)
-        print(f"  ✅ {len(result.data)}개 날짜 업데이트 완료\n")
+        print(f"  ✅ {len(by_date)}개 날짜 업데이트 완료\n")
     else:
         print(f"  ⏭️ 데이터 없음\n")
 
@@ -426,10 +472,11 @@ def main():
         start_date = sys.argv[1]
         end_date = sys.argv[2]
     else:
-        # 어제부터 4일 (오늘 제외)
+        # 기본값: 최근 30일(오늘 제외) 재동기화
+        # 수기입력/재입력/늦은 백필이 잦아서 4일치만 돌리면 날짜 구멍이 남는다.
         yesterday = datetime.now() - timedelta(days=1)
         end_date = yesterday.strftime("%Y-%m-%d")
-        start_date = (yesterday - timedelta(days=3)).strftime("%Y-%m-%d")  # 어제-3일 = 4일치
+        start_date = (yesterday - timedelta(days=29)).strftime("%Y-%m-%d")
     
     print(f"기간: {start_date} ~ {end_date}\n")
     

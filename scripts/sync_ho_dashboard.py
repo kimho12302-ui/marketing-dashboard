@@ -115,7 +115,8 @@ def main():
         if not d: continue
         for col_start, ch_name in channels:
             rev = safe_num(row[col_start]) if col_start < len(row) else 0
-            orders = safe_int(row[col_start+1]) if col_start+1 < len(row) else 0
+            # col+1=개수(수량), col+2=구매자수(실제 주문건수) — 구매자수 사용
+            orders = safe_int(row[col_start+2]) if col_start+2 < len(row) else 0
             if rev > 0:
                 sales_rows.append({
                     "date": d, "brand": "nutty", "channel": ch_name,
