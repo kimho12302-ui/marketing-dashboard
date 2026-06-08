@@ -1,0 +1,82 @@
+name: daily-sync
+
+# 매일 데이터 수집 + DB 적재 + 시트/데이터허브 역동기화
+# 기존 OpenClaw(다른 컴퓨터) 크론을 대체. 비밀키는 GitHub Secrets에서 주입.
+
+on:
+  schedule:
+    - cron: "0 0 * * *"   # 매일 00:00 UTC = 09:00 KST
+  workflow_dispatch:        # 수동 실행 버튼
+    inputs:
+      start_date:
+        description: "백필 시작일 (YYYY-MM-DD, 비우면 기본값)"
+        required: false
+      end_date:
+        description: "백필 종료일 (YYYY-MM-DD, 비우면 기본값)"
+        required: false
+
+concurrency:
+  group: daily-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Write credential files
+        env:
+          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+          NAVER_CONFIG: ${{ secrets.NAVER_CONFIG }}
+          NAVER_BALANCELAB_CONFIG: ${{ secrets.NAVER_BALANCELAB_CONFIG }}
+        run: |
+          mkdir -p "$HOME/.naver-searchad" "$HOME/.naver-searchad-balancelab"
+          printf '%s' "$GOOGLE_SA_JSON" > "$HOME/.naver-searchad/google-service-account.json"
+          printf '%s' "$NAVER_CONFIG" > "$HOME/.naver-searchad/config.json"
+          printf '%s' "$NAVER_BALANCELAB_CONFIG" > "$HOME/.naver-searchad-balancelab/config.json"
+
+      # 각 단계는 독립 실패 허용(continue-on-error): 한 소스가 죽어도 나머지는 수집
+      - name: Collect all (cafe24/meta/naver/google/ga4/balancelab + 시트 역동기화)
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          ARG_START: ${{ github.event.inputs.start_date }}
+          ARG_END: ${{ github.event.inputs.end_date }}
+        run: python scripts/sync_all.py $ARG_START $ARG_END
+
+      - name: GA4 funnel
+        continue-on-error: true
+        run: python scripts/sync_ga4_funnel.py
+
+      - name: GA4 UTM
+        continue-on-error: true
+        run: python scripts/sync_ga4_utm.py
+
+      - name: Naver SA (API 직접 수집, 전환매출 포함)
+        continue-on-error: true
+        env:
+          ARG_START: ${{ github.event.inputs.start_date }}
+          ARG_END: ${{ github.event.inputs.end_date }}
+        run: python scripts/sync_naver_sa.py $ARG_START $ARG_END
+
+      - name: DB → 브랜드별 Paid 시트
+        continue-on-error: true
+        env:
+          ARG_START: ${{ github.event.inputs.start_date }}
+          ARG_END: ${{ github.event.inputs.end_date }}
+        run: python scripts/sync_db_to_sheet_all_brands.py $ARG_START $ARG_END
+
+      - name: DB → DataHub 시트
+        continue-on-error: true
+        run: python scripts/sync_db_to_datahub.py
