@@ -478,7 +478,7 @@ def main():
     # 🛡 시트 보호선: 보호선(기본 2026-06-08) 이전 데이터는 시트에 쓰지 않는다.
     #    Supabase(DB)는 제한 없이 재집계 가능 — 사람이 보는 시트의 과거만 동결.
     #    의도적 백필 시에만 SHEET_FREEZE_DATE 환경변수로 보호선을 낮춘다.
-    SHEET_FREEZE_DATE = os.environ.get("SHEET_FREEZE_DATE", "2026-06-08")
+    SHEET_FREEZE_DATE = os.environ.get("SHEET_FREEZE_DATE", "2026-06-01")
     if start_date < SHEET_FREEZE_DATE:
         print(f"  🛡 시트 보호: {start_date} 이전 미수정 → 시작일 {SHEET_FREEZE_DATE}로 클램프")
         start_date = SHEET_FREEZE_DATE
