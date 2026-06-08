@@ -53,6 +53,12 @@ jobs:
           ARG_END: ${{ github.event.inputs.end_date }}
         run: python scripts/sync_all.py $ARG_START $ARG_END
 
+      - name: 메타 광고 (API 직접 수집, stale 시트 대체)
+        continue-on-error: true
+        env:
+          META_ADS_TOKEN: ${{ secrets.META_ADS_TOKEN }}
+        run: python scripts/sync_meta_api.py
+
       - name: GA4 funnel
         continue-on-error: true
         run: python scripts/sync_ga4_funnel.py
