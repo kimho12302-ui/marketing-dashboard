@@ -1,0 +1,7 @@
+# PPMI marketing-dashboard 수집 스크립트 의존성
+# 설치: py -m pip install -r requirements.txt
+google-auth>=2.0
+google-api-python-client>=2.0
+gspread>=6.0
+supabase>=2.0
+requests>=2.31

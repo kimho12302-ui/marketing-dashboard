@@ -68,7 +68,7 @@ def brand_from_campaign(campaign: str) -> str:
     c = campaign.lower()
     if "아이언펫" in c: return "ironpet"
     if "너티" in c:     return "nutty"
-    if "사입" in c:     return "saip"
+    if "사입" in c or "벌크" in c: return "saip"
     if "밸런스" in campaign or "큐모발" in campaign or "balancelab" in c:
         return "balancelab"
     return "nutty"  # fallback
@@ -226,7 +226,7 @@ def sync_google_ads_from_sheet(gc, sb, start_date: str, end_date: str):
         if spend == 0: continue
         campaign = str(r.get("campaign", "")).lower()
         if "아이언펫" in campaign or "ironpet" in campaign: brand = "ironpet"
-        elif "사입" in campaign: brand = "saip"
+        elif "사입" in campaign or "벌크" in campaign: brand = "saip"
         else: brand = "nutty"
         channel = ("google_search"
                    if "search" in campaign and "p-max" not in campaign and "pmax" not in campaign
