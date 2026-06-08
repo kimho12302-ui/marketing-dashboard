@@ -110,6 +110,16 @@ def main():
             print("  ", {k: r[k] for k in ("date", "brand", "spend", "clicks", "conversions", "conversion_value")})
         return
 
+    # ★ 전 계정 0행 = 토큰 만료/권한 문제 → 정직하게 ok=False (가짜 🟢 방지)
+    if not all_rows:
+        print("⚠ 메타 0행 수집 (토큰 만료/권한 문제 추정) → 하트비트 ok=False")
+        try:
+            from heartbeat import record as hb
+            hb("meta", ok=False, rows=0, note="0 rows collected (token expired?)")
+        except Exception:
+            pass
+        sys.exit(1)
+
     for i in range(0, len(all_rows), 200):
         sb.table("daily_ad_spend").upsert(all_rows[i:i + 200], on_conflict="date,brand,channel").execute()
     print(f"✅ daily_ad_spend meta {len(all_rows)}행 upsert 완료")

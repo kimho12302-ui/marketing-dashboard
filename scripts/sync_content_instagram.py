@@ -135,21 +135,34 @@ def main():
             "followers": foll, "engagement": 0,
         })
 
-    print(f"\n총 {len(rows)}행 생성 (팔로워 스냅샷 {len(followers_now)}개 포함)")
+    # 미디어(_followers 제외)를 실제로 1개 이상 수집했는지 → 토큰 만료/권한 문제 감지
+    media_rows = [r for r in rows if r["content_type"] != "_followers"]
+    print(f"\n총 {len(rows)}행 생성 (미디어 {len(media_rows)}행 + 팔로워 스냅샷 {len(followers_now)}개)")
     if DRY_RUN:
         print("[DRY_RUN] 쓰지 않음. 샘플:")
         for r in rows[:8]:
             print("  ", r)
         return
 
-    # 인스타 데이터 교체: 기존 instagram 행 삭제 후 삽입
-    sb.table("content_performance").delete().eq("platform", "instagram").execute()
+    # ★ 파괴 방지: 수집 결과가 비면(토큰 만료 등) 기존 데이터를 절대 삭제하지 않음
+    if not media_rows:
+        print("⚠ 수집된 인스타 미디어 0행 (토큰 만료/권한 문제 추정) → 기존 데이터 보존, 쓰기 생략")
+        try:
+            from heartbeat import record as hb
+            hb("instagram_content", ok=False, rows=0, note="0 media collected (token?) - kept existing")
+        except Exception:
+            pass
+        sys.exit(1)
+
+    # 비파괴 upsert (unique=date,brand,platform,content_type). delete 안 함 → 부분 수집에도 안전
     for i in range(0, len(rows), 200):
-        sb.table("content_performance").insert(rows[i:i + 200]).execute()
-    print(f"✅ content_performance instagram {len(rows)}행 교체 완료")
+        sb.table("content_performance").upsert(
+            rows[i:i + 200], on_conflict="date,brand,platform,content_type"
+        ).execute()
+    print(f"✅ content_performance instagram {len(rows)}행 upsert 완료 (미디어 {len(media_rows)})")
     try:
         from heartbeat import record as hb
-        latest = max((r["date"] for r in rows), default=None)
+        latest = max((r["date"] for r in media_rows), default=None)
         hb("instagram_content", ok=True, rows=len(rows), latest_date=latest)
     except Exception:
         pass
