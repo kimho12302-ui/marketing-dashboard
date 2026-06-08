@@ -115,9 +115,8 @@ def update_sheet(ws, data_by_date, brand_name):
                 print(f"    {target_date} (행{row_num}): total={data['total_cost']:,.0f}원 | meta={data['meta_cost']:,.0f}원")
                 
                 batch_data.extend([
-                    {'range': f'B{row_num}', 'values': [[round(data['total_cost'])]]},
-                    {'range': f'C{row_num}', 'values': [[data['total_imp']]]},
-                    {'range': f'D{row_num}', 'values': [[data['total_click']]]},
+                    # Total(B) 미기록: 시트가 채널 합산 수식([사입]/[I]Paid은 B=수식). 정적값 덮어쓰면 수식 깨짐.
+                    # 총노출(C)/총클릭(D)도 동일 사유로 보류 — 필요시 복원.
                     {'range': f'G{row_num}', 'values': [[data['naver_search_cost']]]},
                     {'range': f'H{row_num}', 'values': [[data['naver_search_imp']]]},
                     {'range': f'I{row_num}', 'values': [[data['naver_search_click']]]},
@@ -131,9 +130,7 @@ def update_sheet(ws, data_by_date, brand_name):
                     {'range': f'AS{row_num}', 'values': [[data['google_pmax_cost']]]},
                     {'range': f'AT{row_num}', 'values': [[data['google_pmax_imp']]]},
                     {'range': f'AV{row_num}', 'values': [[data['google_pmax_click']]]},
-                    {'range': f'AD{row_num}', 'values': [[data['gfa_cost']]]},
-                    {'range': f'AE{row_num}', 'values': [[data['gfa_imp']]]},
-                    {'range': f'AG{row_num}', 'values': [[data['gfa_click']]]},
+                    # GFA(AD/AE/AG) 미기록: GFA는 이 파이프라인이 수집 안 함(수기 입력). 0 덮어쓰기 금지.
                 ])
                 
                 # 쿠팡은 너티만 (AZ=매출, BA=비용, BB=노출, BD=클릭)
