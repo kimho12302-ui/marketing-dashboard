@@ -113,6 +113,12 @@ def main():
     for i in range(0, len(all_rows), 200):
         sb.table("daily_ad_spend").upsert(all_rows[i:i + 200], on_conflict="date,brand,channel").execute()
     print(f"✅ daily_ad_spend meta {len(all_rows)}행 upsert 완료")
+    try:
+        from heartbeat import record as hb
+        latest = max((r["date"] for r in all_rows), default=None)
+        hb("meta", ok=True, rows=len(all_rows), latest_date=latest)
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":

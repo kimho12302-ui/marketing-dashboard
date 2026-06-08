@@ -147,6 +147,12 @@ def main():
     for i in range(0, len(rows), 200):
         sb.table("content_performance").insert(rows[i:i + 200]).execute()
     print(f"✅ content_performance instagram {len(rows)}행 교체 완료")
+    try:
+        from heartbeat import record as hb
+        latest = max((r["date"] for r in rows), default=None)
+        hb("instagram_content", ok=True, rows=len(rows), latest_date=latest)
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":
