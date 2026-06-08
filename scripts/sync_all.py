@@ -207,7 +207,7 @@ def main():
                 brand = "ironpet"
             elif "너티" in campaign_lower:
                 brand = "nutty"
-            elif "사입" in campaign_lower:
+            elif "사입" in campaign_lower or "벌크" in campaign_lower:
                 brand = "saip"
             elif "밸런스" in campaign or "큐모발" in campaign or "balancelab" in campaign_lower:
                 brand = "balancelab"
