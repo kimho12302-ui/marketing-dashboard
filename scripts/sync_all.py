@@ -8,6 +8,12 @@ import gspread
 from google.oauth2.service_account import Credentials
 from supabase import create_client
 
+try:
+    from heartbeat import record as hb
+except Exception:
+    def hb(*a, **k):
+        pass
+
 SUPABASE_URL = "https://phcfydxgwkmjiogerqmm.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBoY2Z5ZHhnd2ttamlvZ2VycW1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1Njg4NjQsImV4cCI6MjA4OTE0NDg2NH0.M0ThTSK0kBvN71rccvzQpr3dQuL52oRs_Tj9MT7VWRg"
 SA_JSON = os.path.expanduser("~/.naver-searchad/google-service-account.json")
@@ -127,8 +133,9 @@ def main():
     
     try:
         retry_with_backoff(sync_cafe24, "Cafe24 매출")
+        hb("cafe24_sales", ok=True)
     except Exception as e:
-        errors.append(str(e))
+        errors.append(str(e)); hb("cafe24_sales", ok=False, note=str(e))
         print(f"  ❌ {e}")
     
     # 2. Meta Ads
@@ -182,8 +189,9 @@ def main():
     
     try:
         retry_with_backoff(sync_meta, "Meta Ads")
+        hb("meta", ok=True)
     except Exception as e:
-        errors.append(str(e))
+        errors.append(str(e)); hb("meta", ok=False, note=str(e))
         print(f"  ❌ {e}")
     
     # 3. Naver SA
@@ -238,8 +246,9 @@ def main():
     
     try:
         retry_with_backoff(sync_naver, "Naver 검색광고")
+        hb("naver_sa", ok=True)
     except Exception as e:
-        errors.append(str(e))
+        errors.append(str(e)); hb("naver_sa", ok=False, note=str(e))
         print(f"  ❌ {e}")
     
     # 4. Google Ads
@@ -293,8 +302,9 @@ def main():
     
     try:
         retry_with_backoff(sync_google, "Google Ads")
+        hb("google_ads", ok=True)
     except Exception as e:
-        errors.append(str(e))
+        errors.append(str(e)); hb("google_ads", ok=False, note=str(e))
         print(f"  ❌ {e}")
     
     # 5. GA4 퍼널 — 시트 기반 구버전 비활성화
@@ -329,8 +339,9 @@ def main():
     
     try:
         retry_with_backoff(sync_ga4_campaigns, "GA4 캠페인")
+        hb("ga4_campaigns", ok=True)
     except Exception as e:
-        errors.append(str(e))
+        errors.append(str(e)); hb("ga4_campaigns", ok=False, note=str(e))
         print(f"  ❌ {e}")
     
     # 7. 밸런스랩 네이버 SA (별도 계정)
@@ -422,8 +433,9 @@ def main():
     
     try:
         retry_with_backoff(sync_balancelab_naver, "밸런스랩 네이버 SA")
+        hb("naver_balancelab", ok=True)
     except Exception as e:
-        errors.append(str(e))
+        errors.append(str(e)); hb("naver_balancelab", ok=False, note=str(e))
         print(f"  ❌ {e}")
     
     # 최종 결과
