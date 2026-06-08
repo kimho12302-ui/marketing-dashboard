@@ -42,9 +42,7 @@ jobs:
           NAVER_BALANCELAB_CONFIG: ${{ secrets.NAVER_BALANCELAB_CONFIG }}
         run: |
           mkdir -p "$HOME/.naver-searchad" "$HOME/.naver-searchad-balancelab"
-          printf '%s' "$GOOGLE_SA_JSON" > "$HOME/.naver-searchad/google-service-account.json"
-          printf '%s' "$NAVER_CONFIG" > "$HOME/.naver-searchad/config.json"
-          printf '%s' "$NAVER_BALANCELAB_CONFIG" > "$HOME/.naver-searchad-balancelab/config.json"
+          python3 -c "import os; [open(os.path.expanduser(p),'w',encoding='utf-8').write(os.environ[e].lstrip(chr(0xfeff))) for p,e in [('~/.naver-searchad/google-service-account.json','GOOGLE_SA_JSON'),('~/.naver-searchad/config.json','NAVER_CONFIG'),('~/.naver-searchad-balancelab/config.json','NAVER_BALANCELAB_CONFIG')]]"
 
       # 각 단계는 독립 실패 허용(continue-on-error): 한 소스가 죽어도 나머지는 수집
       - name: Collect all (cafe24/meta/naver/google/ga4/balancelab + 시트 역동기화)
