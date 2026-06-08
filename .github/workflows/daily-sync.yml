@@ -78,3 +78,9 @@ jobs:
       - name: DB → DataHub 시트
         continue-on-error: true
         run: python scripts/sync_db_to_datahub.py
+
+      - name: 콘텐츠 (인스타그램)
+        continue-on-error: true
+        env:
+          META_ADS_TOKEN: ${{ secrets.META_ADS_TOKEN }}
+        run: python scripts/sync_content_instagram.py
