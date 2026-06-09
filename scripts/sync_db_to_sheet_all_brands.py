@@ -258,13 +258,18 @@ def update_coupang_funnel(sb, start_date, end_date):
                 purchases = row_data.get('purchases', 0)
                 
                 print(f"    {target_date} (행{row_num}): 조회={impressions}, 방문자={sessions}, 장바구니={cart_adds}, 구매={purchases}")
-                
-                batch_data.extend([
-                    {'range': f'AQ{row_num}', 'values': [[impressions]]},
+
+                # 방문자/장바구니/구매는 DB값으로 갱신.
+                # ★조회(AQ)는 쿠팡 셀러 상품조회수 = 수기 입력 지표. DB에 소스 없어 보통 0.
+                #   0으로 덮어쓰면 수기 입력 데이터가 날아감 → impressions가 있을 때만 갱신(보호).
+                updates = [
                     {'range': f'AR{row_num}', 'values': [[sessions]]},
                     {'range': f'AS{row_num}', 'values': [[cart_adds]]},
                     {'range': f'AT{row_num}', 'values': [[purchases]]},
-                ])
+                ]
+                if impressions:  # 0/None이 아닐 때만 조회 갱신 (수기값 보호)
+                    updates.append({'range': f'AQ{row_num}', 'values': [[impressions]]})
+                batch_data.extend(updates)
                 break
     
     if batch_data:
