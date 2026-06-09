@@ -89,11 +89,9 @@ def fetch_cafe24_magazine(board_url, since, today, max_pages=3):
 
 # 수집 대상: (소스종류, 식별자, brand, platform, content_type)
 BLOG_SOURCES = [
+    # content_type 은 ASCII 키로 저장(한글 인코딩 손상 방지). UI에서 라벨 매핑.
     {"kind": "naver", "id": "ysiet_qhair", "brand": "balancelab",
-     "platform": "naver_blog", "content_type": "네이버블로그"},
-    # 매거진 귀속(brand)은 사용자 확인 후 활성화. ironpet.store는 아이언펫/너티 공용.
-    # {"kind": "cafe24", "url": "https://ironpet.store/board/매거진/8/", "brand": "ironpet",
-    #  "platform": "cafe24_blog", "content_type": "매거진"},
+     "platform": "naver_blog", "content_type": "naver_blog"},
 ]
 
 

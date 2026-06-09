@@ -5,7 +5,8 @@ name: daily-sync
 
 on:
   schedule:
-    - cron: "0 0 * * *"   # 매일 00:00 UTC = 09:00 KST
+    - cron: "0 0 * * *"    # 매일 00:00 UTC = 09:00 KST
+    - cron: "0 12 * * *"   # 매일 12:00 UTC = 21:00 KST (오후 업로드 당일 반영용)
   workflow_dispatch:        # 수동 실행 버튼
     inputs:
       start_date:
