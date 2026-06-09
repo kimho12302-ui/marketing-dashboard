@@ -4,7 +4,8 @@
 - 비소유(nutty): Business Discovery 로 공개 데이터(댓글만, 좋아요/노출 불가)
 - content_type = 미디어 포맷(image/video/carousel/reel) ← 대시보드 페이지가 이 값으로 그림
 - 게시물수/참여 = 게시일 기준 집계, 팔로워 = 오늘 스냅샷
-- 노출(impressions)은 owned per-post insights 필요 → v1에서는 0 (왜곡 금지, 가짜값 안 넣음)
+- 노출(impressions 컬럼) = 소유 계정 per-media reach (instagram_manage_insights 권한).
+  discovery(너티)는 insights 불가 → 노출 0 유지. 실패 시 0 (가짜값 안 넣음)
 
 토큰: 환경변수 META_ADS_TOKEN (GitHub Secrets / 로컬 export)
 사용: python sync_content_instagram.py [since YYYY-MM-DD]
@@ -61,7 +62,7 @@ def fetch_owned(ig_id):
     prof = requests.get(f"{GRAPH}/{ig_id}", params={
         "fields": "followers_count,media_count", "access_token": TOKEN}, timeout=30).json()
     media, url = [], f"{GRAPH}/{ig_id}/media"
-    params = {"fields": "timestamp,media_type,media_product_type,like_count,comments_count",
+    params = {"fields": "id,timestamp,media_type,media_product_type,like_count,comments_count",
               "access_token": TOKEN, "limit": 100}
     while url and len(media) < 600:
         j = requests.get(url, params=params, timeout=30).json()
@@ -81,6 +82,27 @@ def fetch_discovery(my_ig_id, username):
     return bd.get("followers_count", 0), bd.get("media", {}).get("data", [])
 
 
+def fetch_media_insights(media_id):
+    """소유 미디어의 도달(reach)을 노출값으로 사용 (instagram_manage_insights 권한 필요).
+
+    reach = 게시물이 도달한 고유 계정 수. 모든 미디어 타입에서 가장 안정적으로 지원됨.
+    (impressions 메트릭은 신규 API 버전에서 deprecated → reach로 통일)
+    실패/미지원 시 0 반환 = 가짜값 안 넣음(왜곡 금지 원칙).
+    """
+    try:
+        j = requests.get(f"{GRAPH}/{media_id}/insights",
+                         params={"metric": "reach", "access_token": TOKEN}, timeout=20).json()
+        if "error" in j:
+            return 0
+        for d in j.get("data", []):
+            if d.get("name") == "reach":
+                vals = d.get("values") or [{}]
+                return int(vals[0].get("value", 0) or 0)
+    except Exception:
+        return 0
+    return 0
+
+
 def main():
     if not TOKEN:
         print("❌ META_ADS_TOKEN 환경변수 없음"); sys.exit(1)
@@ -92,30 +114,37 @@ def main():
     print("소유 IG:", owned)
     my_ig = next(iter(owned.values()), None)
 
-    # (date, brand, content_type) -> {posts, engagement}
-    agg = defaultdict(lambda: {"posts": 0, "engagement": 0})
+    # (date, brand, content_type) -> {posts, engagement, impressions}
+    agg = defaultdict(lambda: {"posts": 0, "engagement": 0, "impressions": 0})
     followers_now = {}
 
     for brand, uname in USERNAMES.items():
         if uname in owned:
             foll, media = fetch_owned(owned[uname])
+            is_owned = True   # 소유 계정만 per-media insights(노출) 호출 가능
         elif my_ig:
             foll, media = fetch_discovery(my_ig, uname)
+            is_owned = False  # discovery(너티)는 insights 불가 → 노출 0 유지
         else:
             print(f"  ⚠ {brand}: 수집 불가 (소유계정 없음)"); continue
         followers_now[brand] = foll or 0
         cnt = 0
+        impr_sum = 0
         for m in media:
             ts = (m.get("timestamp") or "")[:10]
             if not ts or ts < since or ts > today:
                 continue
             ct = fmt_type(m.get("media_type"), m.get("media_product_type"))
             eng = (m.get("like_count") or 0) + (m.get("comments_count") or 0)
+            # 노출(reach): 소유 계정 + 미디어 id 있을 때만 1건씩 조회
+            impr = fetch_media_insights(m["id"]) if (is_owned and m.get("id")) else 0
             k = (ts, brand, ct)
             agg[k]["posts"] += 1
             agg[k]["engagement"] += eng
+            agg[k]["impressions"] += impr
+            impr_sum += impr
             cnt += 1
-        print(f"  {brand}: 팔로워 {foll}, 기간내 게시물 {cnt}")
+        print(f"  {brand}: 팔로워 {foll}, 기간내 게시물 {cnt}, 노출(reach) 합 {impr_sum}")
 
     rows = []
     for (date, brand, ct), v in agg.items():
@@ -124,7 +153,7 @@ def main():
         eng_rate = round(min(99.9999, v["engagement"] / foll * 100), 4) if foll else 0
         rows.append({
             "date": date, "brand": brand, "platform": "instagram", "content_type": ct,
-            "posts": v["posts"], "impressions": 0, "clicks": 0, "ctr": 0,
+            "posts": v["posts"], "impressions": v["impressions"], "clicks": 0, "ctr": 0,
             "followers": 0, "engagement": eng_rate,
         })
     # 팔로워 스냅샷: 오늘 행(브랜드별, content_type='_followers')에 기록
