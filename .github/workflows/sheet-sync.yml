@@ -1,0 +1,47 @@
+name: sheet-sync
+
+# DB → 통계시트 역동기화만 (가벼움, ~1-2분). 업로드 직후 대시보드에서 dispatch.
+# daily-sync와 달리 API 재수집을 하지 않으므로 수기/쿠팡 값 클로버 위험 없음.
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: "시작일 YYYY-MM-DD (비우면 스크립트 기본값)"
+        required: false
+      end_date:
+        description: "종료일 YYYY-MM-DD (비우면 스크립트 기본값)"
+        required: false
+
+concurrency:
+  group: sheet-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Write credential file
+        env:
+          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+        run: |
+          mkdir -p "$HOME/.naver-searchad"
+          python3 -c "import os; open(os.path.expanduser('~/.naver-searchad/google-service-account.json'),'w',encoding='utf-8').write(os.environ['GOOGLE_SA_JSON'].lstrip(chr(0xfeff)))"
+
+      - name: DB → 통계시트 역동기화
+        env:
+          ARG_START: ${{ github.event.inputs.start_date }}
+          ARG_END: ${{ github.event.inputs.end_date }}
+        run: python scripts/sync_db_to_sheet_all_brands.py $ARG_START $ARG_END
