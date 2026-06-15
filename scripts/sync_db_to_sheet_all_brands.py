@@ -130,8 +130,15 @@ def update_sheet(ws, data_by_date, brand_name):
                     {'range': f'AS{row_num}', 'values': [[data['google_pmax_cost']]]},
                     {'range': f'AT{row_num}', 'values': [[data['google_pmax_imp']]]},
                     {'range': f'AV{row_num}', 'values': [[data['google_pmax_click']]]},
-                    # GFA(AD/AE/AG) 미기록: GFA는 이 파이프라인이 수집 안 함(수기 입력). 0 덮어쓰기 금지.
                 ])
+                # GFA(AD=비용/AE=노출/AG=클릭): DB에 GFA 값이 있을 때만 기록.
+                # (0/0/0 = DB에 gfa 행 없음 → 스킵해서 시트 수기값 보존. 폼 입력 GFA는 값이 있으니 시트로 흐름.)
+                if data['gfa_cost'] or data['gfa_imp'] or data['gfa_click']:
+                    batch_data.extend([
+                        {'range': f'AD{row_num}', 'values': [[data['gfa_cost']]]},
+                        {'range': f'AE{row_num}', 'values': [[data['gfa_imp']]]},
+                        {'range': f'AG{row_num}', 'values': [[data['gfa_click']]]},
+                    ])
                 
                 # 쿠팡은 너티만 (AZ=매출, BA=비용, BB=노출, BD=클릭)
                 if brand_name == "nutty":
