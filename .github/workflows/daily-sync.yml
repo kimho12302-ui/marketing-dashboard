@@ -82,6 +82,13 @@ jobs:
           ARG_END: ${{ github.event.inputs.end_date }}
         run: python scripts/sync_db_to_sheet_all_brands.py $ARG_START $ARG_END
 
+      - name: DB → 밸런스랩 [Q]Paid 시트 (별도 시트, GFA 0-가드)
+        continue-on-error: true
+        env:
+          ARG_START: ${{ github.event.inputs.start_date }}
+          ARG_END: ${{ github.event.inputs.end_date }}
+        run: python scripts/sync_db_to_bl_paid.py $ARG_START $ARG_END --apply
+
       - name: DB → DataHub 시트
         continue-on-error: true
         run: python scripts/sync_db_to_datahub.py
