@@ -1,7 +1,10 @@
 name: Deploy to Vercel
+# ⚠️ 자동배포 비활성화 (2026-06). 이 레포와 ppmi-dashboard-v2가 같은 Vercel 프로젝트
+# (prj_RzWsMM8p2gBSxhH5aC37cZIspGWX)에 배포돼서, 여기 push할 때마다 이 레포의 (구버전 v2.0)
+# 프론트엔드가 kappa(실서비스=ppmi-dashboard-v2)를 덮어썼음. 이 레포는 파이썬 데이터 파이프라인 전용.
+# → push 트리거 제거, 수동 실행(workflow_dispatch)만 허용.
 on:
-  push:
-    branches: [master]
+  workflow_dispatch:
 
 env:
   VERCEL_ORG_ID: team_pwM8l53dicCcgo4sXY0uuCte
