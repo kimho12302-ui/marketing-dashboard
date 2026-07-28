@@ -9,8 +9,11 @@ import gspread
 from google.oauth2.service_account import Credentials
 from supabase import create_client
 
+from datetime import datetime, timedelta
 APPLY = "--apply" in sys.argv
-FREEZE, TODAY, YEAR = "2026-06-01", "2026-06-12", 2026
+# TODAY 를 하드코딩하면 stale 해져서 그 이후 날짜가 조용히 스킵됨 (2026-07 리뷰 지적) → 실행 시점 KST 로 계산.
+_KST_NOW = datetime.utcnow() + timedelta(hours=9)
+FREEZE, TODAY, YEAR = "2026-06-01", _KST_NOW.strftime("%Y-%m-%d"), _KST_NOW.year
 SA_JSON = os.path.expanduser("~/.naver-searchad/google-service-account.json")
 SHEET_ID = "1FzxDCyR9FyAIduf7Q0lfUIOzvSqVlod21eOFqaPrXio"
 SB_URL = "https://phcfydxgwkmjiogerqmm.supabase.co"

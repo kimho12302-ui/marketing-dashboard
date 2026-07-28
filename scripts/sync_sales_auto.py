@@ -15,15 +15,20 @@ SHEET_ID = "1FzxDCyR9FyAIduf7Q0lfUIOzvSqVlod21eOFqaPrXio"
 SUPABASE_URL = "https://phcfydxgwkmjiogerqmm.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBoY2Z5ZHhnd2ttamlvZ2VycW1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1Njg4NjQsImV4cCI6MjA4OTE0NDg2NH0.M0ThTSK0kBvN71rccvzQpr3dQuL52oRs_Tj9MT7VWRg"
 
-def parse_date(date_str):
-    if not date_str: return None
+import re
+def parse_date(col_a, col_b):
+    """연+월은 A열('26년7월')에서, 일은 B열('1일 (수)')에서 → '2026-07-01'.
+    연도를 하드코딩하지 않으므로 12월/연말 데이터도 정확히 분류된다."""
+    if not col_a or not col_b: return None
+    ma = re.match(r"(\d{2})년\s*(\d{1,2})월", str(col_a).strip())
+    if not ma: return None
+    year = 2000 + int(ma.group(1)); month = int(ma.group(2))
     try:
-        parts = date_str.split()
-        month = int(parts[0].replace("월", ""))
+        parts = str(col_b).split()
         day = int(parts[1].replace("일", ""))
-        return f"2026-{month:02d}-{day:02d}"
     except:
         return None
+    return f"{year:04d}-{month:02d}-{day:02d}"
 
 def clean_revenue(rev_str):
     if not rev_str: return 0
@@ -83,7 +88,7 @@ def main():
     for row in sales_rows:
         if len(row) < 11: continue
         
-        date = parse_date(row[1])
+        date = parse_date(row[0], row[1])  # A열(연+월) + B열(일)
         if not date or date not in dates: continue
         
         channel_raw = row[2]

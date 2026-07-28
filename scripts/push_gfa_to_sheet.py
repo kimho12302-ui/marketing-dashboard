@@ -52,6 +52,8 @@ for tab, brand in TABS.items():
         if not found:
             print(f"  {d}: 시트에 '{target}' 행 없음 → 스킵"); continue
         cost, imp, clk = int(rr['spend'] or 0), int(rr['impressions'] or 0), int(rr['clicks'] or 0)
+        if cost <= 0 and imp <= 0 and clk <= 0:
+            print(f"  {d}: DB값 0/0/0 → 스킵 (시트 보존)"); continue
         batch += [
             {'range': f'AD{found}', 'values': [[cost]]},
             {'range': f'AE{found}', 'values': [[imp]]},
