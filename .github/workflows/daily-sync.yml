@@ -60,6 +60,17 @@ jobs:
           META_ADS_TOKEN: ${{ secrets.META_ADS_TOKEN }}
         run: python scripts/sync_meta_api.py
 
+      - name: Google Ads (API 직접 수집, stale 시트 대체)
+        continue-on-error: true
+        env:
+          GOOGLE_ADS_CLIENT_ID: ${{ secrets.GOOGLE_ADS_CLIENT_ID }}
+          GOOGLE_ADS_CLIENT_SECRET: ${{ secrets.GOOGLE_ADS_CLIENT_SECRET }}
+          GOOGLE_ADS_REFRESH_TOKEN: ${{ secrets.GOOGLE_ADS_REFRESH_TOKEN }}
+          GOOGLE_ADS_DEV_TOKEN: ${{ secrets.GOOGLE_ADS_DEV_TOKEN }}
+          ARG_START: ${{ github.event.inputs.start_date }}
+          ARG_END: ${{ github.event.inputs.end_date }}
+        run: python scripts/sync_google_ads_api.py $ARG_START $ARG_END
+
       - name: GA4 funnel
         continue-on-error: true
         run: python scripts/sync_ga4_funnel.py

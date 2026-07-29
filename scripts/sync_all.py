@@ -82,9 +82,10 @@ def retry_with_backoff(func, name, retries=3, delay=5):
             delay *= 2
 
 def dedup_upsert(sb, table, rows, conflict):
+    """(적재행수, 최신데이터날짜)를 반환 — 하트비트가 '돌았지만 0행'을 구분하기 위함."""
     if not rows:
         print(f"  ⏭ {table}: 데이터 없음")
-        return
+        return 0, None
     fields = [f.strip() for f in conflict.split(",")]
     seen = {}
     for r in rows:
@@ -101,6 +102,17 @@ def dedup_upsert(sb, table, rows, conflict):
             print(f"  ❌ {table} batch {i}: {e}")
             raise  # 배치 실패 시 전체 실패로 처리
     print(f"  ✅ {table}: {total}건 완료")
+    latest = max((str(r["date"]) for r in rows if r.get("date")), default=None)
+    return total, latest
+
+def hb_ok(source, result):
+    """수집 성공 하트비트 — 실제 행수/최신날짜를 함께 기록.
+
+    이전에는 hb(source, ok=True)만 불러 rows_written=0·latest_data_date=null로
+    남았고, watchdog이 그 값을 신뢰하지 못해 우회 판정을 써야 했다.
+    """
+    rows, latest = result if isinstance(result, tuple) else (0, None)
+    hb(source, ok=True, rows=rows, latest_date=latest)
 
 def main():
     creds = Credentials.from_service_account_file(SA_JSON, scopes=[
@@ -129,11 +141,10 @@ def main():
                 "revenue": revenue, "orders": orders,
                 "avg_order_value": revenue/orders if orders > 0 else 0
             })
-        dedup_upsert(sb, "daily_sales", rows, "date,brand,channel")
+        return dedup_upsert(sb, "daily_sales", rows, "date,brand,channel")
     
     try:
-        retry_with_backoff(sync_cafe24, "Cafe24 매출")
-        hb("cafe24_sales", ok=True)
+        hb_ok("cafe24_sales", retry_with_backoff(sync_cafe24, "Cafe24 매출"))
     except Exception as e:
         errors.append(str(e)); hb("cafe24_sales", ok=False, note=str(e))
         print(f"  ❌ {e}")
@@ -185,11 +196,10 @@ def main():
             if data["reach"] > 0:
                 row_data["reach"] = data["reach"]
             rows.append(row_data)
-        dedup_upsert(sb, "daily_ad_spend", rows, "date,brand,channel")
+        return dedup_upsert(sb, "daily_ad_spend", rows, "date,brand,channel")
     
     try:
-        retry_with_backoff(sync_meta, "Meta Ads")
-        hb("meta", ok=True)
+        hb_ok("meta", retry_with_backoff(sync_meta, "Meta Ads"))
     except Exception as e:
         errors.append(str(e)); hb("meta", ok=False, note=str(e))
         print(f"  ❌ {e}")
@@ -242,71 +252,20 @@ def main():
                 "roas": 0, "ctr": data["clicks"]/data["impressions"]*100 if data["impressions"] > 0 else 0,
                 "cpc": data["spend"]/data["clicks"] if data["clicks"] > 0 else 0,
             })
-        dedup_upsert(sb, "daily_ad_spend", rows, "date,brand,channel")
+        return dedup_upsert(sb, "daily_ad_spend", rows, "date,brand,channel")
     
     try:
-        retry_with_backoff(sync_naver, "Naver 검색광고")
-        hb("naver_sa", ok=True)
+        hb_ok("naver_sa", retry_with_backoff(sync_naver, "Naver 검색광고"))
     except Exception as e:
         errors.append(str(e)); hb("naver_sa", ok=False, note=str(e))
         print(f"  ❌ {e}")
     
-    # 4. Google Ads
-    print("\n📊 4. Google Ads...")
-    def sync_google():
-        sheet = gc.open_by_key(SHEET_NAVER)
-        ws = sheet.worksheet("G_캠페인_성과")
-        recs = ws.get_all_records()
-        rows = []
-        for r in recs:
-            d = parse_date(r.get("date",""))
-            if not d: continue
-            spend = safe_num(r.get("cost", 0))
-            if spend == 0: continue
-            campaign = str(r.get("campaign", "")).lower()
-            if "아이언펫" in campaign or "ironpet" in campaign:
-                brand = "ironpet"
-            elif "사입" in campaign:
-                brand = "saip"
-            else:
-                brand = "nutty"
-            if "search" in campaign and "p-max" not in campaign and "pmax" not in campaign:
-                channel = "google_search"
-            else:
-                channel = "google_pmax"
-            impressions = safe_int(r.get("impressions", 0))
-            clicks = safe_int(r.get("clicks", 0))
-            conversions = safe_int(r.get("conversions", 0))
-            conv_value = safe_num(r.get("conversion_value", 0))
-            rows.append({
-                "date": d, "brand": brand, "channel": channel,
-                "spend": spend, "impressions": impressions, "clicks": clicks,
-                "conversions": conversions, "conversion_value": conv_value,
-            })
-        agg = defaultdict(lambda: {"spend": 0, "impressions": 0, "clicks": 0, "conversions": 0, "conversion_value": 0})
-        for r in rows:
-            key = (r["date"], r["brand"], r["channel"])
-            for k in ["spend", "impressions", "clicks", "conversions", "conversion_value"]:
-                agg[key][k] += r[k]
-        rows = []
-        for (d, b, c), data in agg.items():
-            rows.append({
-                "date": d, "brand": b, "channel": c,
-                "spend": data["spend"], "impressions": data["impressions"], "clicks": data["clicks"],
-                "conversions": data["conversions"], "conversion_value": data["conversion_value"],
-                "roas": data["conversion_value"]/data["spend"] if data["spend"] > 0 else 0,
-                "ctr": data["clicks"]/data["impressions"]*100 if data["impressions"] > 0 else 0,
-                "cpc": data["spend"]/data["clicks"] if data["clicks"] > 0 else 0,
-            })
-        dedup_upsert(sb, "daily_ad_spend", rows, "date,brand,channel")
-    
-    try:
-        retry_with_backoff(sync_google, "Google Ads")
-        hb("google_ads", ok=True)
-    except Exception as e:
-        errors.append(str(e)); hb("google_ads", ok=False, note=str(e))
-        print(f"  ❌ {e}")
-    
+    # 4. Google Ads — 시트 기반 구버전 비활성화
+    # sync_google_ads_api.py (API 직접 수집)로 교체됨.
+    # 구버전은 "G_캠페인_성과" 시트 탭을 읽었는데 그 export가 2026-05-14에 죽음.
+    # 시트가 비어도 예외가 안 나 hb(ok=True)로 초록 처리되던 게 무알림의 원인이었다.
+    print("\n📊 4. Google Ads... (API 기반 sync_google_ads_api.py에서 별도 수집, 스킵)")
+
     # 5. GA4 퍼널 — 시트 기반 구버전 비활성화
     # sync_ga4_funnel.py (API 직접 수집)로 교체됨
     # 구버전은 sessions=page_view(잘못된 매핑), signups=0(하드코딩) 문제가 있었음
@@ -335,11 +294,10 @@ def main():
                 "ctr": safe_int(r.get("adClicks",0))/safe_int(r.get("adImpressions",1))*100 if safe_int(r.get("adImpressions",0)) > 0 else 0,
                 "cpc": spend/safe_int(r.get("adClicks",1)) if safe_int(r.get("adClicks",0)) > 0 else 0,
             })
-        dedup_upsert(sb, "daily_ad_spend", rows, "date,brand,channel")
+        return dedup_upsert(sb, "daily_ad_spend", rows, "date,brand,channel")
     
     try:
-        retry_with_backoff(sync_ga4_campaigns, "GA4 캠페인")
-        hb("ga4_campaigns", ok=True)
+        hb_ok("ga4_campaigns", retry_with_backoff(sync_ga4_campaigns, "GA4 캠페인"))
     except Exception as e:
         errors.append(str(e)); hb("ga4_campaigns", ok=False, note=str(e))
         print(f"  ❌ {e}")
@@ -428,12 +386,11 @@ def main():
                     'ctr': data['clicks'] / data['impressions'] * 100 if data['impressions'] > 0 else 0,
                     'cpc': data['spend'] / data['clicks'] if data['clicks'] > 0 else 0,
                 })
-        
-        dedup_upsert(sb, "daily_ad_spend", rows, "date,brand,channel")
+
+        return dedup_upsert(sb, "daily_ad_spend", rows, "date,brand,channel")
     
     try:
-        retry_with_backoff(sync_balancelab_naver, "밸런스랩 네이버 SA")
-        hb("naver_balancelab", ok=True)
+        hb_ok("naver_balancelab", retry_with_backoff(sync_balancelab_naver, "밸런스랩 네이버 SA"))
     except Exception as e:
         errors.append(str(e)); hb("naver_balancelab", ok=False, note=str(e))
         print(f"  ❌ {e}")
