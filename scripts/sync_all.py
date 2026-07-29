@@ -204,62 +204,14 @@ def main():
         errors.append(str(e)); hb("meta", ok=False, note=str(e))
         print(f"  ❌ {e}")
     
-    # 3. Naver SA
-    print("\n📊 3. Naver 검색광고...")
-    def sync_naver():
-        sheet = gc.open_by_key(SHEET_NAVER)
-        ws = sheet.worksheet("캠페인_성과")
-        all_values = ws.get_all_values()
-        rows = []
-        for row in all_values[1:]:
-            if len(row) < 11: continue
-            d = parse_date(row[4])
-            if not d: continue
-            spend = safe_num(row[9])
-            impressions = safe_int(row[5])
-            clicks = safe_int(row[6])
-            conversions = safe_int(row[10])
-            campaign = str(row[2])
-            campaign_lower = campaign.lower()
-            if "아이언펫" in campaign_lower:
-                brand = "ironpet"
-            elif "너티" in campaign_lower:
-                brand = "nutty"
-            elif "사입" in campaign_lower or "벌크" in campaign_lower:
-                brand = "saip"
-            elif "밸런스" in campaign or "큐모발" in campaign or "balancelab" in campaign_lower:
-                brand = "balancelab"
-            else:
-                brand = "nutty"
-            campaign_type = str(row[3])
-            channel = "naver_shopping" if campaign_type == "SHOPPING" else "naver_search"
-            rows.append({
-                "date": d, "brand": brand, "channel": channel,
-                "spend": spend, "impressions": impressions, "clicks": clicks,
-                "conversions": conversions, "conversion_value": 0,
-            })
-        agg = defaultdict(lambda: {"spend": 0, "impressions": 0, "clicks": 0, "conversions": 0})
-        for r in rows:
-            key = (r["date"], r["brand"], r["channel"])
-            for k in ["spend", "impressions", "clicks", "conversions"]:
-                agg[key][k] += r[k]
-        rows = []
-        for (d, b, c), data in agg.items():
-            rows.append({
-                "date": d, "brand": b, "channel": c,
-                "spend": data["spend"], "impressions": data["impressions"], "clicks": data["clicks"],
-                "conversions": data["conversions"], "conversion_value": 0,
-                "roas": 0, "ctr": data["clicks"]/data["impressions"]*100 if data["impressions"] > 0 else 0,
-                "cpc": data["spend"]/data["clicks"] if data["clicks"] > 0 else 0,
-            })
-        return dedup_upsert(sb, "daily_ad_spend", rows, "date,brand,channel")
-    
-    try:
-        hb_ok("naver_sa", retry_with_backoff(sync_naver, "Naver 검색광고"))
-    except Exception as e:
-        errors.append(str(e)); hb("naver_sa", ok=False, note=str(e))
-        print(f"  ❌ {e}")
-    
+    # 3. Naver SA — 시트 기반 구버전 비활성화
+    # sync_naver_sa.py (API 직접 수집, 전환매출 convAmt 포함)로 교체됨.
+    # ★ 구버전은 "캠페인_성과" 시트 '전 기간'을 읽어 conversion_value=0 / roas=0 으로
+    #   덮어썼다. 워크플로에서 이 스크립트가 sync_naver_sa.py보다 먼저 돌기 때문에,
+    #   매일 과거 전환값이 0으로 지워지고 API가 복구하는 최근 D-1~D-3만 살아남았다.
+    #   (2026-07 실측: 7월 28일치 중 전환값이 남은 날짜가 마지막 4일뿐)
+    print("\n📊 3. Naver 검색광고... (API 기반 sync_naver_sa.py에서 별도 수집, 스킵)")
+
     # 4. Google Ads — 시트 기반 구버전 비활성화
     # sync_google_ads_api.py (API 직접 수집)로 교체됨.
     # 구버전은 "G_캠페인_성과" 시트 탭을 읽었는데 그 export가 2026-05-14에 죽음.
@@ -342,19 +294,25 @@ def main():
             response.raise_for_status()
             return response.json()
         
-        # 최근 7일 데이터 수집
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=7)
-        
+        # 기본은 최근 8일. CLI 인자(YYYY-MM-DD YYYY-MM-DD)를 주면 그 구간을 백필한다.
+        # (전환값 소급 수집용 — 네이버는 과거 날짜의 convAmt도 응답한다)
+        if len(sys.argv) >= 3:
+            start_date = datetime.strptime(sys.argv[1], "%Y-%m-%d")
+            end_date = datetime.strptime(sys.argv[2], "%Y-%m-%d")
+        else:
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=7)
+        day_count = (end_date - start_date).days + 1
+
         campaigns = api_get('/ncc/campaigns')
         rows = []
 
-        for date_offset in range(8):
+        for date_offset in range(day_count):
             target_date = (start_date + timedelta(days=date_offset)).strftime('%Y-%m-%d')
             # 파워링크(search)와 쇼핑광고(shopping)를 분리해서 집계
             by_channel = {
-                'naver_search':   {'spend': 0, 'impressions': 0, 'clicks': 0},
-                'naver_shopping': {'spend': 0, 'impressions': 0, 'clicks': 0},
+                'naver_search':   {'spend': 0, 'impressions': 0, 'clicks': 0, 'conversions': 0, 'conversion_value': 0.0},
+                'naver_shopping': {'spend': 0, 'impressions': 0, 'clicks': 0, 'conversions': 0, 'conversion_value': 0.0},
             }
 
             for campaign in campaigns:
@@ -365,7 +323,8 @@ def main():
                 try:
                     stats_params = {
                         'ids': [cmp_id],
-                        'fields': '["impCnt","clkCnt","salesAmt"]',
+                        # ccnt(전환수)·convAmt(전환매출)을 요청하지 않아 밸런스랩 ROAS가 항상 0이었다.
+                        'fields': '["impCnt","clkCnt","salesAmt","ccnt","convAmt"]',
                         'timeRange': json.dumps({"since": target_date, "until": target_date}),
                         'timeIncrement': 'TIME_INCREMENT_DAILY'
                     }
@@ -375,6 +334,8 @@ def main():
                         by_channel[channel]['spend'] += float(item.get('salesAmt', 0))
                         by_channel[channel]['impressions'] += int(item.get('impCnt', 0))
                         by_channel[channel]['clicks'] += int(item.get('clkCnt', 0))
+                        by_channel[channel]['conversions'] += int(item.get('ccnt', 0))
+                        by_channel[channel]['conversion_value'] += float(item.get('convAmt', 0))
                 except:
                     continue
 
@@ -382,7 +343,8 @@ def main():
                 rows.append({
                     'date': target_date, 'brand': 'balancelab', 'channel': channel,
                     'spend': data['spend'], 'impressions': data['impressions'], 'clicks': data['clicks'],
-                    'conversions': 0, 'conversion_value': 0, 'roas': 0,
+                    'conversions': data['conversions'], 'conversion_value': data['conversion_value'],
+                    'roas': data['conversion_value'] / data['spend'] if data['spend'] > 0 else 0,
                     'ctr': data['clicks'] / data['impressions'] * 100 if data['impressions'] > 0 else 0,
                     'cpc': data['spend'] / data['clicks'] if data['clicks'] > 0 else 0,
                 })

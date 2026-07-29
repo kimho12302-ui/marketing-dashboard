@@ -1,7 +1,13 @@
 # -*- coding: utf-8 -*-
-"""[사입]Paid / [N]Paid 시트 GFA(AD=비용, AE=노출, AG=클릭)를 daily_ad_spend(channel=gfa)로 반영.
-시트값을 source of truth로 cost+imp+click 전부 upsert. 비용(AD)>0 인 날짜만, FREEZE~TODAY.
+"""[사입]Paid / [N]Paid 시트 GFA(AD=비용, AE=노출, AG=클릭, AJ=구매금액)를
+daily_ad_spend(channel=gfa)로 반영.
+시트값을 source of truth로 upsert. 비용(AD)>0 인 날짜만, FREEZE~TODAY.
 실행: python import_sheet_gfa_to_db.py [--apply]
+
+★ AJ("구매")는 건수가 아니라 구매 금액이다(클릭 91건에 값 520,100 → 금액).
+  따라서 conversion_value 로 넣는다. 구매 '건수' 열은 시트에 없어 conversions 는 0으로 둔다.
+  이 열을 안 읽어서 대시보드 GFA ROAS가 계속 0.00x 로 표시됐다(2026-07 확인).
+  밸런스랩 [Q]Paid 시트에는 구매 열 자체가 없어 여기서 다루지 않는다.
 """
 import os, sys, re
 sys.stdout.reconfigure(encoding='utf-8')
@@ -19,7 +25,7 @@ SHEET_ID = "1FzxDCyR9FyAIduf7Q0lfUIOzvSqVlod21eOFqaPrXio"
 SB_URL = "https://phcfydxgwkmjiogerqmm.supabase.co"
 SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBoY2Z5ZHhnd2ttamlvZ2VycW1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1Njg4NjQsImV4cCI6MjA4OTE0NDg2NH0.M0ThTSK0kBvN71rccvzQpr3dQuL52oRs_Tj9MT7VWRg"
 TABS = {"[사입]Paid": "saip", "[N]Paid": "nutty"}
-COST, IMP, CLK = 29, 30, 32  # AD, AE, AG (0-based)
+COST, IMP, CLK, BUY_AMT = 29, 30, 32, 35  # AD, AE, AG, AJ(구매금액) (0-based)
 
 creds = Credentials.from_service_account_file(SA_JSON, scopes=[
     'https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive'])
@@ -45,8 +51,13 @@ for tab, brand in TABS.items():
         if cost <= 0: continue
         imp = pnum(row[IMP]) if len(row) > IMP else 0
         clk = pnum(row[CLK]) if len(row) > CLK else 0
+        buy_amt = pnum(row[BUY_AMT]) if len(row) > BUY_AMT else 0
         rows.append({"date": d, "brand": brand, "channel": "gfa", "spend": cost,
-                     "impressions": imp, "clicks": clk, "conversions": 0, "conversion_value": 0})
+                     "impressions": imp, "clicks": clk,
+                     "conversions": 0, "conversion_value": buy_amt,
+                     "roas": buy_amt / cost if cost > 0 else 0,
+                     "ctr": clk / imp * 100 if imp > 0 else 0,
+                     "cpc": cost / clk if clk > 0 else 0})
 
 rows.sort(key=lambda x: (x["brand"], x["date"]))
 print(f"=== GFA upsert 계획 {len(rows)}건 (cost/imp/click) ===")

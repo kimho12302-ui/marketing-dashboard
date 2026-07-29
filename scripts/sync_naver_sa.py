@@ -211,56 +211,11 @@ def sync_naver_sa_from_sheet(gc, sb, start_date: str, end_date: str):
 
 
 # ─────────────────────────────────────────────────────────────
-# 2. Google Ads – 시트(G_캠페인_성과) 수집
+# 2. Google Ads – 시트(G_캠페인_성과) 수집: 제거됨
+#    sync_google_ads_api.py (API 직접 수집)로 대체.
+#    이 스크립트는 워크플로에서 sync_google_ads_api.py '뒤에' 돌기 때문에,
+#    시트 기반 값을 여기서 다시 쓰면 API가 넣은 정확한 값을 덮어쓴다.
 # ─────────────────────────────────────────────────────────────
-def sync_google_ads_from_sheet(gc, sb, start_date: str, end_date: str):
-    sheet  = gc.open_by_key(SHEET_NAVER)
-    ws_g   = sheet.worksheet("G_캠페인_성과")
-    g_recs = ws_g.get_all_records()
-
-    g_rows = []
-    for r in g_recs:
-        d = parse_date(str(r.get("date", "")))
-        if not d or d < start_date or d > end_date: continue
-        spend = safe_num(r.get("cost", 0))
-        if spend == 0: continue
-        campaign = str(r.get("campaign", "")).lower()
-        if "아이언펫" in campaign or "ironpet" in campaign: brand = "ironpet"
-        elif "사입" in campaign or "벌크" in campaign: brand = "saip"
-        else: brand = "nutty"
-        channel = ("google_search"
-                   if "search" in campaign and "p-max" not in campaign and "pmax" not in campaign
-                   else "google_pmax")
-        g_rows.append({
-            "date": d, "brand": brand, "channel": channel,
-            "spend":            spend,
-            "impressions":      safe_int(r.get("impressions", 0)),
-            "clicks":           safe_int(r.get("clicks", 0)),
-            "conversions":      safe_int(r.get("conversions", 0)),
-            "conversion_value": safe_num(r.get("conversion_value", 0)),
-        })
-
-    g_agg = defaultdict(lambda: {
-        "spend": 0, "impressions": 0, "clicks": 0,
-        "conversions": 0, "conversion_value": 0
-    })
-    for r in g_rows:
-        k = (r["date"], r["brand"], r["channel"])
-        for f in ["spend", "impressions", "clicks", "conversions", "conversion_value"]:
-            g_agg[k][f] += r[f]
-
-    g_upsert = []
-    for (d, b, c), v in g_agg.items():
-        g_upsert.append({
-            "date": d, "brand": b, "channel": c,
-            "spend": v["spend"], "impressions": v["impressions"],
-            "clicks": v["clicks"], "conversions": v["conversions"],
-            "conversion_value": v["conversion_value"],
-            "roas": v["conversion_value"] / v["spend"] if v["spend"] > 0 else 0,
-            "ctr":  v["clicks"] / v["impressions"] * 100 if v["impressions"] > 0 else 0,
-            "cpc":  v["spend"] / v["clicks"] if v["clicks"] > 0 else 0,
-        })
-    dedup_upsert(sb, "daily_ad_spend", g_upsert, "date,brand,channel")
 
 
 # ─────────────────────────────────────────────────────────────
@@ -291,12 +246,8 @@ def main():
         print(f"  ❌ API 실패: {e}")
         sync_naver_sa_from_sheet(gc, sb, start_date, end_date)
 
-    # 2. Google Ads
-    print("\n🔹 Google Ads G_캠페인_성과")
-    try:
-        sync_google_ads_from_sheet(gc, sb, start_date, end_date)
-    except Exception as e:
-        print(f"  ❌ Google Ads: {e}")
+    # 2. Google Ads — 이 스크립트에서는 수집하지 않음 (sync_google_ads_api.py 담당)
+    print("\n🔹 Google Ads: sync_google_ads_api.py에서 API로 수집 (여기선 스킵)")
 
     print("\n✅ Naver SA 싱크 완료")
 
