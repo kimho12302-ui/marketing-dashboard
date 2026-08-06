@@ -65,12 +65,23 @@ def dedup_upsert(sb, table, rows, conflict):
     print(f"  ✅ {table}: {len(rows)}건 upsert")
 
 def brand_from_campaign(campaign: str) -> str:
+    """캠페인명 → 브랜드.
+
+    ★ 판정 순서가 중요하다. '사입/벌크'를 '너티'보다 먼저 본다.
+      2026-08 사고: 사입 "S99.벌크" 쇼핑 캠페인 비용이 너티 쇼핑광고에 합산돼
+      7월 너티가 236,430원 대신 724,511원(3배)으로 잡혔다.
+      이름에 두 키워드가 함께 들어가는 캠페인이 생겨도 사입이 이기도록 순서를 고정한다.
+
+    ★ 매칭 실패 시 폴백도 너티였다. 정체불명 캠페인이 조용히 너티 비용으로 섞이므로
+      경고를 찍는다(집계는 계속하되 사람이 알아채도록).
+    """
     c = campaign.lower()
+    if "사입" in c or "벌크" in c: return "saip"
     if "아이언펫" in c: return "ironpet"
     if "너티" in c:     return "nutty"
-    if "사입" in c or "벌크" in c: return "saip"
     if "밸런스" in campaign or "큐모발" in campaign or "balancelab" in c:
         return "balancelab"
+    print(f"  ⚠ 브랜드 미매칭 캠페인 → nutty 로 폴백: {campaign!r}")
     return "nutty"  # fallback
 
 
@@ -225,9 +236,15 @@ def main():
     if len(sys.argv) >= 3:
         start_date, end_date = sys.argv[1], sys.argv[2]
     else:
+        # ★ 기본 재수집 창 = 최근 14일.
+        #   D-4(4일)로 좁게 잡았더니, 구버전 수집기가 잘못 쓴 과거 값이 영구히 남았다.
+        #   실제 사고(2026-08 발견): 사입 "벌크" 쇼핑 캠페인이 너티 쇼핑광고에 이중 합산돼
+        #   7월 너티가 236,430원 대신 724,511원으로 3배 부풀어 있었다(교정 전까지 방치).
+        #   API 재조회는 멱등이므로 창을 넓혀 잘못된 과거 값이 자동으로 덮이게 한다.
+        #   (전체 백필은 인자로: python sync_naver_sa.py 2026-07-01 2026-07-31)
         yesterday  = datetime.now() - timedelta(days=1)
         end_date   = yesterday.strftime("%Y-%m-%d")
-        start_date = (yesterday - timedelta(days=3)).strftime("%Y-%m-%d")
+        start_date = (yesterday - timedelta(days=13)).strftime("%Y-%m-%d")
 
     print(f"📊 Naver SA 싱크  [{start_date} ~ {end_date}]\n")
 
