@@ -64,6 +64,14 @@ def dedup_upsert(sb, table, rows, conflict):
             print(f"  ❌ {table} batch {i}: {e}")
     print(f"  ✅ {table}: {len(rows)}건 upsert")
 
+def brand_matched(campaign: str) -> bool:
+    """캠페인명만으로 브랜드를 확정할 수 있는가 (폴백에 기대지 않았는가)."""
+    c = campaign.lower()
+    return ("사입" in c or "벌크" in c or "아이언펫" in c or "너티" in c
+            or "사운드" in c or "하루루틴" in c
+            or "밸런스" in campaign or "큐모발" in campaign or "balancelab" in c)
+
+
 def brand_from_campaign(campaign: str) -> str:
     """캠페인명 → 브랜드.
 
@@ -72,16 +80,19 @@ def brand_from_campaign(campaign: str) -> str:
       7월 너티가 236,430원 대신 724,511원(3배)으로 잡혔다.
       이름에 두 키워드가 함께 들어가는 캠페인이 생겨도 사입이 이기도록 순서를 고정한다.
 
-    ★ 매칭 실패 시 폴백도 너티였다. 정체불명 캠페인이 조용히 너티 비용으로 섞이므로
-      경고를 찍는다(집계는 계속하되 사람이 알아채도록).
+    ★ 사운드/하루루틴은 너티 전용 라인업이라 브랜드명이 없어도 너티로 확정한다
+      (캠페인명이 '1. 사운드 냠', '00. 검색지면 (MO)_하루루틴' 처럼 붙는 경우가 많다).
+
+    ★ 그래도 못 맞추면 nutty 폴백이다. 조용히 섞이면 안 되므로 호출부에서
+      brand_matched() 로 걸러 **집행액이 있는 미매칭만** 경고한다
+      (집행 0원 캠페인까지 경고하면 매 실행 13줄이 떠서 진짜 신호가 묻힌다).
     """
     c = campaign.lower()
     if "사입" in c or "벌크" in c: return "saip"
     if "아이언펫" in c: return "ironpet"
-    if "너티" in c:     return "nutty"
+    if "너티" in c or "사운드" in c or "하루루틴" in c: return "nutty"
     if "밸런스" in campaign or "큐모발" in campaign or "balancelab" in c:
         return "balancelab"
-    print(f"  ⚠ 브랜드 미매칭 캠페인 → nutty 로 폴백: {campaign!r}")
     return "nutty"  # fallback
 
 
@@ -123,6 +134,7 @@ def sync_naver_sa_via_api(sb, start_date: str, end_date: str):
         "spend": 0.0, "impressions": 0, "clicks": 0,
         "conversions": 0, "conversion_value": 0.0
     })
+    unmatched_spend = defaultdict(float)  # 브랜드 미매칭인데 집행액이 있는 캠페인
 
     # 날짜별 루프 (단일 날짜 쿼리만 데이터 반환됨)
     start_dt = datetime.strptime(start_date, "%Y-%m-%d")
@@ -148,14 +160,25 @@ def sync_naver_sa_via_api(sb, start_date: str, end_date: str):
                 data_list = stats if isinstance(stats, list) else stats.get("data", [])
                 for item in data_list:
                     k = (target_date, brand, channel)
-                    agg[k]["spend"]            += float(item.get("salesAmt", 0))
+                    spent = float(item.get("salesAmt", 0))
+                    agg[k]["spend"]            += spent
                     agg[k]["impressions"]      += int(item.get("impCnt", 0))
                     agg[k]["clicks"]           += int(item.get("clkCnt", 0))
                     agg[k]["conversions"]      += int(item.get("ccnt", 0))
                     agg[k]["conversion_value"] += float(item.get("convAmt", 0))
+                    # 집행액이 있는데 브랜드를 이름으로 확정 못 한 캠페인만 기록 → 아래에서 한 번에 경고
+                    if spent > 0 and not brand_matched(cmp_name):
+                        unmatched_spend[cmp_name] += spent
             except Exception as e:
                 print(f"  ⚠ [{cmp_name} {target_date}]: {e}")
                 continue
+
+    # 미매칭 경고는 "돈이 나간 캠페인"에 대해서만. 집행 0원까지 경고하면 매 실행 13줄이 떠서
+    # 진짜 신호가 묻힌다(2026-08: '브랜드검색'·'브랜드뉴'는 미집행이라 무시 대상).
+    if unmatched_spend:
+        print("  ⚠ 브랜드 미매칭 캠페인에 집행액이 있습니다 → nutty 로 폴백 중 (매핑 추가 검토):")
+        for nm, amt in sorted(unmatched_spend.items(), key=lambda x: -x[1]):
+            print(f"      {round(amt):>10,}원  {nm}")
 
     upsert_rows = []
     for (d, b, c), v in agg.items():
