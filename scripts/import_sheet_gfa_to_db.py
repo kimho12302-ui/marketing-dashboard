@@ -1,8 +1,15 @@
 # -*- coding: utf-8 -*-
 """[사입]Paid / [N]Paid 시트 GFA(AD=비용, AE=노출, AG=클릭, AJ=구매금액)를
 daily_ad_spend(channel=gfa)로 반영.
-시트값을 source of truth로 upsert. 비용(AD)>0 인 날짜만, FREEZE~TODAY.
-실행: python import_sheet_gfa_to_db.py [--apply]
+시트값을 source of truth로 upsert. 비용(AD)>0 인 날짜만.
+실행: python import_sheet_gfa_to_db.py [START END] [--apply]
+  START END 생략 시 최근 14일만 처리한다(기본).
+  예) python import_sheet_gfa_to_db.py 2026-08-26 2026-09-02 --apply
+      python import_sheet_gfa_to_db.py --apply            # 최근 14일
+
+★ 범위 인자가 없던 시절엔 매 실행이 FREEZE(2026-06-01)~오늘 전 기간을 재기록했다.
+  그래서 8/26~9/2 만 넣으려 한 실행이 8/20~25 의 과거 구매금액까지 건드렸다(2026-09 사고).
+  이제 기본 창을 14일로 좁혀 파급 범위를 제한하고, 백필은 명시적 인자로만 하도록 한다.
 
 ★ AJ("구매")는 건수가 아니라 구매 금액이다(클릭 91건에 값 520,100 → 금액).
   따라서 conversion_value 로 넣는다. 구매 '건수' 열은 시트에 없어 conversions 는 0으로 둔다.
@@ -20,6 +27,25 @@ APPLY = "--apply" in sys.argv
 # TODAY 를 하드코딩하면 stale 해져서 그 이후 날짜가 조용히 스킵됨 (2026-07 리뷰 지적) → 실행 시점 KST 로 계산.
 _KST_NOW = datetime.utcnow() + timedelta(hours=9)
 FREEZE, TODAY, YEAR = "2026-06-01", _KST_NOW.strftime("%Y-%m-%d"), _KST_NOW.year
+DEFAULT_WINDOW_DAYS = 14
+
+# 처리 범위: [START, END]. 인자로 날짜 2개를 주면 그 구간, 없으면 최근 14일.
+_dates = [a for a in sys.argv[1:] if re.fullmatch("[0-9]{4}-[0-9]{2}-[0-9]{2}", a)]
+if len(_dates) >= 2:
+    START, END = _dates[0], _dates[1]
+elif len(_dates) == 1:
+    sys.exit(f"날짜를 2개 주세요 (START END). 받은 값: {_dates[0]}")
+else:
+    START = (_KST_NOW - timedelta(days=DEFAULT_WINDOW_DAYS - 1)).strftime("%Y-%m-%d")
+    END = TODAY
+if START > END:
+    sys.exit(f"START({START}) 가 END({END}) 보다 뒤입니다.")
+if START < FREEZE:
+    print(f"⚠ START({START}) 가 동결일({FREEZE}) 이전이라 {FREEZE} 로 올립니다.")
+    START = FREEZE
+if END > TODAY:
+    END = TODAY
+print(f"📅 처리 범위 {START} ~ {END}" + ("" if len(_dates) >= 2 else f"  (기본 최근 {DEFAULT_WINDOW_DAYS}일)"))
 SA_JSON = os.path.expanduser("~/.naver-searchad/google-service-account.json")
 SHEET_ID = "1FzxDCyR9FyAIduf7Q0lfUIOzvSqVlod21eOFqaPrXio"
 SB_URL = "https://phcfydxgwkmjiogerqmm.supabase.co"
@@ -34,7 +60,7 @@ sh = gc.open_by_key(SHEET_ID)
 sb = create_client(SB_URL, SB_KEY)
 
 existing = {}
-for r in (sb.table('daily_ad_spend').select('date,brand,spend,impressions,clicks,conversion_value').eq('channel','gfa').gte('date',FREEZE).execute().data or []):
+for r in (sb.table('daily_ad_spend').select('date,brand,spend,impressions,clicks,conversion_value').eq('channel','gfa').gte('date',START).lte('date',END).execute().data or []):
     existing[(r['date'], r['brand'])] = r
 
 def pdate(a):
@@ -46,7 +72,7 @@ rows = []
 for tab, brand in TABS.items():
     for row in sh.worksheet(tab).get_all_values():
         d = pdate(row[0] if row else "")
-        if not d or d < FREEZE or d > TODAY: continue
+        if not d or d < START or d > END: continue
         cost = pnum(row[COST]) if len(row) > COST else 0
         if cost <= 0: continue
         imp = pnum(row[IMP]) if len(row) > IMP else 0
