@@ -85,6 +85,14 @@ jobs:
           ARG_START: ${{ github.event.inputs.start_date }}
           ARG_END: ${{ github.event.inputs.end_date }}
         run: python scripts/sync_naver_sa.py $ARG_START $ARG_END
+      # 키워드 단위 성과. 캠페인 단위(sync_naver_sa)와 별개 테이블(keyword_performance).
+      # 2026-05-04 이후 비어 있던 것을 2026-09 에 신규 수집기로 복구했다.
+      - name: Naver 키워드 성과 (키워드 단위)
+        continue-on-error: true
+        env:
+          ARG_START: ${{ github.event.inputs.start_date }}
+          ARG_END: ${{ github.event.inputs.end_date }}
+        run: python scripts/sync_naver_keywords.py $ARG_START $ARG_END --apply
 
       - name: DB → 브랜드별 Paid 시트
         continue-on-error: true
