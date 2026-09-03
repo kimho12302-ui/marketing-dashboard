@@ -34,7 +34,7 @@ sh = gc.open_by_key(SHEET_ID)
 sb = create_client(SB_URL, SB_KEY)
 
 existing = {}
-for r in (sb.table('daily_ad_spend').select('date,brand,spend,impressions,clicks').eq('channel','gfa').gte('date',FREEZE).execute().data or []):
+for r in (sb.table('daily_ad_spend').select('date,brand,spend,impressions,clicks,conversion_value').eq('channel','gfa').gte('date',FREEZE).execute().data or []):
     existing[(r['date'], r['brand'])] = r
 
 def pdate(a):
@@ -51,7 +51,17 @@ for tab, brand in TABS.items():
         if cost <= 0: continue
         imp = pnum(row[IMP]) if len(row) > IMP else 0
         clk = pnum(row[CLK]) if len(row) > CLK else 0
-        buy_amt = pnum(row[BUY_AMT]) if len(row) > BUY_AMT else 0
+        # ★ 구매금액(AJ) 0-덮어쓰기 방지 (2026-09 사고).
+        #   이전에는 공란도 pnum() 이 0 을 돌려줘 그대로 upsert 했다. 이 스크립트는 매 실행마다
+        #   FREEZE~TODAY 전 기간을 재기록하므로, 시트에서 과거 AJ 셀이 비워지면 실행할 때마다
+        #   DB 의 과거 구매금액이 0 으로 밀렸다(8/20~8/25 2브랜드 343만원 소실).
+        #   공란("")과 명시적 0 을 구분해서, 공란이면 DB 기존값을 유지한다.
+        buy_raw = row[BUY_AMT] if len(row) > BUY_AMT else ""
+        if str(buy_raw).strip() == "":
+            prev = existing.get((d, brand))
+            buy_amt = int(prev.get("conversion_value") or 0) if prev else 0
+        else:
+            buy_amt = pnum(buy_raw)
         rows.append({"date": d, "brand": brand, "channel": "gfa", "spend": cost,
                      "impressions": imp, "clicks": clk,
                      "conversions": 0, "conversion_value": buy_amt,
