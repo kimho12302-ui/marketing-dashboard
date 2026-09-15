@@ -92,7 +92,7 @@ for c in campaigns:
 print(f"  키워드 있는 광고그룹 {len(groups)}개 · 총 키워드 {sum(len(g[2]) for g in groups)}개")
 
 # ── 2. 날짜별 × 광고그룹별 성과 ──
-agg = defaultdict(lambda: {"impressions": 0, "clicks": 0, "cost": 0.0, "conversions": 0})
+agg = defaultdict(lambda: {"impressions": 0, "clicks": 0, "cost": 0.0, "conversions": 0, "conversion_value": 0.0})
 start_dt, end_dt = datetime.strptime(START, "%Y-%m-%d"), datetime.strptime(END, "%Y-%m-%d")
 for off in range((end_dt - start_dt).days + 1):
     d = (start_dt + timedelta(days=off)).strftime("%Y-%m-%d")
@@ -100,7 +100,9 @@ for off in range((end_dt - start_dt).days + 1):
         try:
             st = api_get("/stats", {
                 "ids": list(idmap.keys()),
-                "fields": '["impCnt","clkCnt","salesAmt","ccnt"]',
+                # convAmt = 전환매출액. salesAmt 는 이름과 달리 '광고비'다(네이버 명명).
+                # 이게 없으면 키워드별 ROAS 를 못 본다 - 어느 키워드가 돈을 벌었는지 판단 불가.
+                "fields": '["impCnt","clkCnt","salesAmt","ccnt","convAmt"]',
                 "timeRange": json.dumps({"since": d, "until": d}),
             })
         except Exception as e:
@@ -112,11 +114,16 @@ for off in range((end_dt - start_dt).days + 1):
                 continue
             imp, clk = int(it.get("impCnt", 0)), int(it.get("clkCnt", 0))
             cost, conv = float(it.get("salesAmt", 0)), int(it.get("ccnt", 0))
-            if imp == 0 and clk == 0 and cost == 0:
+            cval = float(it.get("convAmt", 0))
+            # ★ cval 을 가드에 넣는다. 네이버가 전환을 클릭일이 아닌 날짜로 귀속시키면
+            #   노출·클릭·비용이 0인 채 매출만 서는 행이 생길 수 있고, 그걸 버리면 ROAS 분자가
+            #   조용히 사라진다. 2026-09-02~15 실측에선 그런 행이 0건이라 부풀 위험은 없었지만
+            #   귀속 규칙 자체는 확인하지 못했다. 매출이 사라지는 쪽이 훨씬 비싸다.
+            if imp == 0 and clk == 0 and cost == 0 and cval == 0:
                 continue  # 완전 무실적 행은 넣지 않는다 (테이블이 0행으로 부풀어 조회가 느려진다)
             e = agg[(d, brand, "naver_search", kw)]
             e["impressions"] += imp; e["clicks"] += clk
-            e["cost"] += cost; e["conversions"] += conv
+            e["cost"] += cost; e["conversions"] += conv; e["conversion_value"] += cval
 
 rows = []
 for (d, brand, platform, kw), v in agg.items():
@@ -128,22 +135,56 @@ for (d, brand, platform, kw), v in agg.items():
         # 99.99 로 클램프한다 — 이 구간은 어차피 "전부 클릭됨"이라 소수점 정밀도가 의미 없다.
         "ctr": min(99.99, round(clk / imp * 100, 2)) if imp else 0,
         "cpc": int(cost / clk) if clk else 0,
+        "conversion_value": int(v["conversion_value"]),
     })
 rows.sort(key=lambda r: (r["date"], r["brand"], -r["cost"], -r["impressions"]))
 
-print(f"\n=== keyword_performance upsert 계획 {len(rows)}건 ===")
-for r in rows[:12]:
-    print(f"  {r['date']} {r['brand']:<10} {r['keyword'][:20]:<22} 노출{r['impressions']:>6} 클릭{r['clicks']:>4} 비용{r['cost']:>8,}")
-if len(rows) > 12:
-    print(f"  ... 외 {len(rows)-12}건")
+# 미리보기는 '돈을 번 키워드'와 '돈만 쓴 키워드'를 먼저 보여준다. 날짜순 상위 12줄만 찍으면
+# 첫 날 저비용 키워드만 나와서 수집이 제대로 됐는지 눈으로 확인이 안 된다(2026-09-15).
+_top = sorted(rows, key=lambda r: -r["conversion_value"])[:6]
+_burn = sorted([r for r in rows if r["conversion_value"] == 0], key=lambda r: -r["cost"])[:6]
+
+print()
+print(f"=== keyword_performance upsert 계획 {len(rows)}건 ===")
+print("--- 전환매출 상위 6 / 비용만 쓴 상위 6 ---")
+for r in (_top + _burn):
+    _roas = (r["conversion_value"] / r["cost"]) if r["cost"] else 0
+    print(f"  {r['date']} {r['brand']:<10} {r['keyword'][:20]:<22} 노출{r['impressions']:>6} 클릭{r['clicks']:>4} 비용{r['cost']:>8,} 전환매출{r['conversion_value']:>9,} ROAS{_roas:>7.2f}x")
+print(f"  ... 전체 {len(rows)}건")
 
 if APPLY:
     sb = create_client(SB_URL, SB_KEY)
+
+    # ★ conversion_value 컬럼이 아직 없는 DB 에서도 죽지 않게 한다.
+    #   컬럼 없이 그대로 쏘면 PostgREST 가 PGRST204 로 **청크 200건 전체**를 거부하는데,
+    #   daily-sync.yml 이 continue-on-error: true 라 키워드 수집이 통째로 죽어도 아무도 모른다.
+    #   첫 실패에서 한 번 감지하고, 없으면 그 필드만 빼고 계속 간다(경고는 남긴다).
+    #   DDL 을 실행하면 코드 수정 없이 그날부터 전환매출이 들어온다:
+    #   ALTER TABLE keyword_performance ADD COLUMN conversion_value NUMERIC(12,0) NOT NULL DEFAULT 0;
+    has_cval = True
+
+    def _push(chunk):
+        global has_cval
+        payload = chunk if has_cval else [
+            {k: v for k, v in r.items() if k != "conversion_value"} for r in chunk
+        ]
+        try:
+            sb.table("keyword_performance").upsert(
+                payload, on_conflict="date,brand,platform,keyword").execute()
+        except Exception as exc:
+            if has_cval and "conversion_value" in str(exc):
+                has_cval = False
+                print("  WARN keyword_performance.conversion_value 컬럼이 없습니다 - 전환매출을 빼고 적재합니다.")
+                print("       ALTER TABLE keyword_performance ADD COLUMN conversion_value NUMERIC(12,0) NOT NULL DEFAULT 0;")
+                return _push(chunk)
+            raise
+
     total = 0
     for i in range(0, len(rows), 200):
         chunk = rows[i:i+200]
-        sb.table("keyword_performance").upsert(chunk, on_conflict="date,brand,platform,keyword").execute()
+        _push(chunk)
         total += len(chunk)
-    print(f"\n✅ {total}건 upsert 완료.")
+    print()
+    print(f'[OK] {total}건 upsert 완료.' + ('' if has_cval else '  (전환매출 제외 - 컬럼 없음)'))
 else:
     print("\n(dry-run) --apply 로 반영.")
