@@ -88,11 +88,23 @@ def brand_from_campaign(campaign: str) -> str:
       (집행 0원 캠페인까지 경고하면 매 실행 13줄이 떠서 진짜 신호가 묻힌다).
     """
     c = campaign.lower()
-    if "사입" in c or "벌크" in c: return "saip"
+
+    # 1단계: 이름에 브랜드가 명시된 경우가 항상 이긴다.
+    #   "벌크" 같은 라인업/유형 키워드보다 우선한다. 그래야 반대 방향 사고
+    #   (예: "S06.너티_벌크" 가 생겨 사입으로 잘못 잡히는 것)도 막힌다.
+    if "사입" in c: return "saip"
+    if "너티" in c: return "nutty"
     if "아이언펫" in c: return "ironpet"
-    if "너티" in c or "사운드" in c or "하루루틴" in c: return "nutty"
     if "밸런스" in campaign or "큐모발" in campaign or "balancelab" in c:
         return "balancelab"
+
+    # 2단계: 브랜드명이 없어도 확정 가능한 전용 라인업.
+    if "사운드" in c or "하루루틴" in c: return "nutty"
+
+    # 3단계: 레거시 안전망. 2026-09 이전 "S99.벌크"(브랜드 없는 사입 쇼핑 벌크)
+    #   이름을 그대로 쓰는 과거 데이터/미개명 캠페인용. 개명 후에는 1단계가 잡는다.
+    if "벌크" in c: return "saip"
+
     return "nutty"  # fallback
 
 

@@ -50,8 +50,13 @@ SA_JSON = os.path.expanduser("~/.naver-searchad/google-service-account.json")
 SHEET_ID = "1FzxDCyR9FyAIduf7Q0lfUIOzvSqVlod21eOFqaPrXio"
 SB_URL = "https://phcfydxgwkmjiogerqmm.supabase.co"
 SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBoY2Z5ZHhnd2ttamlvZ2VycW1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1Njg4NjQsImV4cCI6MjA4OTE0NDg2NH0.M0ThTSK0kBvN71rccvzQpr3dQuL52oRs_Tj9MT7VWRg"
-TABS = {"[사입]Paid": "saip", "[N]Paid": "nutty"}
-COST, IMP, CLK, BUY_AMT = 29, 30, 32, 35  # AD, AE, AG, AJ(구매금액) (0-based)
+# 탭 → (브랜드, 구매금액 열 위치). GFA COST/imp/CLICK 열(AD/AE/AG)은 세 탭이 같다.
+# ★ [I]Paid 는 AJ 가 '구매'가 아니라 '특이사항'이다(2026-09-15 헤더 확인). 구매금액 열이 아예 없어
+#   BUY_AMT=35 로 읽으면 특이사항 텍스트를 금액으로 집어넣는다 → None 으로 두고 건너뛴다.
+#   아이언펫 GFA 는 현재 집행 이력이 0일이라 실제로 들어올 행도 없지만, 집행이 시작돼도
+#   엉뚱한 열을 읽지 않도록 구조로 막아둔다.
+TABS = {"[사입]Paid": ("saip", 35), "[N]Paid": ("nutty", 35), "[I]Paid": ("ironpet", None)}
+COST, IMP, CLK = 29, 30, 32  # AD, AE, AG (0-based)
 
 creds = Credentials.from_service_account_file(SA_JSON, scopes=[
     'https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive'])
@@ -69,7 +74,7 @@ def pnum(v):
     s = re.sub(r'[^\d.-]', '', str(v));  return int(float(s)) if s not in ('','-') else 0
 
 rows = []
-for tab, brand in TABS.items():
+for tab, (brand, BUY_AMT) in TABS.items():
     for row in sh.worksheet(tab).get_all_values():
         d = pdate(row[0] if row else "")
         if not d or d < START or d > END: continue
@@ -82,7 +87,7 @@ for tab, brand in TABS.items():
         #   FREEZE~TODAY 전 기간을 재기록하므로, 시트에서 과거 AJ 셀이 비워지면 실행할 때마다
         #   DB 의 과거 구매금액이 0 으로 밀렸다(8/20~8/25 2브랜드 343만원 소실).
         #   공란("")과 명시적 0 을 구분해서, 공란이면 DB 기존값을 유지한다.
-        buy_raw = row[BUY_AMT] if len(row) > BUY_AMT else ""
+        buy_raw = (row[BUY_AMT] if len(row) > BUY_AMT else "") if BUY_AMT is not None else ""
         if str(buy_raw).strip() == "":
             prev = existing.get((d, brand))
             buy_amt = int(prev.get("conversion_value") or 0) if prev else 0
