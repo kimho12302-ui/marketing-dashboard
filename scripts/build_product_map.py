@@ -28,8 +28,25 @@ SALES_DAYS = 90  # 판매 SKU 후보를 모을 기간. 짧으면 안 팔린 제�
 
 
 def q(path):
-    req = urllib.request.Request(SB_URL + path, headers={"apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Range": "0-9999"})
-    return json.load(urllib.request.urlopen(req, timeout=120))
+    """전량 조회.
+
+    ★ PostgREST 의 db-max-rows(1000)가 클라이언트 Range 헤더보다 우선한다.
+      Range: 0-9999 를 줘도 1000행에서 잘린다. 처음에 이걸 몰라서 판매 SKU 후보 풀이
+      1946행 중 1000행만 잡혔고, 오리젠·벳라이프·레날·베가가 "판매 원장에 없음"으로
+      나와 매칭이 틀렸다(2026-09-16). 반드시 offset 으로 넘긴다.
+    """
+    out, off = [], 0
+    sep = "&" if "?" in path else "?"
+    while True:
+        req = urllib.request.Request(f"{SB_URL}{path}{sep}order=id.asc&offset={off}&limit=1000",
+                                     headers={"apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY})
+        d = json.load(urllib.request.urlopen(req, timeout=120))
+        out += d
+        if len(d) < 1000:
+            return out
+        off += 1000
+        if off > 200000:
+            raise SystemExit("q(): 200,000행 초과 — 쿼리 필터를 확인하세요")
 
 
 def toks(x):
@@ -44,8 +61,8 @@ def sizes(x):
 def main():
     from datetime import date, timedelta
     since = (date.today() - timedelta(days=SALES_DAYS)).isoformat()
-    ad = q("/rest/v1/ad_product_performance?select=product_id,product_name,brand,spend")
-    ps = q(f"/rest/v1/product_sales?date=gte.{since}&select=product,brand,revenue")
+    ad = q("/rest/v1/ad_product_performance?select=id,product_id,product_name,brand,spend")
+    ps = q(f"/rest/v1/product_sales?date=gte.{since}&select=id,product,brand,revenue")
 
     A = collections.defaultdict(lambda: {"spend": 0.0, "name": "", "brand": ""})
     for r in ad:

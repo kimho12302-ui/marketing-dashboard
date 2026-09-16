@@ -11,7 +11,7 @@ load_gfa_daily_csv.py 는 같은 CSV 를 '브랜드 합계'로 눌러 daily_ad_s
 """
 import csv, sys, os, collections
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from gfa_brand_map import brand_from_product
+from gfa_brand_map import brand_from_product, brand_from_pid
 from supabase import create_client
 
 APPLY = "--apply" in sys.argv
@@ -37,10 +37,18 @@ def num(v):
 rows_in = list(csv.DictReader(open(CSV_PATH, encoding="utf-8-sig")))
 agg = collections.defaultdict(lambda: dict(spend=0.0, impressions=0, clicks=0, conversions=0, conversion_value=0.0, name="", lineup=None))
 unmatched = collections.Counter()
+by_name_fallback = collections.Counter()
 for r in rows_in:
     if r["date"] in skip:
         continue
-    brand, lineup = brand_from_product(r["product_name"])
+    # ★ 상품번호(제품 정본) 우선. 시트 '상품 목록' G열에 번호가 적혀 있으면
+    #   브랜드·라인업이 추측 없이 결정된다. 없으면 이름 추측으로 폴백하되 따로 센다 —
+    #   폴백이 늘고 있으면 시트에 번호를 안 적고 있다는 뜻이라 드러나야 한다.
+    brand, lineup, _sales_name = brand_from_pid(r["product_id"])
+    if brand is None:
+        brand, lineup = brand_from_product(r["product_name"])
+        if brand is not None:
+            by_name_fallback[r["product_name"][:50]] += num(r["cost"])
     if brand is None:
         unmatched[r["product_name"][:50]] += num(r["cost"])
         continue
@@ -53,6 +61,12 @@ for r in rows_in:
     e["clicks"] += int(num(r["clicks"]))
     e["conversions"] += int(num(r["conversions"]))
     e["conversion_value"] += num(r["conversion_value"])
+
+if by_name_fallback:
+    print(f"⚠ 상품번호가 시트에 없어 이름 추측으로 처리한 상품 {len(by_name_fallback)}종 "
+          f"(광고비 {int(sum(by_name_fallback.values())):,}원). '상품 목록' G열에 번호를 적으면 정확해집니다:")
+    for k, v in sorted(by_name_fallback.items(), key=lambda x: -x[1])[:5]:
+        print(f"   {k}  {int(v):,}원")
 
 paid_unmatched = {k: v for k, v in unmatched.items() if v > 0}
 if paid_unmatched:

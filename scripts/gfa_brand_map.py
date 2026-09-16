@@ -13,6 +13,7 @@
   `05. 사입_파미나/닥터레이`, `03.아이언펫_쇼핑검색`) 캠페인 기준이 정확하다.
   GFA 만 네이밍 체계가 달라 이 모듈이 필요하다. 두 함수를 합치지 말 것.
 """
+import os
 
 # 사입이 유통하는 브랜드. 순서 = 판정 우선순위.
 # 사입 브랜드를 너티보다 먼저 본다(2026-08 벌크 사고와 같은 방향의 방어).
@@ -30,6 +31,37 @@ BALANCELAB_LINES = [
     ("과민증", "큐음식물과민증검사"),
     ("지연성", "큐음식물과민증검사"),
 ]
+
+
+# ── 제품 정본 (통계시트 '상품 목록' G열 = 스마트스토어 상품번호) ──
+# 상품번호로 찾으면 브랜드·라인업·판매 원장 제품명이 한 번에 나온다. 추측이 없다.
+# sync_product_master.py 가 갱신한다. 파일이 없으면 아래 이름 추측으로 폴백한다.
+_MASTER = None
+
+
+def _master():
+    global _MASTER
+    if _MASTER is None:
+        import json
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "product_master.json")
+        try:
+            _MASTER = json.load(open(path, encoding="utf-8")).get("by_smartstore_pid", {})
+        except Exception:
+            _MASTER = {}
+    return _MASTER
+
+
+def brand_from_pid(product_id):
+    """상품번호 → (브랜드, 라인업, 판매원장 제품명). 마스터에 없으면 (None, None, None).
+
+    ★ 이게 정본 경로다. brand_from_product(이름 추측)는 마스터에 없는 신상품용 폴백일 뿐이다.
+      이름 추측은 한 캠페인에 사입+너티가 섞인 GFA 구조에서 나온 임시방편이었고,
+      새 브랜드가 생기면 조용히 틀린다. 시트에 상품번호를 적으면 여기서 잡힌다.
+    """
+    m = _master().get(str(product_id or "").strip())
+    if not m:
+        return None, None, None
+    return m.get("brand"), (m.get("lineup") or None), m.get("product")
 
 
 def brand_from_product(product_name: str):
