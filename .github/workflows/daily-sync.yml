@@ -45,8 +45,19 @@ jobs:
           mkdir -p "$HOME/.naver-searchad" "$HOME/.naver-searchad-balancelab"
           python3 -c "import os; [open(os.path.expanduser(p),'w',encoding='utf-8').write(os.environ[e].lstrip(chr(0xfeff))) for p,e in [('~/.naver-searchad/google-service-account.json','GOOGLE_SA_JSON'),('~/.naver-searchad/config.json','NAVER_CONFIG'),('~/.naver-searchad-balancelab/config.json','NAVER_BALANCELAB_CONFIG')]]"
 
-      # 각 단계는 독립 실패 허용(continue-on-error): 한 소스가 죽어도 나머지는 수집
+      # 실행일(KST). 월 1회만 도는 스텝의 조건으로 쓴다.
+      # 붙일 스텝: 매출 전체 재빌드(scripts/rebuild_sales_full.py --apply). 조건은
+      #   if: github.event.schedule == '0 0 * * *' && steps.today.outputs.day == '01'
+      # 09:00 KST 런은 00:00 UTC 라 UTC 일자와 같지만, 의도가 "매월 1일 아침"이라 KST로 읽는다.
+      - name: 실행일 확인 (KST)
+        id: today
+        run: echo "day=$(TZ=Asia/Seoul date +%d)" >> "$GITHUB_OUTPUT"
+
+      # 각 단계는 독립 실패 허용(continue-on-error): 한 소스가 죽어도 나머지는 수집.
+      # ★ 그래서 워크플로 자체는 항상 success 로 끝난다. 실패는 마지막 "실패 스텝 요약"이 알린다.
+      #   id 를 바꾸면 그 요약 스텝의 STEP_OUTCOMES 도 같이 고쳐야 한다.
       - name: Collect all (cafe24/meta/naver/google/ga4/balancelab + 시트 역동기화)
+        id: collect_all
         continue-on-error: true
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -55,12 +66,14 @@ jobs:
         run: python scripts/sync_all.py $ARG_START $ARG_END
 
       - name: 메타 광고 (API 직접 수집, stale 시트 대체)
+        id: meta_ads
         continue-on-error: true
         env:
           META_ADS_TOKEN: ${{ secrets.META_ADS_TOKEN }}
         run: python scripts/sync_meta_api.py
 
       - name: Google Ads (API 직접 수집, stale 시트 대체)
+        id: google_ads
         continue-on-error: true
         env:
           GOOGLE_ADS_CLIENT_ID: ${{ secrets.GOOGLE_ADS_CLIENT_ID }}
@@ -72,14 +85,17 @@ jobs:
         run: python scripts/sync_google_ads_api.py $ARG_START $ARG_END
 
       - name: GA4 funnel
+        id: ga4_funnel
         continue-on-error: true
         run: python scripts/sync_ga4_funnel.py
 
       - name: GA4 UTM
+        id: ga4_utm
         continue-on-error: true
         run: python scripts/sync_ga4_utm.py
 
       - name: Naver SA (API 직접 수집, 전환매출 포함)
+        id: naver_sa
         continue-on-error: true
         env:
           ARG_START: ${{ github.event.inputs.start_date }}
@@ -88,6 +104,7 @@ jobs:
       # 키워드 단위 성과. 캠페인 단위(sync_naver_sa)와 별개 테이블(keyword_performance).
       # 2026-05-04 이후 비어 있던 것을 2026-09 에 신규 수집기로 복구했다.
       - name: Naver 키워드 성과 (키워드 단위)
+        id: naver_keywords
         continue-on-error: true
         env:
           ARG_START: ${{ github.event.inputs.start_date }}
@@ -95,6 +112,7 @@ jobs:
         run: python scripts/sync_naver_keywords.py $ARG_START $ARG_END --apply
 
       - name: DB → 브랜드별 Paid 시트
+        id: sheet_all_brands
         continue-on-error: true
         env:
           ARG_START: ${{ github.event.inputs.start_date }}
@@ -102,6 +120,7 @@ jobs:
         run: python scripts/sync_db_to_sheet_all_brands.py $ARG_START $ARG_END
 
       - name: DB → 밸런스랩 [Q]Paid 시트 (별도 시트, GFA 0-가드)
+        id: sheet_bl_paid
         continue-on-error: true
         env:
           ARG_START: ${{ github.event.inputs.start_date }}
@@ -109,20 +128,24 @@ jobs:
         run: python scripts/sync_db_to_bl_paid.py $ARG_START $ARG_END --apply
 
       - name: DB → DataHub 시트
+        id: sheet_datahub
         continue-on-error: true
         run: python scripts/sync_db_to_datahub.py
 
       - name: 콘텐츠 (인스타그램)
+        id: content_instagram
         continue-on-error: true
         env:
           META_ADS_TOKEN: ${{ secrets.META_ADS_TOKEN }}
         run: python scripts/sync_content_instagram.py
 
       - name: 콘텐츠 (블로그 글수 - 네이버/Cafe24)
+        id: blog_posts
         continue-on-error: true
         run: python scripts/sync_blog_posts.py
 
       - name: 메타 토큰 만료 감시 (7일 전 텔레그램 알림)
+        id: meta_token
         continue-on-error: true
         env:
           META_ADS_TOKEN: ${{ secrets.META_ADS_TOKEN }}
@@ -130,3 +153,30 @@ jobs:
           META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: python scripts/check_meta_token.py
+
+      # 실패가 1건 이상일 때만 텔레그램 1줄. 0건이면 침묵.
+      # sync_heartbeat(source='workflow') 에도 남겨 관제판이 스텝 단위로 읽을 수 있게 한다.
+      # outcome 값은 success/failure/skipped/cancelled 뿐이라 비밀값이 섞이지 않는다.
+      - name: 실패 스텝 요약
+        if: always()
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          STEP_OUTCOMES: >-
+            {
+            "수집 전체(sync_all)": "${{ steps.collect_all.outcome }}",
+            "메타 광고": "${{ steps.meta_ads.outcome }}",
+            "Google Ads": "${{ steps.google_ads.outcome }}",
+            "GA4 퍼널": "${{ steps.ga4_funnel.outcome }}",
+            "GA4 UTM": "${{ steps.ga4_utm.outcome }}",
+            "네이버 SA": "${{ steps.naver_sa.outcome }}",
+            "네이버 키워드": "${{ steps.naver_keywords.outcome }}",
+            "DB→브랜드별 Paid 시트": "${{ steps.sheet_all_brands.outcome }}",
+            "DB→[Q]Paid 시트": "${{ steps.sheet_bl_paid.outcome }}",
+            "DB→DataHub 시트": "${{ steps.sheet_datahub.outcome }}",
+            "콘텐츠 인스타그램": "${{ steps.content_instagram.outcome }}",
+            "콘텐츠 블로그 글수": "${{ steps.blog_posts.outcome }}",
+            "메타 토큰 감시": "${{ steps.meta_token.outcome }}"
+            }
+        run: python scripts/report_sync_failures.py

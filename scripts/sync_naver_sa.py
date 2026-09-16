@@ -25,6 +25,12 @@ import gspread
 from google.oauth2.service_account import Credentials
 from supabase import create_client
 
+try:
+    from heartbeat import record as hb
+except Exception:
+    def hb(*a, **k):
+        pass
+
 SA_JSON      = os.path.expanduser("~/.naver-searchad/google-service-account.json")
 NAVER_CONFIG = os.path.expanduser("~/.naver-searchad/config.json")
 SHEET_NAVER  = "1ky1rAsa8draGigQixBRSNMOPIEYH0ygsXiF_mYhDwgo"
@@ -48,21 +54,32 @@ def parse_date(v):
     return None
 
 def dedup_upsert(sb, table, rows, conflict):
+    """(적재행수, 최신데이터날짜, 실패배치수) 반환.
+
+    하트비트가 '돌았지만 0행'과 '일부 배치 실패'를 구분하려면 실제 결과가 필요하다.
+    배치 실패를 예외로 올리지 않는 기존 동작은 그대로 둔다(한 배치가 죽어도 나머지는 적재).
+    """
     if not rows:
         print(f"  ⏭ {table}: 데이터 없음")
-        return
+        return 0, None, 0
     fields = [f.strip() for f in conflict.split(",")]
     seen = {}
     for r in rows:
         key = tuple(str(r.get(f, "")) for f in fields)
         seen[key] = r
     rows = list(seen.values())
+    written, failed = 0, 0
     for i in range(0, len(rows), 200):
+        batch = rows[i:i+200]
         try:
-            sb.table(table).upsert(rows[i:i+200], on_conflict=conflict).execute()
+            sb.table(table).upsert(batch, on_conflict=conflict).execute()
+            written += len(batch)
         except Exception as e:
+            failed += 1
             print(f"  ❌ {table} batch {i}: {e}")
-    print(f"  ✅ {table}: {len(rows)}건 upsert")
+    print(f"  ✅ {table}: {written}건 upsert")
+    latest = max((str(r["date"]) for r in rows if r.get("date")), default=None)
+    return written, latest, failed
 
 def brand_matched(campaign: str) -> bool:
     """캠페인명만으로 브랜드를 확정할 수 있는가 (폴백에 기대지 않았는가)."""
@@ -205,7 +222,7 @@ def sync_naver_sa_via_api(sb, start_date: str, end_date: str):
             "ctr":  v["clicks"] / v["impressions"] * 100 if v["impressions"] > 0 else 0,
             "cpc":  v["spend"] / v["clicks"] if v["clicks"] > 0 else 0,
         })
-    dedup_upsert(sb, "daily_ad_spend", upsert_rows, "date,brand,channel")
+    return dedup_upsert(sb, "daily_ad_spend", upsert_rows, "date,brand,channel")
 
 
 # ─────────────────────────────────────────────────────────────
@@ -253,7 +270,7 @@ def sync_naver_sa_from_sheet(gc, sb, start_date: str, end_date: str):
             "ctr": v["clicks"] / v["impressions"] * 100 if v["impressions"] > 0 else 0,
             "cpc": v["spend"] / v["clicks"] if v["clicks"] > 0 else 0,
         })
-    dedup_upsert(sb, "daily_ad_spend", upsert_rows, "date,brand,channel")
+    return dedup_upsert(sb, "daily_ad_spend", upsert_rows, "date,brand,channel")
 
 
 # ─────────────────────────────────────────────────────────────
@@ -291,12 +308,26 @@ def main():
     sb = create_client(SUPABASE_URL, SUPABASE_KEY)
 
     # 1. Naver SA
+    # ★ 하트비트 source='naver_sa'.
+    #   2026-07-29 에 sync_all.py 의 시트 기반 네이버 수집기를 제거하면서(커밋 42239e6)
+    #   그 안에 있던 hb("naver_sa") 호출이 같이 사라졌고, 대체 수집기인 이 스크립트에는
+    #   심박이 없었다. 수집은 멀쩡한데(daily_ad_spend 는 매일 적재됨) 심박만 07-29 에
+    #   멈춰 있어서 관제판이 이 소스를 죽은 것으로 판정했다. 여기서 다시 잇는다.
+    #   밸런스랩 계정은 별도 심박(source='naver_balancelab', sync_all.py)이라 서로 대체하지 않는다.
     print("🔹 네이버 SA (API 직접 수집 – 전환매출 포함)")
     try:
-        sync_naver_sa_via_api(sb, start_date, end_date)
+        written, latest, failed = sync_naver_sa_via_api(sb, start_date, end_date)
+        hb("naver_sa", ok=(failed == 0), rows=written, latest_date=latest,
+           note="api" if failed == 0 else f"api, 배치 {failed}개 실패")
     except Exception as e:
         print(f"  ❌ API 실패: {e}")
-        sync_naver_sa_from_sheet(gc, sb, start_date, end_date)
+        try:
+            written, latest, failed = sync_naver_sa_from_sheet(gc, sb, start_date, end_date)
+            hb("naver_sa", ok=(failed == 0), rows=written, latest_date=latest,
+               note=f"시트 폴백 (API 실패: {e})")
+        except Exception as e2:
+            hb("naver_sa", ok=False, note=f"API·시트 둘 다 실패: {e} / {e2}")
+            raise
 
     # 2. Google Ads — 이 스크립트에서는 수집하지 않음 (sync_google_ads_api.py 담당)
     print("\n🔹 Google Ads: sync_google_ads_api.py에서 API로 수집 (여기선 스킵)")
