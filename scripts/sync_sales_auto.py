@@ -56,6 +56,12 @@ def map_channel(channel_str):
         return "cafe24"
     elif "쿠팡" in ch:
         return "coupang"
+    # 대시보드 채널 코드(ppmi-dashboard-v2 src/lib/types.ts CHANNEL_LABELS)로 맞춘다.
+    # 시트의 한글 이름을 그대로 넣으면 채널 차트에서 별도 항목으로 갈라진다(2026-09-18 너티 재빌드 42행).
+    minor = {"에이블리": "ably", "펫프렌즈": "petfriends", "피피": "pp", "페오펫": "other"}
+    for kor, code in minor.items():
+        if kor in ch:
+            return code
     return ch
 
 def main():
