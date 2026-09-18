@@ -124,31 +124,11 @@ def main():
     
     errors = []
     
-    # 1. Cafe24 매출
-    print("\n📊 1. Cafe24 매출...")
-    def sync_cafe24():
-        sheet = gc.open_by_key(SHEET_SALES)
-        ws = sheet.worksheet("카페24_일별매출")
-        recs = ws.get_all_records()
-        rows = []
-        for r in recs:
-            d = parse_date(r.get("날짜",""))
-            if not d: continue
-            revenue = safe_num(r.get("결제금액", r.get("매출", 0)))
-            orders = safe_int(r.get("주문수", 0))
-            rows.append({
-                "date": d, "brand": "nutty", "channel": "cafe24",
-                "revenue": revenue, "orders": orders,
-                "avg_order_value": revenue/orders if orders > 0 else 0
-            })
-        return dedup_upsert(sb, "daily_sales", rows, "date,brand,channel")
-    
-    try:
-        hb_ok("cafe24_sales", retry_with_backoff(sync_cafe24, "Cafe24 매출"))
-    except Exception as e:
-        errors.append(str(e)); hb("cafe24_sales", ok=False, note=str(e))
-        print(f"  ❌ {e}")
-    
+    # 1. Cafe24 매출: 2026-09-18 제거.
+    # 시트 탭 '카페24_일별매출' 은 2026-03-10 이후 갱신이 없고, 결제금액 기준이라 매출 원장(Sales 시트)과
+    # 규약이 다르다. 그런데 매 런마다 nutty/cafe24 daily_sales 전 기간을 덮어써 원장값을 밀어냈다.
+    # 카페24 매출은 대시보드 매출 업로드 폼과 rebuild_sales_full.py 가 Sales 시트에서 적재한다.
+
     # 2. Meta Ads
     print("\n📊 2. Meta Ads...")
     def sync_meta():
