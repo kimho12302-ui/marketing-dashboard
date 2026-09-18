@@ -111,6 +111,16 @@ jobs:
           ARG_END: ${{ github.event.inputs.end_date }}
         run: python scripts/sync_naver_keywords.py $ARG_START $ARG_END --apply
 
+      # 실제 검색어(등록 키워드가 아님). 파워링크·쇼핑검색, 두 계정(main·balancelab). 2026-09-18 신설.
+      # 원천 raw_naver_search_term → 대시보드 키워드 탭 > 네이버 검색어. 기본 최근 7일(보고서는 전일까지 확정).
+      - name: Naver 검색어 (실제 검색어, 두 계정)
+        id: naver_search_terms
+        continue-on-error: true
+        env:
+          ARG_START: ${{ github.event.inputs.start_date }}
+          ARG_END: ${{ github.event.inputs.end_date }}
+        run: python scripts/sync_naver_search_terms.py $ARG_START $ARG_END --apply
+
       - name: DB → 브랜드별 Paid 시트
         id: sheet_all_brands
         continue-on-error: true
@@ -172,6 +182,7 @@ jobs:
             "GA4 UTM": "${{ steps.ga4_utm.outcome }}",
             "네이버 SA": "${{ steps.naver_sa.outcome }}",
             "네이버 키워드": "${{ steps.naver_keywords.outcome }}",
+            "네이버 검색어": "${{ steps.naver_search_terms.outcome }}",
             "DB→브랜드별 Paid 시트": "${{ steps.sheet_all_brands.outcome }}",
             "DB→[Q]Paid 시트": "${{ steps.sheet_bl_paid.outcome }}",
             "DB→DataHub 시트": "${{ steps.sheet_datahub.outcome }}",
