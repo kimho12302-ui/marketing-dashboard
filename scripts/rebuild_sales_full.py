@@ -86,6 +86,10 @@ def map_brand_full(brand_str, category_str=None):
         return "saip"
     if any(k in combined for k in ("밸런스랩", "자체판매", "공동구매", "큐모발", "하루가꿈")):
         return "balancelab"
+    # 업로드 폼(upload-sales detectBrand)과 같은 규칙: 너티·아이언펫·밸런스랩이 아닌 브랜드는 사입.
+    # 이름 목록으로만 받으면 새 사입 브랜드(오리젠·나우·게더, 2026-09)가 unknown 으로 떨어져 재빌드가 지운다.
+    if str(brand_str or "").strip():
+        return "saip"
     return "unknown"
 
 
@@ -188,7 +192,8 @@ def fetch_db(sb, table, brands, since):
     rows, page, size = [], 0, 1000
     while True:
         q = (sb.table(table).select("date,brand,channel,revenue").in_("brand", sorted(brands))
-             .order("date").range(page * size, page * size + size - 1))
+             .order("date").order("id").range(page * size, page * size + size - 1))
+        # id 까지 정렬해야 페이지 경계에서 같은 날짜 행이 중복·누락되지 않는다(2026-09-18 한 행 누락 실측).
         if since:
             q = q.gte("date", since)
         batch = q.execute().data
@@ -227,6 +232,27 @@ def print_delta(label, sheet_rows, db_rows):
             "row_delta": tot_sr - tot_dr, "revenue_delta": tot_sv - tot_dv}
 
 
+def select_gaps(product_rows, daily_rows, db_product, db_daily):
+    """DB 에 아예 없는 칸만 고른다. 있는 행은 지우지도 바꾸지도 않는다.
+
+    전체 재빌드는 시트를 정답으로 보고 날짜를 통째로 덮는다. 그런데 날짜별 정답은 업로드가 쓴 DB 다
+    (통계시트는 업로드 경합으로 깨진 적이 있다, 2026-09-18). 그래서 채우기는 빈칸에만 한다.
+    - product_sales: (date, brand) 에 행이 하나도 없을 때만 그 날짜·브랜드의 시트 행을 넣는다
+    - daily_sales: (date, brand, channel) 에 행이 없을 때만 넣는다
+    """
+    have_product = {(r["date"], r["brand"]) for r in db_product}
+    have_daily = {(r["date"], r["brand"], r["channel"]) for r in db_daily}
+    p = [r for r in product_rows if (r["date"], r["brand"]) not in have_product]
+    d = [r for r in daily_rows if (r["date"], r["brand"], r["channel"]) not in have_daily]
+    return p, d
+
+
+def insert_rows(sb, table, rows):
+    for i in range(0, len(rows), INSERT_CHUNK):
+        sb.table(table).insert(rows[i:i + INSERT_CHUNK]).execute()
+    print(f"  OK {table}: {len(rows)}건 삽입")
+
+
 def apply_rebuild(sb, product_rows, daily_rows, brands):
     """날짜×브랜드 단위 delete → insert. 폼과 달리 브랜드를 좁혀 다른 브랜드를 건드리지 않는다."""
     for i, brand in enumerate(sorted(brands), 1):
@@ -255,6 +281,8 @@ def main():
                     help="대상 브랜드 콤마 구분 또는 all (기본 balancelab)")
     ap.add_argument("--since", default=None, help="이 날짜(YYYY-MM-DD) 이후만")
     ap.add_argument("--json-out", default=None, help="결과 요약 JSON 경로")
+    ap.add_argument("--fill-gaps", action="store_true",
+                    help="DB 에 없는 칸만 채운다(삭제·수정 없음). 날짜별 정답은 업로드가 쓴 DB 이므로 기본 권장")
     args = ap.parse_args()
 
     brands = ALL_BRANDS if args.brand == "all" else {b.strip() for b in args.brand.split(",") if b.strip()}
@@ -262,9 +290,9 @@ def main():
     if unknown:
         print(f"X 알 수 없는 브랜드: {sorted(unknown)}")
         return 2
-    if brands - {"balancelab"}:
-        print("! 밸런스랩 외 브랜드 포함. nutty/cafe24 daily_sales 는 '카페24_일별매출' 탭도 쓰는\n"
-              "  경합 슬롯이라 이 재빌드가 그 값을 덮는다. 의도한 것인지 확인할 것.")
+    if not args.fill_gaps:
+        print("! 전체 재빌드는 시트를 정답으로 보고 날짜를 통째로 덮는다. 날짜별 정답은 업로드가 쓴 DB 이고\n"
+              "  통계시트는 업로드 경합으로 깨진 적이 있다(2026-09-18). 빈칸만 채우려면 --fill-gaps.")
 
     apply = args.apply
     print("Sales 시트 전 기간 재빌드 " + ("[APPLY]" if apply else "[DRY-RUN]"))
@@ -314,7 +342,27 @@ def main():
             print(f"   {d} {b:<11} rows={o['rows']} revenue={o['revenue']:,.0f}")
     summary["db_only_keys"] = [{"date": d, "brand": b, **o} for (d, b), o in sorted(orphans.items())]
 
-    if apply:
+    if args.fill_gaps:
+        gp, gd = select_gaps(product_rows, daily_rows, db_product, db_daily)
+        print(f"\n-- 빈칸 채우기: product_sales {len(gp)}행 "
+              f"({len({(r['date'], r['brand']) for r in gp})}개 날짜·브랜드, {sum(r['revenue'] for r in gp):,.0f}원)"
+              f" / daily_sales {len(gd)}행 ({sum(r['revenue'] for r in gd):,.0f}원)")
+        by_month = defaultdict(float)
+        for r in gd:
+            by_month[(r["date"][:7], r["brand"])] += r["revenue"]
+        for (m, b), v in sorted(by_month.items()):
+            print(f"   daily_sales 추가 {m} {b:<11} {v:>13,.0f}")
+        summary["fill_gaps"] = {"product_sales": len(gp), "daily_sales": len(gd)}
+        if apply:
+            insert_rows(sb, "product_sales", gp)
+            insert_rows(sb, "daily_sales", gd)
+            heartbeat.record("sales_rebuild", ok=True, rows=len(gp),
+                             latest_date=max((r["date"] for r in gp), default=None),
+                             note=f"fill-gaps brands={sorted(brands)}")
+            print("\n빈칸 채우기 완료")
+        else:
+            print("\nDRY-RUN — DB 를 바꾸지 않았다. 적용하려면 --apply --fill-gaps")
+    elif apply:
         print(f"\n> 재빌드 적용: {len({r['date'] for r in product_rows})}일 x {len(brands)}브랜드")
         p, d = apply_rebuild(sb, product_rows, daily_rows, brands)
         summary["applied"] = {"product_sales": p, "daily_sales": d}
