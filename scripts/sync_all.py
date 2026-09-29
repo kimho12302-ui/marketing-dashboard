@@ -8,6 +8,9 @@ import gspread
 from google.oauth2.service_account import Credentials
 from supabase import create_client
 
+# bl_campaign_map 등 같은 폴더 모듈을 CI 에서도 import 할 수 있게 한다.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 try:
     from heartbeat import record as hb
 except Exception:
@@ -237,6 +240,7 @@ def main():
     # 7. 밸런스랩 네이버 SA (별도 계정)
     print("\n📊 7. 밸런스랩 네이버 SA...")
     def sync_balancelab_naver():
+        from bl_campaign_map import classify as bl_classify
         import os
         import json
         import requests
@@ -286,6 +290,10 @@ def main():
 
         campaigns = api_get('/ncc/campaigns')
         rows = []
+        # ★ 제품 축. 이 계정은 캠페인명에 제품이 그대로 있다(P01.밸런스랩_큐모발검사 등).
+        #   이미 캠페인 단위로 /stats 를 부르면서 by_channel 로 합치며 이름을 버리고 있었다.
+        #   추가 API 호출 없이 같은 루프에서 상품 행을 같이 만든다.
+        product_rows = []
 
         for date_offset in range(day_count):
             target_date = (start_date + timedelta(days=date_offset)).strftime('%Y-%m-%d')
@@ -310,12 +318,36 @@ def main():
                     }
                     stats = api_get('/stats', params=stats_params)
                     data_list = stats if isinstance(stats, list) else stats.get('data', [])
+                    cmp_name = campaign.get('name', '')
+                    cmp_brand, cmp_product = bl_classify(cmp_name)
                     for item in data_list:
-                        by_channel[channel]['spend'] += float(item.get('salesAmt', 0))
-                        by_channel[channel]['impressions'] += int(item.get('impCnt', 0))
-                        by_channel[channel]['clicks'] += int(item.get('clkCnt', 0))
-                        by_channel[channel]['conversions'] += int(item.get('ccnt', 0))
-                        by_channel[channel]['conversion_value'] += float(item.get('convAmt', 0))
+                        c_spend = float(item.get('salesAmt', 0))
+                        c_imp = int(item.get('impCnt', 0))
+                        c_clk = int(item.get('clkCnt', 0))
+                        c_conv = int(item.get('ccnt', 0))
+                        c_cval = float(item.get('convAmt', 0))
+                        # ★ 밸런스랩 합계에는 밸런스랩 캠페인만 더한다. 이 계정에
+                        #   2023_아이언펫·와이에스환경기술연구소·수은세상 등이 얹혀 있다.
+                        #   지금은 전부 PAUSED 라 0원이지만 재개되면 광고비가 조용히 부푼다.
+                        if cmp_brand == 'balancelab':
+                            by_channel[channel]['spend'] += c_spend
+                            by_channel[channel]['impressions'] += c_imp
+                            by_channel[channel]['clicks'] += c_clk
+                            by_channel[channel]['conversions'] += c_conv
+                            by_channel[channel]['conversion_value'] += c_cval
+                        elif c_spend > 0:
+                            print(f"    WARN 밸런스랩 계정의 타브랜드 캠페인 집행: [{cmp_brand or '미분류'}] {cmp_name} {int(c_spend):,}원 ({target_date})")
+                        if cmp_brand == 'balancelab' and cmp_product and (c_spend > 0 or c_cval > 0):
+                            product_rows.append({
+                                'date': target_date, 'channel': channel, 'brand': 'balancelab',
+                                'product_id': f'nvsa:{cmp_id}', 'product_name': cmp_product,
+                                'lineup': cmp_product,
+                                'spend': c_spend, 'impressions': c_imp, 'clicks': c_clk,
+                                'conversions': c_conv, 'conversion_value': c_cval,
+                                'roas': c_cval / c_spend if c_spend > 0 else 0,
+                                'ctr': c_clk / c_imp * 100 if c_imp > 0 else 0,
+                                'cpc': c_spend / c_clk if c_clk > 0 else 0,
+                            })
                 except:
                     continue
 
@@ -329,6 +361,15 @@ def main():
                     'cpc': data['spend'] / data['clicks'] if data['clicks'] > 0 else 0,
                 })
 
+        if product_rows:
+            # 같은 제품에 캠페인이 여럿이면(파워링크+쇼핑) product_id 가 달라 각각 남는다.
+            # 화면은 product_name 으로 합산하므로 문제없다.
+            try:
+                dedup_upsert(sb, "ad_product_performance", product_rows, "date,channel,brand,product_id")
+                print(f"    제품 축 {len(product_rows)}행")
+            except Exception as pe:
+                # 제품 축 실패가 브랜드 합계까지 막으면 안 된다. 경고만 남기고 넘어간다.
+                print(f"    WARN 제품 축 적재 실패(브랜드 합계는 계속): {pe}")
         return dedup_upsert(sb, "daily_ad_spend", rows, "date,brand,channel")
     
     try:
