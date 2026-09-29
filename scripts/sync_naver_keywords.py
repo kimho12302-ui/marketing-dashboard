@@ -21,6 +21,9 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 from supabase import create_client
 
+# 같은 폴더 모듈(bl_campaign_map)을 CI 에서도 import 할 수 있게.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 APPLY = "--apply" in sys.argv
 _KST_NOW = datetime.utcnow() + timedelta(hours=9)
 TODAY = _KST_NOW.strftime("%Y-%m-%d")
@@ -46,9 +49,31 @@ SB_URL = os.environ.get("SUPABASE_URL") or "https://phcfydxgwkmjiogerqmm.supabas
 # env 필수로 두면 daily-sync 에서 매번 조용히 죽는다(continue-on-error: true).
 SB_KEY = os.environ.get("SUPABASE_ANON_KEY") or "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBoY2Z5ZHhnd2ttamlvZ2VycW1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1Njg4NjQsImV4cCI6MjA4OTE0NDg2NH0.M0ThTSK0kBvN71rccvzQpr3dQuL52oRs_Tj9MT7VWRg"
 
-cfg = json.load(open(CFG, encoding="utf-8"))
-API_KEY, API_SECRET, CUSTOMER_ID = cfg["api_key"], cfg["api_secret"], str(cfg["customer_id"])
-BASE_URL = cfg.get("base_url", "https://api.searchad.naver.com")
+# ★ 네이버 검색광고 계정이 둘이다. 펫(너티·아이언펫·사입)과 밸런스랩이 별도 계정이라
+#   펫 설정 하나만 보면 밸런스랩 키워드가 영영 안 들어온다. 실제로 밸런스랩
+#   keyword_performance 가 2026-05-04 에서 멈춰 있었다(2026-09-29 확인).
+from bl_campaign_map import classify as bl_classify
+
+ACCOUNTS = [
+    {"name": "pet", "cfg": "~/.naver-searchad/config.json"},
+    {"name": "balancelab", "cfg": "~/.naver-searchad-balancelab/config.json"},
+]
+
+# api_get 이 지금 어느 계정으로 부르는지. 계정 루프가 갈아 끼운다.
+API_KEY = API_SECRET = CUSTOMER_ID = None
+BASE_URL = "https://api.searchad.naver.com"
+
+
+def use_account(path):
+    """계정 설정을 읽어 전역에 세팅. 파일이 없으면 False 를 돌려주고 호출부가 건너뛴다."""
+    global API_KEY, API_SECRET, CUSTOMER_ID, BASE_URL
+    full = os.path.expanduser(path)
+    if not os.path.exists(full):
+        return False
+    c = json.load(open(full, encoding="utf-8"))
+    API_KEY, API_SECRET, CUSTOMER_ID = c["api_key"], c["api_secret"], str(c["customer_id"])
+    BASE_URL = c.get("base_url", "https://api.searchad.naver.com")
+    return True
 
 
 def api_get(endpoint, params=None, retry=3):
@@ -79,24 +104,38 @@ def brand_from_campaign(campaign: str) -> str:
 
 
 # ── 1. 구조 조회 (캠페인 → 광고그룹 → 키워드). 하루에 한 번만 하면 되므로 날짜 루프 밖. ──
-campaigns = [c for c in api_get("/ncc/campaigns") if c.get("campaignTp") == "WEB_SITE"]
-print(f"  파워링크 캠페인 {len(campaigns)}개")
-
-groups = []  # (brand, adgroup_id, {keyword_id: keyword})
-for c in campaigns:
-    brand = brand_from_campaign(c.get("name", ""))
-    for ag in (api_get("/ncc/adgroups", {"nccCampaignId": c["nccCampaignId"]}) or []):
-        kws = api_get("/ncc/keywords", {"nccAdgroupId": ag["nccAdgroupId"]}) or []
-        if kws:
-            groups.append((brand, ag["nccAdgroupId"], {k["nccKeywordId"]: k["keyword"] for k in kws}))
-print(f"  키워드 있는 광고그룹 {len(groups)}개 · 총 키워드 {sum(len(g[2]) for g in groups)}개")
+groups = []  # (account, brand, adgroup_id, {keyword_id: keyword})
+for acct in ACCOUNTS:
+    if not use_account(acct["cfg"]):
+        # 설정이 없으면 조용히 건너뛰지 않는다. 어느 계정이 빠졌는지 보여야 한다.
+        print(f"  [{acct['name']}] 설정 없음 → 건너뜀 ({acct['cfg']})")
+        continue
+    campaigns = [c for c in (api_get("/ncc/campaigns") or []) if c.get("campaignTp") == "WEB_SITE"]
+    n0 = len(groups)
+    for c in campaigns:
+        name = c.get("name", "")
+        if acct["name"] == "balancelab":
+            # 이 계정엔 남의 캠페인이 섞여 있다(와이에스환경기술연구소·한국반려동물안전인증센터 등).
+            # 폴백으로 balancelab 을 찍지 않는다 — 찍으면 남의 키워드가 밸런스랩으로 쌓인다.
+            brand, _product = bl_classify(name)
+            if brand is None:
+                continue
+        else:
+            brand = brand_from_campaign(name)
+        for ag in (api_get("/ncc/adgroups", {"nccCampaignId": c["nccCampaignId"]}) or []):
+            kws = api_get("/ncc/keywords", {"nccAdgroupId": ag["nccAdgroupId"]}) or []
+            if kws:
+                groups.append((acct, brand, ag["nccAdgroupId"], {k["nccKeywordId"]: k["keyword"] for k in kws}))
+    print(f"  [{acct['name']}] 파워링크 캠페인 {len(campaigns)}개 · 키워드 광고그룹 {len(groups)-n0}개")
+print(f"  총 광고그룹 {len(groups)}개 · 총 키워드 {sum(len(g[3]) for g in groups)}개")
 
 # ── 2. 날짜별 × 광고그룹별 성과 ──
 agg = defaultdict(lambda: {"impressions": 0, "clicks": 0, "cost": 0.0, "conversions": 0, "conversion_value": 0.0})
 start_dt, end_dt = datetime.strptime(START, "%Y-%m-%d"), datetime.strptime(END, "%Y-%m-%d")
 for off in range((end_dt - start_dt).days + 1):
     d = (start_dt + timedelta(days=off)).strftime("%Y-%m-%d")
-    for brand, agid, idmap in groups:
+    for acct, brand, agid, idmap in groups:
+        use_account(acct["cfg"])
         try:
             st = api_get("/stats", {
                 "ids": list(idmap.keys()),
