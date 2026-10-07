@@ -7,6 +7,7 @@ DB에 gfa 행이 있는 날짜만 기록(없는 날짜의 시트값은 안 건�
 import os, sys
 sys.stdout.reconfigure(encoding='utf-8')
 import gspread
+import paid_guard  # noqa: F401  Paid 탭 Total(B·C·D) 쓰기 차단
 from google.oauth2.service_account import Credentials
 from supabase import create_client
 from datetime import datetime

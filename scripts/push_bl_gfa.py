@@ -4,6 +4,7 @@ DB값 0/0/0 행은 스킵(시트 보존). 실행: python push_bl_gfa.py [--apply
 import os, sys, re
 sys.stdout.reconfigure(encoding='utf-8')
 import gspread
+import paid_guard  # noqa: F401  Paid 탭 Total(B·C·D) 쓰기 차단
 from google.oauth2.service_account import Credentials
 from supabase import create_client
 from datetime import datetime
