@@ -1,0 +1,42 @@
+# 메타 광고만 과거 구간 재수집.
+#
+# 왜 따로 두나 (2026-10-07)
+#   유효한 META_ADS_TOKEN 은 GitHub Secrets 에만 있다(rotate_meta_token.py 가 여기만 쓴다).
+#   로컬 .env.local·Vercel 사본은 갱신되지 않아 늘 죽어 있다. 그래서 로컬에서 메타 과거분을
+#   받으려 하면 매번 실패했다. 과거분이 필요하면 이 워크플로를 돌린다.
+#   daily-sync 에 start_date 를 주면 네이버·구글까지 전부 재수집하므로 메타만 떼어 냈다.
+#
+#   gh workflow run meta-backfill.yml -f since=2026-01-01
+#
+# 결과: daily_ad_spend(meta, 전 브랜드) + ad_product_performance(meta 캠페인→제품) upsert.
+name: meta-backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      since:
+        description: "재수집 시작일 (YYYY-MM-DD). 종료일은 오늘"
+        required: true
+
+concurrency:
+  group: daily-sync
+  cancel-in-progress: false
+
+jobs:
+  meta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: 메타 재수집
+        env:
+          META_ADS_TOKEN: ${{ secrets.META_ADS_TOKEN }}
+          ARG_SINCE: ${{ github.event.inputs.since }}
+        run: python scripts/sync_meta_api.py "$ARG_SINCE"
