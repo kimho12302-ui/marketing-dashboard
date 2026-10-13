@@ -164,6 +164,9 @@ def sync_naver_sa_via_api(sb, start_date: str, end_date: str):
         "conversions": 0, "conversion_value": 0.0
     })
     unmatched_spend = defaultdict(float)  # 브랜드 미매칭인데 집행액이 있는 캠페인
+    # 캠페인 × 일. 위 agg 는 (날짜·브랜드·채널)로 합치며 캠페인 이름을 버린다.
+    # 대시보드 「네이버 캠페인」 탭이 이걸 읽는다(옛 원천인 구글시트가 2026-09 부터 멈춤).
+    cmp_rows = {}
 
     # 날짜별 루프 (단일 날짜 쿼리만 데이터 반환됨)
     start_dt = datetime.strptime(start_date, "%Y-%m-%d")
@@ -190,6 +193,17 @@ def sync_naver_sa_via_api(sb, start_date: str, end_date: str):
                 for item in data_list:
                     k = (target_date, brand, channel)
                     spent = float(item.get("salesAmt", 0))
+                    cr = cmp_rows.setdefault((target_date, cmp_id), {
+                        "date": target_date, "account": "main", "campaign_id": cmp_id,
+                        "campaign": cmp_name, "campaign_type": cmp_type, "brand": brand,
+                        "impressions": 0, "clicks": 0, "cost": 0.0,
+                        "conversions": 0.0, "conversion_value": 0.0,
+                    })
+                    cr["impressions"]      += int(item.get("impCnt", 0))
+                    cr["clicks"]           += int(item.get("clkCnt", 0))
+                    cr["cost"]             += spent
+                    cr["conversions"]      += float(item.get("ccnt", 0))
+                    cr["conversion_value"] += float(item.get("convAmt", 0))
                     agg[k]["spend"]            += spent
                     agg[k]["impressions"]      += int(item.get("impCnt", 0))
                     agg[k]["clicks"]           += int(item.get("clkCnt", 0))
@@ -222,7 +236,15 @@ def sync_naver_sa_via_api(sb, start_date: str, end_date: str):
             "ctr":  v["clicks"] / v["impressions"] * 100 if v["impressions"] > 0 else 0,
             "cpc":  v["spend"] / v["clicks"] if v["clicks"] > 0 else 0,
         })
-    return dedup_upsert(sb, "daily_ad_spend", upsert_rows, "date,brand,channel")
+    written = dedup_upsert(sb, "daily_ad_spend", upsert_rows, "date,brand,channel")
+
+    # 캠페인 단위는 부가 기록이다. 실패해도 위 광고비 적재는 살린다(테이블이 없을 수 있다).
+    # 실적 0 인 캠페인은 /stats 가 응답에서 빼므로 행이 안 생긴다(= 집행 0).
+    try:
+        dedup_upsert(sb, "naver_campaign_daily", list(cmp_rows.values()), "date,campaign_id")
+    except Exception as e:
+        print(f"  ⚠ naver_campaign_daily 적재 실패(광고비 적재는 완료): {e}")
+    return written
 
 
 # ─────────────────────────────────────────────────────────────

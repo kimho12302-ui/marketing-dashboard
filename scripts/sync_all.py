@@ -294,6 +294,8 @@ def main():
         #   이미 캠페인 단위로 /stats 를 부르면서 by_channel 로 합치며 이름을 버리고 있었다.
         #   추가 API 호출 없이 같은 루프에서 상품 행을 같이 만든다.
         product_rows = []
+        # 캠페인 × 일(타사업 캠페인 포함, brand 로 구분). 대시보드 「네이버 캠페인」 탭이 읽는다.
+        campaign_rows = []
 
         for date_offset in range(day_count):
             target_date = (start_date + timedelta(days=date_offset)).strftime('%Y-%m-%d')
@@ -326,6 +328,15 @@ def main():
                         c_clk = int(item.get('clkCnt', 0))
                         c_conv = int(item.get('ccnt', 0))
                         c_cval = float(item.get('convAmt', 0))
+                        campaign_rows.append({
+                            'date': target_date, 'account': 'balancelab', 'campaign_id': cmp_id,
+                            'campaign': cmp_name, 'campaign_type': cmp_type,
+                            # 이 계정엔 그룹사 캠페인이 얹혀 있다. 밸런스랩이 아니면 'other' 로 둬서
+                            # 밸런스랩 화면에 섞이지 않게 한다(아이언펫 등 우리 브랜드는 그 이름 그대로).
+                            'brand': cmp_brand or 'other',
+                            'impressions': c_imp, 'clicks': c_clk, 'cost': c_spend,
+                            'conversions': c_conv, 'conversion_value': c_cval,
+                        })
                         # ★ 밸런스랩 합계에는 밸런스랩 캠페인만 더한다. 이 계정에
                         #   2023_아이언펫·와이에스환경기술연구소·수은세상 등이 얹혀 있다.
                         #   지금은 전부 PAUSED 라 0원이지만 재개되면 광고비가 조용히 부푼다.
@@ -361,6 +372,11 @@ def main():
                     'cpc': data['spend'] / data['clicks'] if data['clicks'] > 0 else 0,
                 })
 
+        if campaign_rows:
+            try:
+                dedup_upsert(sb, "naver_campaign_daily", campaign_rows, "date,campaign_id")
+            except Exception as ce:
+                print(f"    WARN 캠페인 축 적재 실패(브랜드 합계는 계속): {ce}")
         if product_rows:
             # 같은 제품에 캠페인이 여럿이면(파워링크+쇼핑) product_id 가 달라 각각 남는다.
             # 화면은 product_name 으로 합산하므로 문제없다.

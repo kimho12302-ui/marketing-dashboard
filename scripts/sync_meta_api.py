@@ -155,6 +155,92 @@ def fetch_insights(acct, since, until, level="campaign"):
     return rows
 
 
+# ── 소재(광고) 단위 → meta_ad_daily ─────────────────────────────────────────
+# 대시보드 「광고 분석 > Meta 소재」 탭이 읽는다(2026-10-13).
+# 전에는 대시보드 서버가 그래프 API 를 직접 불렀는데, 유효한 토큰은 GitHub Secrets 에만 있어
+# (rotate_meta_token.py 가 거기만 갱신) 그 탭이 늘 비어 있었다. 토큰을 가진 이 수집기가 대신 받는다.
+CART_TYPES = {"add_to_cart", "omni_add_to_cart", "offsite_conversion.fb_pixel_add_to_cart"}
+VIEW_TYPES = {"view_content", "omni_view_content", "offsite_conversion.fb_pixel_view_content"}
+
+
+def _sum_types(actions, types):
+    return sum(num(a.get("value")) for a in actions or [] if a.get("action_type") in types)
+
+
+def _thumbnails(ad_ids):
+    """광고 id → 썸네일 URL. fbcdn 서명 URL 이라 며칠 뒤 깨질 수 있다(매일 덮어쓴다)."""
+    out = {}
+    ids = list(ad_ids)
+    for i in range(0, len(ids), 50):
+        chunk = ids[i:i + 50]
+        try:
+            j = requests.get(GRAPH + "/", params={
+                "ids": ",".join(chunk),
+                "fields": "creative{thumbnail_url,image_url}",
+                "access_token": TOKEN,
+            }, timeout=40).json()
+        except Exception as e:
+            print(f"  ⚠ 썸네일 조회 실패: {e}")
+            continue
+        if "error" in j:
+            print(f"  ⚠ 썸네일 조회 오류: {j['error'].get('message')}")
+            continue
+        for ad_id, v in j.items():
+            cr = (v or {}).get("creative") or {}
+            out[ad_id] = cr.get("image_url") or cr.get("thumbnail_url")
+    return out
+
+
+def sync_meta_ads(sb, since, until):
+    rows = []
+    for brand, acct in ACCOUNTS.items():
+        data = fetch_insights_ad(acct, since, until)
+        spent_ids = {d["ad_id"] for d in data if d.get("ad_id") and num(d.get("spend")) > 0}
+        thumbs = _thumbnails(spent_ids) if spent_ids else {}
+        for d in data:
+            if not d.get("ad_id") or not d.get("date_start"):
+                continue
+            rows.append({
+                "date": d["date_start"], "account_id": acct, "brand": brand,
+                "ad_id": d["ad_id"], "ad_name": d.get("ad_name"), "adset_name": d.get("adset_name"),
+                "campaign_id": d.get("campaign_id"), "campaign_name": d.get("campaign_name"),
+                "thumbnail_url": thumbs.get(d["ad_id"]),
+                "impressions": int(num(d.get("impressions"))), "clicks": int(num(d.get("clicks"))),
+                "spend": num(d.get("spend")),
+                "purchases": extract(d.get("actions")), "purchase_value": extract(d.get("action_values")),
+                "add_to_cart": _sum_types(d.get("actions"), CART_TYPES),
+                "view_content": _sum_types(d.get("actions"), VIEW_TYPES),
+            })
+        print(f"  소재 {brand}: {len(data)}행 (집행 소재 {len(spent_ids)}개)")
+    if DRY_RUN or not rows:
+        return len(rows)
+    for i in range(0, len(rows), 200):
+        sb.table("meta_ad_daily").upsert(rows[i:i + 200], on_conflict="date,ad_id").execute()
+    print(f"🖼 meta_ad_daily {len(rows)}행 upsert 완료")
+    return len(rows)
+
+
+def fetch_insights_ad(acct, since, until):
+    rows, url = [], f"{GRAPH}/{acct}/insights"
+    params = {
+        "fields": "ad_id,ad_name,adset_name,campaign_id,campaign_name,spend,impressions,clicks,actions,action_values",
+        "time_increment": 1,
+        "time_range": '{"since":"%s","until":"%s"}' % (since, until),
+        "level": "ad",
+        "access_token": TOKEN,
+        "limit": 500,
+    }
+    while url:
+        j = requests.get(url, params=params, timeout=60).json()
+        if "error" in j:
+            print(f"  ❌ 소재 {acct}: {j['error'].get('message')}")
+            break
+        rows += j.get("data", [])
+        url = j.get("paging", {}).get("next")
+        params = None
+    return rows
+
+
 def main():
     if not TOKEN:
         print("❌ META_ADS_TOKEN 없음"); sys.exit(1)
@@ -250,6 +336,11 @@ def main():
         except Exception as pe:
             # 제품 축 실패가 브랜드 합계까지 막으면 안 된다.
             print(f"⚠ 제품 축 적재 실패(브랜드 합계는 반영됨): {pe}")
+    # 소재 단위는 부가 기록이다. 실패해도 위 광고비·제품 축 적재는 살린다.
+    try:
+        sync_meta_ads(sb, since, today)
+    except Exception as ae:
+        print(f"⚠ 소재 적재 실패(광고비는 반영됨): {ae}")
     try:
         from heartbeat import record as hb
         latest = max((r["date"] for r in all_rows), default=None)
