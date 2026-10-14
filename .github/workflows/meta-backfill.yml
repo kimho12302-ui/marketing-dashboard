@@ -40,3 +40,25 @@ jobs:
           META_ADS_TOKEN: ${{ secrets.META_ADS_TOKEN }}
           ARG_SINCE: ${{ github.event.inputs.since }}
         run: python scripts/sync_meta_api.py "$ARG_SINCE"
+
+      # 수집이 끝났으니 대시보드(ppmi-dashboard) 5분 캐시를 지운다(2026-10-14). 앞 단계가 실패해도
+      # 일부는 DB 에 들어갔을 수 있어 always() 로 돈다. 이 단계가 실패해도 수집은 성공으로 둔다
+      # (캐시는 늦어도 5분 뒤 저절로 새로 읽는다). 실패하면 아래 요약 알림에 한 줄 뜬다.
+      # 시크릿 DASHBOARD_REVALIDATE_SECRET = Vercel ppmi-dashboard 환경변수 CRON_SECRET 과 같은 값.
+      - name: 대시보드 캐시 비우기
+        id: dashboard_revalidate
+        if: always()
+        continue-on-error: true
+        env:
+          REVALIDATE_SECRET: ${{ secrets.DASHBOARD_REVALIDATE_SECRET }}
+          DASHBOARD_URL: https://ppmi-dashboard-kappa.vercel.app
+        run: |
+          if [ -z "$REVALIDATE_SECRET" ]; then
+            echo "DASHBOARD_REVALIDATE_SECRET 미설정, 건너뜀 (캐시는 5분 뒤 저절로 새로 읽음)"
+            exit 0
+          fi
+          curl -sS --fail-with-body --max-time 30 --retry 2 --retry-all-errors \
+            -X POST "$DASHBOARD_URL/api/revalidate" \
+            -H "Authorization: Bearer $REVALIDATE_SECRET" \
+            -H "Content-Type: application/json" \
+            -d '{"tags":["all"]}'

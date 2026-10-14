@@ -164,6 +164,28 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: python scripts/check_meta_token.py
 
+      # 수집이 끝났으니 대시보드(ppmi-dashboard) 5분 캐시를 지운다(2026-10-14). 앞 단계가 실패해도
+      # 일부는 DB 에 들어갔을 수 있어 always() 로 돈다. 이 단계가 실패해도 수집은 성공으로 둔다
+      # (캐시는 늦어도 5분 뒤 저절로 새로 읽는다). 실패하면 아래 요약 알림에 한 줄 뜬다.
+      # 시크릿 DASHBOARD_REVALIDATE_SECRET = Vercel ppmi-dashboard 환경변수 CRON_SECRET 과 같은 값.
+      - name: 대시보드 캐시 비우기
+        id: dashboard_revalidate
+        if: always()
+        continue-on-error: true
+        env:
+          REVALIDATE_SECRET: ${{ secrets.DASHBOARD_REVALIDATE_SECRET }}
+          DASHBOARD_URL: https://ppmi-dashboard-kappa.vercel.app
+        run: |
+          if [ -z "$REVALIDATE_SECRET" ]; then
+            echo "DASHBOARD_REVALIDATE_SECRET 미설정, 건너뜀 (캐시는 5분 뒤 저절로 새로 읽음)"
+            exit 0
+          fi
+          curl -sS --fail-with-body --max-time 30 --retry 2 --retry-all-errors \
+            -X POST "$DASHBOARD_URL/api/revalidate" \
+            -H "Authorization: Bearer $REVALIDATE_SECRET" \
+            -H "Content-Type: application/json" \
+            -d '{"tags":["all"]}'
+
       # 실패가 1건 이상일 때만 텔레그램 1줄. 0건이면 침묵.
       # sync_heartbeat(source='workflow') 에도 남겨 관제판이 스텝 단위로 읽을 수 있게 한다.
       # outcome 값은 success/failure/skipped/cancelled 뿐이라 비밀값이 섞이지 않는다.
@@ -188,6 +210,7 @@ jobs:
             "DB→DataHub 시트": "${{ steps.sheet_datahub.outcome }}",
             "콘텐츠 인스타그램": "${{ steps.content_instagram.outcome }}",
             "콘텐츠 블로그 글수": "${{ steps.blog_posts.outcome }}",
-            "메타 토큰 감시": "${{ steps.meta_token.outcome }}"
+            "메타 토큰 감시": "${{ steps.meta_token.outcome }}",
+            "대시보드 캐시 비우기": "${{ steps.dashboard_revalidate.outcome }}"
             }
         run: python scripts/report_sync_failures.py
