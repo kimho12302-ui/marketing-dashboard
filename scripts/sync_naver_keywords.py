@@ -43,54 +43,15 @@ if END > TODAY:
     END = TODAY
 print(f"📅 처리 범위 {START} ~ {END}" + ("" if len(_dates) >= 2 else f"  (기본 최근 {DEFAULT_WINDOW_DAYS}일)"))
 
-CFG = os.path.expanduser("~/.naver-searchad/config.json")
 SB_URL = os.environ.get("SUPABASE_URL") or "https://phcfydxgwkmjiogerqmm.supabase.co"
 # 환경변수 우선, 없으면 레포 공통 상수. 워크플로에 SUPABASE 시크릿이 없어서
 # env 필수로 두면 daily-sync 에서 매번 조용히 죽는다(continue-on-error: true).
 SB_KEY = os.environ.get("SUPABASE_ANON_KEY") or "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBoY2Z5ZHhnd2ttamlvZ2VycW1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1Njg4NjQsImV4cCI6MjA4OTE0NDg2NH0.M0ThTSK0kBvN71rccvzQpr3dQuL52oRs_Tj9MT7VWRg"
 
-# ★ 네이버 검색광고 계정이 둘이다. 펫(너티·아이언펫·사입)과 밸런스랩이 별도 계정이라
-#   펫 설정 하나만 보면 밸런스랩 키워드가 영영 안 들어온다. 실제로 밸런스랩
-#   keyword_performance 가 2026-05-04 에서 멈춰 있었다(2026-09-29 확인).
 from bl_campaign_map import classify as bl_classify
-
-ACCOUNTS = [
-    {"name": "pet", "cfg": "~/.naver-searchad/config.json"},
-    {"name": "balancelab", "cfg": "~/.naver-searchad-balancelab/config.json"},
-]
-
-# api_get 이 지금 어느 계정으로 부르는지. 계정 루프가 갈아 끼운다.
-API_KEY = API_SECRET = CUSTOMER_ID = None
-BASE_URL = "https://api.searchad.naver.com"
-
-
-def use_account(path):
-    """계정 설정을 읽어 전역에 세팅. 파일이 없으면 False 를 돌려주고 호출부가 건너뛴다."""
-    global API_KEY, API_SECRET, CUSTOMER_ID, BASE_URL
-    full = os.path.expanduser(path)
-    if not os.path.exists(full):
-        return False
-    c = json.load(open(full, encoding="utf-8"))
-    API_KEY, API_SECRET, CUSTOMER_ID = c["api_key"], c["api_secret"], str(c["customer_id"])
-    BASE_URL = c.get("base_url", "https://api.searchad.naver.com")
-    return True
-
-
-def api_get(endpoint, params=None, retry=3):
-    for attempt in range(retry):
-        try:
-            ts = str(int(time.time() * 1000))
-            sig = base64.b64encode(hmac.new(API_SECRET.encode(), f"{ts}.GET.{endpoint}".encode(), hashlib.sha256).digest()).decode()
-            r = requests.get(BASE_URL + endpoint, headers={
-                "X-API-KEY": API_KEY, "X-Customer": CUSTOMER_ID,
-                "X-Timestamp": ts, "X-Signature": sig, "Content-Type": "application/json",
-            }, params=params, timeout=30)
-            r.raise_for_status()
-            return r.json()
-        except Exception:
-            if attempt == retry - 1:
-                raise
-            time.sleep(1)
+# 두 계정 순회(ACCOUNTS·use_account·api_get)는 공용 모듈로 옮겼다(2026-10-20).
+# 등록 키워드 목록 수집기(sync_naver_sa_keywords.py)가 같은 것을 쓴다.
+from naver_sa_api import ACCOUNTS, use_account, api_get
 
 
 def brand_from_campaign(campaign: str) -> str:

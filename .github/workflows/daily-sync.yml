@@ -121,6 +121,14 @@ jobs:
           ARG_END: ${{ github.event.inputs.end_date }}
         run: python scripts/sync_naver_search_terms.py $ARG_START $ARG_END --apply
 
+      # 등록 키워드 목록 매일 스냅샷 → naver_sa_keyword. 대시보드 키워드 탭 「추가할 키워드」가
+      # "이미 등록됐나"를 가르는 데 쓴다. 2026-10-20 신설. 날짜 인자 없음(오늘 기준, 30일 실적 포함).
+      # 표가 아직 없으면(SQL 실행 전) 경고만 찍고 성공으로 끝난다. API 실패는 아무것도 안 쓰고 실패.
+      - name: Naver 등록 키워드 목록 (추가 후보 판정용)
+        id: naver_sa_keyword
+        continue-on-error: true
+        run: python scripts/sync_naver_sa_keywords.py --apply
+
       - name: DB → 브랜드별 Paid 시트
         id: sheet_all_brands
         continue-on-error: true
@@ -205,6 +213,7 @@ jobs:
             "네이버 SA": "${{ steps.naver_sa.outcome }}",
             "네이버 키워드": "${{ steps.naver_keywords.outcome }}",
             "네이버 검색어": "${{ steps.naver_search_terms.outcome }}",
+            "네이버 등록 키워드": "${{ steps.naver_sa_keyword.outcome }}",
             "DB→브랜드별 Paid 시트": "${{ steps.sheet_all_brands.outcome }}",
             "DB→[Q]Paid 시트": "${{ steps.sheet_bl_paid.outcome }}",
             "DB→DataHub 시트": "${{ steps.sheet_datahub.outcome }}",
