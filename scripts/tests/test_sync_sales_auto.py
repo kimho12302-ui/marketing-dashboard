@@ -80,3 +80,9 @@ def test_map_brand_matches_rebuild_rules():
     assert map_brand("오리젠", "사입") == "saip"
     assert map_brand("", "") == "unknown"
     assert map_brand("공동구매", "밸런스랩") == "balancelab"
+
+
+def test_seller_order_fixed_regardless_of_input_order():
+    """DB 표에는 입력 순서가 없다. 시작일 → 마감일 → 이름 순으로 잇는다(보정 SQL 이름과 같음)."""
+    assert seller_for("2026-01-27", list(reversed(SCHEDULE))) == "여울맘·도다미네"
+    assert seller_for("2026-01-27", SCHEDULE) == "여울맘·도다미네"

@@ -52,7 +52,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # 파싱 규칙·접속 정보는 한 곳에만 둔다.
 # 연도는 A열에서 파싱한다(하드코딩 금지, 2026-07-02 매출 어긋남의 근본원인).
 import heartbeat  # noqa: E402
-from sync_sales_auto import parse_date, clean_revenue, map_channel  # noqa: E402
+# 브랜드·공구 셀러(lineup) 규칙도 sync_sales_auto 한 곳에서만 정한다(2026-10-28). 여기서 다시 쓰지 않는다.
+from sync_sales_auto import (  # noqa: E402
+    clean_revenue, is_gonggu, load_gonggu_schedule, map_brand, map_channel, parse_date, resolve_lineup,
+)
 
 SA_JSON = os.path.expanduser("~/.naver-searchad/google-service-account.json")
 SHEET_ID = "1FzxDCyR9FyAIduf7Q0lfUIOzvSqVlod21eOFqaPrXio"
@@ -70,27 +73,8 @@ INSERT_CHUNK = 500
 ALL_BRANDS = {"balancelab", "nutty", "ironpet", "saip"}
 
 
-def map_brand_full(brand_str, category_str=None):
-    """시트 카테고리·브랜드명 → DB brand.
-
-    `sync_sales_auto.map_brand` 와 같되 카테고리 '하루가꿈' 을 balancelab 으로 더 받는다.
-    하루가꿈은 밸런스랩 라인이고 DB 에 이미 brand='balancelab' 로 5행 들어가 있다.
-    이 갈래가 없으면 전체 재빌드가 그 행들을 unknown 으로 떨어뜨려 삭제한다.
-    """
-    combined = f"{str(category_str or '').lower()} {str(brand_str).lower()}"
-    if "너티" in combined or "nutty" in combined:
-        return "nutty"
-    if "아이언펫" in combined or "ironpet" in combined:
-        return "ironpet"
-    if any(k in combined for k in ("파미나", "닥터레이", "테라카니스", "고네이티브")):
-        return "saip"
-    if any(k in combined for k in ("밸런스랩", "자체판매", "공동구매", "큐모발", "하루가꿈")):
-        return "balancelab"
-    # 업로드 폼(upload-sales detectBrand)과 같은 규칙: 너티·아이언펫·밸런스랩이 아닌 브랜드는 사입.
-    # 이름 목록으로만 받으면 새 사입 브랜드(오리젠·나우·게더, 2026-09)가 unknown 으로 떨어져 재빌드가 지운다.
-    if str(brand_str or "").strip():
-        return "saip"
-    return "unknown"
+# 예전 이름. 규칙 본문은 sync_sales_auto.map_brand 하나다(하루가꿈·그 외 브랜드는 사입 갈래 포함).
+map_brand_full = map_brand
 
 
 def safe_int(value):
@@ -105,8 +89,14 @@ def read_sheet():
     return ws.get_all_values()[DATA_START_ROW:]
 
 
-def parse_rows(sheet_rows, brands, since):
-    """시트 원본 행 → 정규화된 행 목록 + 파싱 통계."""
+def parse_rows(sheet_rows, brands, since, schedule):
+    """시트 원본 행 → 정규화된 행 목록 + 파싱 통계.
+
+    lineup 은 sync_sales_auto.resolve_lineup 으로 정한다. F열 값 > (밸런스랩 E열 '공동구매'면)
+    공구 일정표 셀러(겹치면 '·', 없으면 '기타') > 빈 문자열. 예전엔 F열만 봐서 셀러 이름이 빈
+    공동구매 줄이 자체로 들어가고, 같은 날 같은 상품의 자체 줄과 한 행으로 합쳐졌다(2025-12~2026-05).
+    schedule 은 load_gonggu_schedule 결과(못 읽으면 빈 목록 → '기타').
+    """
     parsed, stats = [], defaultdict(int)
     for idx, raw in enumerate(sheet_rows, start=DATA_START_ROW + 1):
         if len(raw) < MIN_COLS:
@@ -119,7 +109,7 @@ def parse_rows(sheet_rows, brands, since):
         if since and date < since:
             stats["before_since"] += 1
             continue
-        brand = map_brand_full(raw[COL_BRAND], raw[COL_CATEGORY])
+        brand = map_brand(raw[COL_BRAND], raw[COL_CATEGORY])
         if brand == "unknown":
             stats["unknown_brand"] += 1
             continue
@@ -140,7 +130,7 @@ def parse_rows(sheet_rows, brands, since):
             "brand": brand,
             "channel": map_channel(raw[COL_CHANNEL]),
             "category": raw[COL_CATEGORY],
-            "lineup": raw[COL_LINEUP],
+            "lineup": resolve_lineup(date, brand, raw[COL_BRAND], raw[COL_LINEUP], schedule),
             "product": raw[COL_PRODUCT],
             "quantity": safe_int(raw[COL_QTY]),
             "revenue": revenue,
@@ -188,10 +178,10 @@ def aggregate(parsed):
     return list(prod.values()), list(daily.values())
 
 
-def fetch_db(sb, table, brands, since):
+def fetch_db(sb, table, brands, since, columns="date,brand,channel,revenue"):
     rows, page, size = [], 0, 1000
     while True:
-        q = (sb.table(table).select("date,brand,channel,revenue").in_("brand", sorted(brands))
+        q = (sb.table(table).select(columns).in_("brand", sorted(brands))
              .order("date").order("id").range(page * size, page * size + size - 1))
         # id 까지 정렬해야 페이지 경계에서 같은 날짜 행이 중복·누락되지 않는다(2026-09-18 한 행 누락 실측).
         if since:
@@ -230,6 +220,33 @@ def print_delta(label, sheet_rows, db_rows):
     return {"sheet_rows": tot_sr, "db_rows": tot_dr,
             "sheet_revenue": tot_sv, "db_revenue": tot_dv,
             "row_delta": tot_sr - tot_dr, "revenue_delta": tot_sv - tot_dv}
+
+
+def by_month_gonggu(rows):
+    """밸런스랩 월별 공구/자체 매출. 공구 판정은 대시보드 isGonggu 와 같은 sync_sales_auto.is_gonggu."""
+    out = defaultdict(lambda: {"gonggu": 0.0, "self": 0.0})
+    for r in rows:
+        if r["brand"] != "balancelab":
+            continue
+        out[str(r["date"])[:7]]["gonggu" if is_gonggu(r) else "self"] += float(r.get("revenue") or 0)
+    return out
+
+
+def print_gonggu_split(sheet_rows, db_rows):
+    """product_sales 밸런스랩 월별 공구/자체 대조 (시트 재빌드 vs 현재 DB)."""
+    s, d = by_month_gonggu(sheet_rows), by_month_gonggu(db_rows)
+    months = sorted(set(s) | set(d))
+    if not months:
+        return {}
+    print("\n-- 밸런스랩 product_sales 월별 공구/자체 (시트 재빌드 vs 현재 DB)")
+    print(f"   {'월':<9}{'시트 공구':>14}{'DB 공구':>14}{'공구Δ':>12}{'시트 자체':>14}{'DB 자체':>14}{'자체Δ':>12}")
+    out = {}
+    for m in months:
+        sg, dg, ss, ds = s[m]["gonggu"], d[m]["gonggu"], s[m]["self"], d[m]["self"]
+        flag = "" if abs(sg - dg) < 1 and abs(ss - ds) < 1 else "  <<"
+        print(f"   {m:<9}{sg:>14,.0f}{dg:>14,.0f}{sg - dg:>12,.0f}{ss:>14,.0f}{ds:>14,.0f}{ss - ds:>12,.0f}{flag}")
+        out[m] = {"sheet_gonggu": sg, "db_gonggu": dg, "sheet_self": ss, "db_self": ds}
+    return out
 
 
 def select_gaps(product_rows, daily_rows, db_product, db_daily):
@@ -301,7 +318,12 @@ def main():
     sheet_rows = read_sheet()
     print(f"1) 시트 {len(sheet_rows)}행 로드")
 
-    parsed, stats = parse_rows(sheet_rows, brands, args.since)
+    # 공구 일정표는 셀러 이름이 빈 공동구매 줄의 lineup 을 정하는 데 쓴다(읽기만).
+    sb = create_client(heartbeat.SUPABASE_URL, heartbeat.SUPABASE_KEY)
+    schedule = load_gonggu_schedule(sb)
+    print(f"   공구 일정표 {len(schedule)}건")
+
+    parsed, stats = parse_rows(sheet_rows, brands, args.since, schedule)
     print(f"2) 파싱: 채택 {stats.get('kept', 0)}행")
     for k in ("short_row", "bad_date", "bad_revenue", "zero_revenue",
               "unknown_brand", "other_brand", "before_since"):
@@ -314,17 +336,17 @@ def main():
     product_rows, daily_rows = aggregate(parsed)
     print(f"3) 집계: product_sales {len(product_rows)}행 / daily_sales {len(daily_rows)}행")
 
-    sb = create_client(heartbeat.SUPABASE_URL, heartbeat.SUPABASE_KEY)
     summary = {
         "mode": "apply" if apply else "dry-run",
         "brands": sorted(brands),
         "since": args.since,
         "parse_stats": stats,
     }
-    db_product = fetch_db(sb, "product_sales", brands, args.since)
+    db_product = fetch_db(sb, "product_sales", brands, args.since, columns="date,brand,channel,lineup,revenue")
     db_daily = fetch_db(sb, "daily_sales", brands, args.since)
     summary["product_sales"] = print_delta("product_sales", product_rows, db_product)
     summary["daily_sales"] = print_delta("daily_sales", daily_rows, db_daily)
+    summary["balancelab_gonggu_split"] = print_gonggu_split(product_rows, db_product)
 
     # 시트에 없는 (날짜, 브랜드) 는 삭제 대상이 아니다. 삭제는 시트에 행이 있는 날짜만 돈다.
     # 위 대조표의 마이너스 Δ 를 "지워질 금액" 으로 오독하지 않도록 따로 찍는다.

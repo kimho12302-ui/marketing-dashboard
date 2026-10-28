@@ -67,7 +67,7 @@ def clean_revenue(rev_str):
     return int(str(rev_str).replace(",", "").replace("원", "").strip())
 
 def map_brand(brand_str, category_str=None):
-    """시트 카테고리·브랜드명 → DB brand. rebuild_sales_full.map_brand_full 과 같은 규칙.
+    """시트 카테고리·브랜드명 → DB brand. rebuild_sales_full 도 이 함수를 그대로 쓴다(규칙 한 곳).
 
     2026-10-28: '하루가꿈' 과 '그 외 브랜드는 사입' 갈래를 맞췄다. 없으면 새 사입 브랜드
     (오리젠·나우 등)가 brand='unknown' 으로 들어간다(6~10월 27행).
@@ -119,13 +119,21 @@ def load_gonggu_schedule(sb):
         return []
     return sorted(
         ({"seller": r["seller"], "start_on": str(r["start_on"])[:10], "end_on": str(r["end_on"])[:10]} for r in data),
-        key=lambda w: (w["start_on"], w["seller"]),
+        key=_window_order,
     )
 
 
+def _window_order(w):
+    """겹친 셀러를 잇는 순서: 시작일 → 마감일 → 이름. DB 표에는 입력 순서가 없으므로 고정한다.
+    2026-10-28 보정 SQL 의 이름(예: 1/26~29 '여울맘·도다미네', 12/22 '반짝마미·웰씨맘')과 같은 순서다.
+    대시보드 lib/gonggu.ts gongguSellerOn 도 같은 순서로 잇는다."""
+    return (str(w["start_on"])[:10], str(w["end_on"])[:10], w["seller"])
+
+
 def seller_for(date, schedule):
-    """그날 걸린 공구 셀러. 여럿이면 '·' 로 잇고, 없으면 '기타'."""
-    hits = [w["seller"] for w in schedule if w["start_on"] <= date <= w["end_on"]]
+    """그날 걸린 공구 셀러. 여럿이면 '·' 로 잇고(_window_order 순), 없으면 '기타'."""
+    hits = [w["seller"] for w in sorted(schedule, key=_window_order)
+            if str(w["start_on"])[:10] <= date <= str(w["end_on"])[:10]]
     return SELLER_JOIN.join(hits) if hits else UNKNOWN_SELLER
 
 
